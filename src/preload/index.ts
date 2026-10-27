@@ -48,6 +48,12 @@ const api: DesktopApi = {
     ipcRenderer.invoke(IPC_CHANNELS.setTaskCompleted, id, completed),
   convertToMultiDay: (id) => ipcRenderer.invoke(IPC_CHANNELS.convertToMultiDay, id),
   setTaskProgress: (id, progress) => ipcRenderer.invoke(IPC_CHANNELS.setTaskProgress, id, progress),
+  addSubitem: (id, description) => ipcRenderer.invoke(IPC_CHANNELS.addSubitem, id, description),
+  updateSubitem: (id, subitemId, description) =>
+    ipcRenderer.invoke(IPC_CHANNELS.updateSubitem, id, subitemId, description),
+  setSubitemCompleted: (id, subitemId, completed) =>
+    ipcRenderer.invoke(IPC_CHANNELS.setSubitemCompleted, id, subitemId, completed),
+  deleteSubitem: (id, subitemId) => ipcRenderer.invoke(IPC_CHANNELS.deleteSubitem, id, subitemId),
   deleteTask: (id) => ipcRenderer.invoke(IPC_CHANNELS.deleteTask, id),
   openWindow: (kind) => ipcRenderer.invoke(IPC_CHANNELS.openWindow, kind),
   onTasksChanged: (listener) => {

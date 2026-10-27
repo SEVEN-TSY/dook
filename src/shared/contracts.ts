@@ -77,6 +77,14 @@ export interface DesktopApi {
   setTaskCompleted: (id: string, completed: boolean) => Promise<ApiResult<Task>>
   convertToMultiDay: (id: string) => Promise<ApiResult<Task>>
   setTaskProgress: (id: string, progress: number) => Promise<ApiResult<Task>>
+  addSubitem: (id: string, description: string) => Promise<ApiResult<Task>>
+  updateSubitem: (id: string, subitemId: string, description: string) => Promise<ApiResult<Task>>
+  setSubitemCompleted: (
+    id: string,
+    subitemId: string,
+    completed: boolean
+  ) => Promise<ApiResult<Task>>
+  deleteSubitem: (id: string, subitemId: string) => Promise<ApiResult<Task>>
   deleteTask: (id: string) => Promise<ApiResult<boolean>>
   openWindow: (kind: WindowKind) => Promise<ApiResult<void>>
   onTasksChanged: (listener: () => void) => () => void
@@ -104,6 +112,12 @@ export interface Habit {
   description: string
 }
 
+export interface Subitem {
+  id: string
+  description: string
+  completed: boolean
+}
+
 export interface Task {
   id: string
   description: string
@@ -113,6 +127,7 @@ export interface Task {
   kind: 'today' | 'multi-day'
   progress: number
   completedOn: string | null
+  subitems?: Subitem[]
 }
 
 export interface TodayTasks {

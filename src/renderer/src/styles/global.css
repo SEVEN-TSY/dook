@@ -678,3 +678,55 @@ h1 {
   color: #526fc4;
   background: #eef2fb;
 }
+
+.subitems-toggle {
+  border: 0;
+  background: transparent;
+  color: #6a7588;
+  font-size: 11px;
+  padding: 3px 0;
+}
+.subitems-list {
+  padding: 4px 0 2px;
+}
+.subitem-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+}
+.subitem-description {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: #303744;
+  font-size: 12px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.subitem-completed .subitem-description {
+  color: #939baa;
+  text-decoration: line-through;
+}
+.subitem-delete {
+  border: 0;
+  background: transparent;
+  color: #8a94a5;
+  padding: 2px 4px;
+}
+.subitem-new,
+.subitem-row input:not([type='checkbox']) {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #e5eaf1;
+  border-radius: 4px;
+  padding: 5px 6px;
+  background: #fff;
+  color: #303744;
+  font-size: 12px;
+}
+.subitem-new {
+  margin-top: 4px;
+}

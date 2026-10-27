@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { DesktopState, WindowKind } from '../../../../shared/contracts'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
+import { SubitemsPanel } from './SubitemsPanel'
 import { useTasks } from './useTasks'
 import { useTaskInput } from './useTaskInput'
 import { HabitsPanel } from '../habits/HabitsPanel'
@@ -50,6 +51,20 @@ export function TasksPage({
       habitSave.current = async () => true
     }
   }, [])
+  const subitemSaves = useRef(new Map<string, () => Promise<boolean>>())
+  const subitemInteractions = useRef(new Set<string>())
+  const [subitemEditing, setSubitemEditing] = useState(false)
+  const onSubitemSaveReady = useCallback((id: string, save: () => Promise<boolean>) => {
+    subitemSaves.current.set(id, save)
+    return () => {
+      subitemSaves.current.delete(id)
+    }
+  }, [])
+  const onSubitemInteraction = useCallback((id: string, active: boolean) => {
+    if (active) subitemInteractions.current.add(id)
+    else subitemInteractions.current.delete(id)
+    setSubitemEditing(subitemInteractions.current.size > 0)
+  }, [])
   const flush = useRef(async () => true)
   const clickOutside = useRef((_target: EventTarget | null) => {})
   clickOutside.current = (target) => {
@@ -63,7 +78,8 @@ export function TasksPage({
       inspirationAdded.save(),
       edited.save(),
       habitSave.current(),
-      inspirationPanel.current?.save() ?? true
+      inspirationPanel.current?.save() ?? true,
+      ...Array.from(subitemSaves.current.values(), (save) => save())
     ])
     return results.every(Boolean)
   }
@@ -88,9 +104,18 @@ export function TasksPage({
         (inputFocused && Boolean(added.value.trim())) ||
           editing !== null ||
           inspirationEditing ||
+          subitemEditing ||
           progressFocused
       )
-  }, [kind, inputFocused, added.value, editing, inspirationEditing, progressFocused])
+  }, [
+    kind,
+    inputFocused,
+    added.value,
+    editing,
+    inspirationEditing,
+    subitemEditing,
+    progressFocused
+  ])
   useEffect(() => {
     if (today) taskAdded.reconcile(today.tasks)
     if (editing && today && !today.tasks.some((task) => task.id === editing)) {
@@ -289,7 +314,8 @@ export function TasksPage({
                     data-testid="task-progress"
                     aria-label={`进度：${task.description}`}
                     value={task.progress}
-                    disabled={busy}
+                    disabled={busy || Boolean(task.subitems?.length)}
+                    aria-readonly={Boolean(task.subitems?.length)}
                     onChange={(event) => void progress(task.id, Number(event.target.value))}
                     onFocus={() => setProgressFocused(true)}
                     onBlur={() => setProgressFocused(false)}
@@ -297,6 +323,13 @@ export function TasksPage({
                   <span>{task.progress}%</span>
                 </label>
               )}
+              <SubitemsPanel
+                task={task}
+                changed={refresh}
+                report={setError}
+                onSaveReady={onSubitemSaveReady}
+                onInteraction={onSubitemInteraction}
+              />
             </div>
             {task.kind === 'today' && (
               <button
@@ -334,7 +367,9 @@ export function TasksPage({
               data-testid="task-delete"
               disabled={busy}
               aria-label={`删除：${task.description}`}
-              onClick={() => void remove(task.id)}
+              onClick={async () => {
+                if (await flush.current()) await remove(task.id)
+              }}
             >
               ×
             </button>
