@@ -13,10 +13,11 @@ export function createWindow(kind: WindowKind): BrowserWindow {
     minHeight: note ? 260 : 480,
     frame: !note,
     thickFrame: !note,
+    transparent: note,
     skipTaskbar: note,
     title: note ? 'myTodo · 桌面便签' : 'myTodo',
     alwaysOnTop: note,
-    backgroundColor: '#FAFBFE',
+    backgroundColor: note ? '#00000000' : '#FAFBFE',
     show: false,
     autoHideMenuBar: true,
     webPreferences: {

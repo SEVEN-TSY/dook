@@ -8,6 +8,7 @@ interface InputSession {
   text: string
   saved: string
   observed?: boolean
+  cancelled?: boolean
 }
 
 /** 一轮输入绑定一个真实任务；串行保存并追赶保存过程中产生的新输入。 */
@@ -46,6 +47,7 @@ export function useTaskInput(
     const persist = async () => {
       try {
         while (session.current === current) {
+          if (current.cancelled) return true
           if (composing.current) {
             compositionSave.current = true
             return false
@@ -74,6 +76,7 @@ export function useTaskInput(
     }
     pending.current = persist().finally(() => {
       pending.current = null
+      redraw()
     })
     return pending.current
   }
@@ -89,8 +92,10 @@ export function useTaskInput(
     return false
   }
   const cancel = async () => {
+    const current = session.current
+    current.cancelled = true
     if (pending.current) await pending.current
-    start()
+    if (session.current === current) start()
     report('')
   }
   const reconcile = (tasks: Task[]) => {
@@ -109,6 +114,11 @@ export function useTaskInput(
   return {
     value: session.current.text,
     id: session.current.id,
+    saved:
+      !pending.current &&
+      Boolean(session.current.id) &&
+      session.current.text.trim() === session.current.saved,
+    saving: Boolean(pending.current),
     start,
     setValue,
     save,

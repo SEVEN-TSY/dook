@@ -51,7 +51,7 @@ export class NoteController {
     this.timer = setInterval(() => this.trackPointer(), 50)
   }
 
-  state(): DesktopState {
+  state(): Omit<DesktopState, 'exitPending'> {
     return {
       settings: { ...this.preferences.settings },
       pinned: this.edge !== null || this.freePinned,

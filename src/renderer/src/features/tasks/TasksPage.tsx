@@ -45,6 +45,7 @@ export function TasksPage({
     if (today) added.reconcile(today.tasks)
     if (editing && today && !today.tasks.some((task) => task.id === editing)) {
       setEditing(null)
+      setInputFocused(false)
       void edited.cancel()
     }
   }, [today, editing])
@@ -54,7 +55,10 @@ export function TasksPage({
   }
   const save = async (event: FormEvent) => {
     event.preventDefault()
-    if (editing && (await edited.submit())) setEditing(null)
+    if (editing && (await edited.submit())) {
+      setEditing(null)
+      setInputFocused(false)
+    }
   }
   const openOther = async () => {
     try {
@@ -181,7 +185,10 @@ export function TasksPage({
                   onKeyDown={(event) => {
                     if (event.nativeEvent.isComposing || event.keyCode === 229) return
                     if (event.key === 'Escape') {
-                      void edited.cancel().then(() => setEditing(null))
+                      void edited.cancel().then(() => {
+                        setEditing(null)
+                        setInputFocused(false)
+                      })
                     }
                     if (event.key === 'Enter') {
                       event.preventDefault()
@@ -252,7 +259,11 @@ export function TasksPage({
         />
       </form>
       <footer className="task-footer">
-        {added.id ? '已保存 · 继续修改，回车记下一项' : '自动保存 · 回车记下一项 · Esc结束编辑'}
+        {added.saving
+          ? '正在保存…'
+          : added.saved
+            ? '已保存 · 继续修改，回车记下一项'
+            : '自动保存 · 回车记下一项 · Esc结束编辑'}
       </footer>
     </section>
   )

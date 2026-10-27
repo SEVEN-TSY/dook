@@ -27,9 +27,11 @@ export class Desktop {
   readonly saves = new SaveBarrier()
   private readonly loading = new Map<WindowKind, Promise<void>>()
   private readonly hiding = new Map<BrowserWindow, Promise<void>>()
+  private readonly visibleIntent = new Map<BrowserWindow, boolean>()
   private tray?: Tray
   private note?: NoteController
   private exiting = false
+  private preparingQuit = false
 
   constructor(
     private readonly directory: string,
@@ -66,7 +68,7 @@ export class Desktop {
   }
 
   async openWindow(kind: WindowKind): Promise<void> {
-    if (this.exiting) return
+    if (this.exiting || this.preparingQuit) return
     let window = this.windows.get(kind)
     if (!window || window.isDestroyed()) {
       window = createWindow(kind)
@@ -82,14 +84,24 @@ export class Desktop {
       window.on('minimize', () => {
         if (kind === 'main' && !this.exiting) void this.hide(current)
       })
-      window.on('closed', () => this.windows.delete(kind))
+      window.on('closed', () => {
+        this.windows.delete(kind)
+        this.visibleIntent.delete(current)
+      })
       this.loading.set(
         kind,
         loadWindow(window, kind).finally(() => this.loading.delete(kind))
       )
     }
+    this.visibleIntent.set(window, true)
     await this.loading.get(kind)
-    if (window.isDestroyed() || this.exiting) return
+    if (
+      window.isDestroyed() ||
+      this.exiting ||
+      this.preparingQuit ||
+      !this.visibleIntent.get(window)
+    )
+      return
     if (kind === 'note') this.note?.show()
     else {
       if (window.isMinimized()) window.restore()
@@ -100,13 +112,13 @@ export class Desktop {
 
   state() {
     if (!this.note) throw new Error('桌面便签尚未就绪。')
-    return this.note.state()
+    return { ...this.note.state(), exitPending: this.preparingQuit }
   }
 
   private broadcast() {
     if (!this.note) return
     for (const window of this.windows.values())
-      if (!window.isDestroyed()) window.webContents.send(WINDOW_STATE, this.note.state())
+      if (!window.isDestroyed()) window.webContents.send(WINDOW_STATE, this.state())
   }
 
   updateSettings(settings: Parameters<NoteController['updateSettings']>[0]) {
@@ -124,6 +136,8 @@ export class Desktop {
   }
 
   hide(window: BrowserWindow): Promise<void> {
+    if (this.preparingQuit || this.exiting) return Promise.resolve()
+    this.visibleIntent.set(window, false)
     const existing = this.hiding.get(window)
     if (existing) return existing
     const result = this.protect(async () => {
@@ -131,7 +145,7 @@ export class Desktop {
         await this.restoreFailedSave(window)
         return
       }
-      if (this.exiting || window.isDestroyed()) return
+      if (this.exiting || window.isDestroyed() || this.visibleIntent.get(window)) return
       if (window === this.windows.get('note')) this.note?.hide()
       else window.hide()
     }).finally(() => this.hiding.delete(window))
@@ -155,6 +169,9 @@ export class Desktop {
   }
 
   async prepareQuit(): Promise<boolean> {
+    this.preparingQuit = true
+    this.broadcast()
+    await Promise.all(this.loading.values())
     const results = await this.protect(() =>
       Promise.all(
         [...this.windows.values()].map(async (window) => ({
@@ -165,6 +182,8 @@ export class Desktop {
     )
     const failed = results.find((result) => !result.ok)
     if (failed) {
+      this.preparingQuit = false
+      this.broadcast()
       await this.restoreFailedSave(failed.window)
       return false
     }

@@ -51,6 +51,7 @@ const rows = (window) =>
   )
 const count = (window, n) => waitFor(async () => (await rows(window)).length === n, `任务数量${n}`)
 async function input(window, selector, value, key = 'Enter') {
+  window.focus()
   await waitFor(
     () =>
       js(
@@ -91,6 +92,7 @@ const click = async (window, selector) => {
       ),
     `控件可操作：${selector}`
   )
+  window.focus()
   return js(window, `document.querySelector(${JSON.stringify(selector)}).click()`)
 }
 async function edit(window, value, key = 'Enter') {
@@ -146,6 +148,10 @@ async function dockingSmoke(main, note) {
     assert.equal((await state(note)).collapsed, false, '行内编辑保护')
     note.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' })
     note.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' })
+    await waitFor(
+      () => js(note, '!document.querySelector("[data-testid=task-edit]")'),
+      '结束行内编辑'
+    )
     await js(note, 'document.activeElement?.blur()')
     await waitFor(async () => (await state(note)).collapsed, '编辑结束恢复收起')
     trayClick()
@@ -274,6 +280,24 @@ async function runSmoke() {
       await count(note, 1)
       await input(note, '[data-testid=task-new]', '更新进展')
       await count(main, 2)
+      await click(main, '[data-testid=task-description]')
+      await js(
+        main,
+        `(() => {
+        const field = document.querySelector('[data-testid=task-edit]');
+        const set = value => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(field, value); field.dispatchEvent(new Event('input', { bubbles: true })); };
+        set('已提交的版本'); field.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }));
+        set('Esc应取消的排队版本'); field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      })()`
+      )
+      await waitFor(
+        async () => (await rows(note))[0].description === '已提交的版本',
+        'Esc保留已提交版本'
+      )
+      await waitFor(
+        () => js(main, '!document.querySelector("[data-testid=task-edit]")'),
+        'Esc取消后续排队修改'
+      )
       for (const window of [main, note]) {
         const other = window === main ? note : main
         const original = (await rows(window))[0].description
@@ -358,6 +382,10 @@ async function runSmoke() {
       await waitFor(() => note.isVisible() && note.isFocused(), '托盘恢复并聚焦')
       trayClick()
       assert.equal(BrowserWindow.getAllWindows().length, 2)
+      note.close()
+      trayClick()
+      await new Promise((resolveWait) => setTimeout(resolveWait, 300))
+      assert.equal(note.isVisible(), true, '保存握手期间的新唤出优先于旧隐藏请求')
       menuClick('打开主界面')
       await waitFor(() => main.isVisible(), '恢复主界面')
     } else {
@@ -392,6 +420,8 @@ async function runSmoke() {
       }
       await count(main, 2)
       await count(note, 2)
+      await input(note, '[data-testid=task-new]', '先成功保存', 'mouseleave')
+      await count(main, 3)
       const lock = new DatabaseSync(resolve(process.env.MYTODO_SMOKE_DATA, 'mytodo.sqlite'))
       let saveFailures = 0
       dialog.showMessageBox = async (_window, options) => {
@@ -411,6 +441,11 @@ async function runSmoke() {
         assert.match(
           await js(note, 'document.querySelector("[role=alert]").textContent'),
           /locked|锁/i
+        )
+        assert.doesNotMatch(
+          await js(note, 'document.querySelector(".task-footer").textContent'),
+          /已保存/,
+          '失败的后续修改不显示已保存'
         )
       } finally {
         lock.exec('ROLLBACK')
@@ -459,7 +494,29 @@ async function runSmoke() {
       )
     }
     console.log(`Electron smoke passed: ${phase}`)
-    if (phase === 'create') await input(note, '[data-testid=task-new]', '退出前保存', null)
+    if (phase === 'create') {
+      await input(note, '[data-testid=task-new]', '退出前保存', null)
+      let failedQuit = false
+      dialog.showMessageBox = async (_window, options) => {
+        if (options.type === 'error') failedQuit = true
+        return { response: 0, checkboxChecked: false }
+      }
+      await js(
+        main,
+        `(() => {
+        window.myTodo.onWindowState(state => { if (state.exitPending) window.smokeExitLocked = document.body.inert });
+        document.querySelector('[data-testid=task-new]').dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+      })()`
+      )
+      menuClick('退出')
+      await waitFor(() => failedQuit, '退出保存失败时保留应用')
+      assert.equal(await js(main, 'window.smokeExitLocked'), true, '退出准备期间立即阻止新增输入')
+      assert.equal(await js(main, 'document.body.inert'), false, '退出失败后解除输入锁')
+      await js(
+        main,
+        `document.querySelector('[data-testid=task-new]').dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }))`
+      )
+    }
     menuClick('退出')
   } catch (error) {
     console.error(error)

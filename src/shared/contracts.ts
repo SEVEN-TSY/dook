@@ -74,6 +74,7 @@ export interface WindowSettings {
   edgeAutoHide: boolean
 }
 export interface DesktopState {
+  exitPending: boolean
   settings: WindowSettings
   pinned: boolean
   edge: DockEdge | null

@@ -11,25 +11,37 @@ export function App() {
   useEffect(() => {
     const api = getDesktopApi()
     let receivedChange = false
+    const applyState = (state: DesktopState) => {
+      // 同步阻止新的人机输入，避免退出屏障确认后、另一窗口尚在保存时再次变更。
+      document.body.inert = state.exitPending
+      setDesktop(state)
+    }
     const unsubscribe = api.onWindowState((state) => {
       receivedChange = true
-      setDesktop(state)
+      applyState(state)
     })
     void api
       .getWindowState()
       .then(unwrap)
       .then((state) => {
-        if (!receivedChange) setDesktop(state)
+        if (!receivedChange) applyState(state)
       })
       .catch((error) => setError(String(error)))
-    return unsubscribe
+    return () => {
+      unsubscribe()
+      document.body.inert = false
+    }
   }, [])
   const kind =
     new URLSearchParams(window.location.search).get('window') === 'note' ? 'note' : 'main'
   const collapsed = kind === 'note' && Boolean(desktop?.collapsed)
+  useEffect(() => {
+    document.documentElement.dataset.window = kind
+  }, [kind])
   return (
     <>
       {error && <p role="alert">{error}</p>}
+      {desktop?.exitPending && <div className="exit-pending">正在保存并退出…</div>}
       <TasksPage
         kind={kind}
         desktop={desktop}

@@ -51,6 +51,15 @@ p {
   padding: 12px 16px;
   height: 100vh;
   overflow: hidden;
+  margin: 6px;
+  min-height: 0;
+  height: calc(100vh - 12px);
+  border: 1px solid #e5eaf1;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px #30374424;
+}
+html[data-window='note'] {
+  background: transparent;
 }
 .note > :not(.task-list) {
   flex-shrink: 0;
@@ -407,4 +416,14 @@ h1 {
   color: #8792a4;
   font-size: 12px;
   margin-top: 28px;
+}
+.exit-pending {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: #fafbfee8;
+  color: #526fc4;
+  font-size: 13px;
 }
