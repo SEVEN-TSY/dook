@@ -65,6 +65,8 @@ export function useTasks() {
     complete: (task: Task) =>
       run(async () => unwrap(await getDesktopApi().setTaskCompleted(task.id, !task.completed))),
     convert: (id: string) => run(async () => unwrap(await getDesktopApi().convertToMultiDay(id))),
+    addHabit: (id: string) =>
+      run(async () => unwrap(await getDesktopApi().createHabitFromTask(id))),
     progress: async (id: string, value: number) => {
       try {
         unwrap(await getDesktopApi().setTaskProgress(id, value))

@@ -34,6 +34,22 @@ export class AppService {
     return this.habitStore().create(description.trim(), localDate(this.now()))
   }
 
+  createHabitFromTask(taskId: string): Habit {
+    return this.habitStore().createFromTask(this.taskId(taskId), localDate(this.now()))
+  }
+
+  updateHabit(id: string, description: string): Habit {
+    if (typeof id !== 'string' || !id) throw new Error('习惯标识无效。')
+    if (typeof description !== 'string' || !description.trim())
+      throw new Error('习惯描述不能为空。')
+    return this.habitStore().update(id, description.trim())
+  }
+
+  deleteHabit(id: string): void {
+    if (typeof id !== 'string' || !id) throw new Error('习惯标识无效。')
+    this.habitStore().delete(id)
+  }
+
   ensureDailyTasks(): boolean {
     return this.features.habits?.ensureToday(localDate(this.now())) ?? false
   }

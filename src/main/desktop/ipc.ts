@@ -87,6 +87,32 @@ export function registerIpc(handlers: Handlers): () => void {
   register(IPC_CHANNELS.createHabit, (_, description) =>
     mutate(() => handlers.service.createHabit(text(description)))
   )
+  register(IPC_CHANNELS.createHabitFromTask, (_, taskId) =>
+    mutate(() => handlers.service.createHabitFromTask(text(taskId)))
+  )
+  register(IPC_CHANNELS.updateHabit, (_, id, description) =>
+    mutate(() => handlers.service.updateHabit(text(id), text(description)))
+  )
+  register(IPC_CHANNELS.deleteHabit, async (window, id) => {
+    const habitId = text(id)
+    const habit = handlers.service.listHabits().find((item) => item.id === habitId)
+    if (!habit) throw new Error('习惯不存在，可能已删除。')
+    const result = await handlers.desktop.protect(() =>
+      dialog.showMessageBox(window, {
+        type: 'question',
+        title: '删除习惯',
+        message: '停止这个习惯？',
+        detail: `${habit.description}\n已生成的任务会保留。`,
+        buttons: ['取消', '删除'],
+        defaultId: 0,
+        cancelId: 0,
+        noLink: true
+      })
+    )
+    if (result.response !== 1) return false
+    mutate(() => handlers.service.deleteHabit(habitId))
+    return true
+  })
   register(IPC_CHANNELS.listToday, () => handlers.service.listToday())
   register(IPC_CHANNELS.listInspirations, () => handlers.service.listInspirations())
   register(IPC_CHANNELS.createInspiration, (_, description) =>

@@ -60,6 +60,9 @@ export interface DesktopApi {
   onSaveRequested: (listener: () => Promise<boolean>) => () => void
   listHabits: () => Promise<ApiResult<Habit[]>>
   createHabit: (description: string) => Promise<ApiResult<Habit>>
+  createHabitFromTask: (taskId: string) => Promise<ApiResult<Habit>>
+  updateHabit: (id: string, description: string) => Promise<ApiResult<Habit>>
+  deleteHabit: (id: string) => Promise<ApiResult<boolean>>
   listToday: () => Promise<ApiResult<TodayTasks>>
   listInspirations: () => Promise<ApiResult<Inspiration[]>>
   createInspiration: (description: string) => Promise<ApiResult<Inspiration>>

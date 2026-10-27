@@ -20,7 +20,8 @@ export function TasksPage({
   hidden: boolean
   openSettings: () => void
 }) {
-  const { today, error, busy, setError, refresh, complete, remove, convert, progress } = useTasks()
+  const { today, error, busy, setError, refresh, complete, remove, convert, progress, addHabit } =
+    useTasks()
   const [newKind, setNewKind] = useState<'task' | 'inspiration'>('task')
   const taskAdded = useTaskInput(today?.date, refresh, setError)
   const inspirationAdded = useInspirationInput(
@@ -308,6 +309,19 @@ export function TasksPage({
                 }}
               >
                 ↗
+              </button>
+            )}
+            {task.kind === 'today' && !task.habitId && (
+              <button
+                className="task-convert"
+                data-testid="task-to-habit"
+                disabled={busy}
+                aria-label={`添加为习惯：${task.description}`}
+                onClick={async () => {
+                  if (await flush.current()) await addHabit(task.id)
+                }}
+              >
+                ↻
               </button>
             )}
             {task.habitId && (

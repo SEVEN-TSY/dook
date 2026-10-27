@@ -4,5 +4,8 @@ import type { Habit } from '../../shared/contracts'
 export interface HabitStore {
   list(): Habit[]
   create(description: string, date: string): Habit
+  createFromTask(taskId: string, date: string): Habit
+  update(id: string, description: string): Habit
+  delete(id: string): void
   ensureToday(date: string): boolean
 }
