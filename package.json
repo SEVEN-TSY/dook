@@ -11,8 +11,8 @@
     "node": ">=24.15.0 <25"
   },
   "scripts": {
-    "dev": "electron-vite dev",
-    "start": "electron-vite preview",
+    "dev": "install-electron --no && electron-vite dev",
+    "start": "install-electron --no && electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "tsx --test tests/*.test.ts",
     "build": "npm run typecheck && electron-vite build",
