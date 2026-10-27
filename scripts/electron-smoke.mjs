@@ -83,6 +83,7 @@ async function input(window, selector, value, key = 'Enter') {
     )
   } else if (key) {
     window.webContents.sendInputEvent({ type: 'keyDown', keyCode: key })
+    if (key === 'Enter') window.webContents.sendInputEvent({ type: 'char', keyCode: key })
     window.webContents.sendInputEvent({ type: 'keyUp', keyCode: key })
   }
   await js(
