@@ -24,6 +24,46 @@ export class HabitRepository implements HabitStore {
     })
   }
 
+  createFromTask(taskId: string, date: string): Habit {
+    return this.transaction(() => {
+      const task = this.database
+        .prepare(
+          "SELECT description, habit_id FROM tasks WHERE id = ? AND date = ? AND kind = 'today'"
+        )
+        .get(taskId, date)
+      if (!task) throw new Error('今天任务不存在，可能已删除或日期已切换。')
+      if (task.habit_id !== null) {
+        const existing = this.database
+          .prepare('SELECT id, description FROM habits WHERE id = ?')
+          .get(task.habit_id)
+        if (!existing) throw new Error('该任务已关联过习惯。')
+        return { id: String(existing.id), description: String(existing.description) }
+      }
+      const habit = { id: randomUUID(), description: String(task.description) }
+      this.database
+        .prepare('INSERT INTO habits (id, description) VALUES (?, ?)')
+        .run(habit.id, habit.description)
+      this.database.prepare('UPDATE tasks SET habit_id = ? WHERE id = ?').run(habit.id, taskId)
+      this.database
+        .prepare('INSERT INTO habit_generations (habit_id, date, task_id) VALUES (?, ?, ?)')
+        .run(habit.id, date, taskId)
+      return habit
+    })
+  }
+
+  update(id: string, description: string): Habit {
+    const row = this.database
+      .prepare('UPDATE habits SET description = ? WHERE id = ? RETURNING id, description')
+      .get(description, id)
+    if (!row) throw new Error('习惯不存在，可能已删除。')
+    return { id: String(row.id), description: String(row.description) }
+  }
+
+  delete(id: string): void {
+    const result = this.database.prepare('DELETE FROM habits WHERE id = ?').run(id)
+    if (!result.changes) throw new Error('习惯不存在，可能已删除。')
+  }
+
   ensureToday(date: string): boolean {
     return this.transaction(() => {
       let changed = false

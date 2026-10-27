@@ -657,6 +657,28 @@ h1 {
   padding: 8px 2px;
 }
 
+.habit-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.habit-list li > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.habit-list button {
+  border: 0;
+  background: transparent;
+  color: #6a7588;
+  padding: 4px;
+  font-size: 12px;
+}
+.habit-list button:hover {
+  color: #526fc4;
+  background: #eef2fb;
+}
+
 .subitems-toggle {
   border: 0;
   background: transparent;

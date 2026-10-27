@@ -30,6 +30,9 @@ const api: DesktopApi = {
   },
   listHabits: () => ipcRenderer.invoke(IPC_CHANNELS.listHabits),
   createHabit: (description) => ipcRenderer.invoke(IPC_CHANNELS.createHabit, description),
+  createHabitFromTask: (taskId) => ipcRenderer.invoke(IPC_CHANNELS.createHabitFromTask, taskId),
+  updateHabit: (id, description) => ipcRenderer.invoke(IPC_CHANNELS.updateHabit, id, description),
+  deleteHabit: (id) => ipcRenderer.invoke(IPC_CHANNELS.deleteHabit, id),
   listToday: () => ipcRenderer.invoke(IPC_CHANNELS.listToday),
   listInspirations: () => ipcRenderer.invoke(IPC_CHANNELS.listInspirations),
   createInspiration: (description) =>
