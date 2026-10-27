@@ -1,9 +1,13 @@
 import { app, dialog } from 'electron'
+import type { BrowserWindow } from 'electron'
 import { resolve } from 'node:path'
-import type { McpStatus } from '../shared/contracts'
+import type { McpStatus, WindowKind } from '../shared/contracts'
+import { TASKS_CHANGED } from '../shared/channels'
+import { TaskRepository } from './storage/repositories/tasks'
+import { localDate } from './core/tasks'
 import { AppDatabase } from './storage/database'
 import { AppService } from './core/app-service'
-import { createMainWindow, loadMainWindow } from './desktop/window'
+import { createWindow, loadWindow } from './desktop/window'
 import { registerIpc } from './desktop/ipc'
 import { runDiagnostics } from './desktop/diagnostics'
 import { startMcpEndpoint } from './mcp/server'
@@ -25,7 +29,36 @@ if (!app.requestSingleInstanceLock()) {
     .whenReady()
     .then(async () => {
       const database = new AppDatabase(resolve(dataDirectory, 'mytodo.sqlite'))
-      const service = new AppService(database)
+      const service = new AppService(database, new TaskRepository(database.connection))
+      const windows = new Map<WindowKind, BrowserWindow>()
+      const changed = () => {
+        for (const window of windows.values()) {
+          if (!window.isDestroyed()) window.webContents.send(TASKS_CHANGED)
+        }
+      }
+      const openWindow = async (kind: WindowKind) => {
+        const existing = windows.get(kind)
+        if (existing && !existing.isDestroyed()) {
+          if (existing.isMinimized()) existing.restore()
+          existing.show()
+          existing.focus()
+          return
+        }
+        const window = createWindow(kind, dataDirectory)
+        windows.set(kind, window)
+        window.on('closed', () => windows.delete(kind))
+        await loadWindow(window, kind)
+      }
+      let date = localDate(new Date())
+      const dateTimer = setInterval(() => {
+        const next = localDate(new Date())
+        if (date !== next) {
+          date = next
+          changed()
+        }
+      }, 1000)
+      app.on('browser-window-focus', () => changed())
+      app.on('will-quit', () => clearInterval(dateTimer))
       let endpoint: McpEndpoint | undefined
       let token = ''
       let mcp: McpStatus = { state: 'unavailable', endpoint: null, error: null }
@@ -64,8 +97,11 @@ if (!app.requestSingleInstanceLock()) {
         }
       }
 
-      const window = createMainWindow()
-      disposeIpc = registerIpc(window, {
+      disposeIpc = registerIpc({
+        windows: () => [...windows.values()],
+        service,
+        changed,
+        openWindow,
         getBootstrap: () => ({
           runtime: {
             appVersion: app.getVersion(),
@@ -81,12 +117,9 @@ if (!app.requestSingleInstanceLock()) {
         runDiagnostics: () => runDiagnostics(service, mcp, token)
       })
       app.on('second-instance', () => {
-        if (window.isDestroyed()) return
-        if (window.isMinimized()) window.restore()
-        window.show()
-        window.focus()
+        void openWindow('main')
       })
-      await loadMainWindow(window)
+      await Promise.all([openWindow('main'), openWindow('note')])
     })
     .catch((error) => {
       dialog.showErrorBox('myTodo启动失败', error instanceof Error ? error.message : String(error))

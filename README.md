@@ -1,94 +1,49 @@
 # myTodo
 
-基于Electron＋React＋TypeScript＋Node.js＋SQLite的Windows桌面应用工程骨架。
+基于Electron＋React＋TypeScript＋SQLite的Windows待办应用。
 
-当前只搭建工程分层、构建链路和基础设施验证页。任务、习惯、灵感、类别管理、托盘、自启动、贴边隐藏、快捷唤出及未来AI功能均未实现。
+首个业务版本支持今天任务的新增、行内编辑、完成、取消完成和确认后永久删除。主界面和独立桌面便签共享数据，操作后即时同步；任务按创建顺序排列，已完成任务保留原位。按电脑本地日期展示当天任务，旧任务保留数据但不自动延续。
 
 ## 启动
 
-开发环境使用Node.js 24.15及以上的24.x版本和npm。
+使用Node.js 24.15及以上的24.x版本和npm。
 
 ```powershell
 npm ci
 npm run dev
 ```
 
-打开Electron窗口后，点击“运行检查”，验证以下真实链路：
+启动时同时显示主界面和默认置顶的桌面便签。两个窗口均可输入任务描述后回车新增；点击描述编辑，回车保存，Esc取消。便签可通过系统标题栏拖动并记住位置。两处都能打开另一窗口，关闭一个后另一窗口继续运行，全部关闭时退出。
 
-1. React通过隔离的preload与Electron主进程通信。
-2. 核心服务执行SQLite临时表写入、查询与事务回滚。
-3. 官方MCP客户端完成本机HTTP握手并调用`app_diagnostics`，访问同一个核心服务。
-
-仅在浏览器中打开页面时，页面会提示桌面桥接不可用；请通过Electron运行。
+习惯、多天任务、标签、排序、历史入口、托盘、自启动、贴边隐藏和MCP业务工具尚未实现。
 
 ## 常用命令
 
 | 命令                   | 用途                                             |
 | ---------------------- | ------------------------------------------------ |
-| `npm run dev`          | 启动开发窗口，界面支持热更新                     |
-| `npm run typecheck`    | 检查主进程、preload、共享契约和界面的类型        |
-| `npm test`             | 验证数据库迁移、临时读写、MCP协议与访问限制      |
-| `npm run build`        | 类型检查并生成生产代码到`out/`                   |
-| `npm start`            | 运行已有的生产构建，需先执行build                |
-| `npm run smoke`        | 构建并启动真实Electron，自动点击测试页并生成截图 |
-| `npm run pack`         | 生成可运行的未安装目录到`release/`               |
-| `npm run dist:win`     | 构建Windows x64 NSIS安装包到`release/`           |
-| `npm run format`       | 格式化代码与新增文档                             |
+| `npm run dev`          | 启动开发窗口                                     |
+| `npm run typecheck`    | 检查主进程、preload、共享契约和界面类型          |
+| `npm test`             | 验证任务规则、日期切换、持久化、迁移与MCP        |
+| `npm run build`        | 类型检查并构建到`out/`                           |
+| `npm start`            | 运行已有生产构建                                 |
+| `npm run smoke`        | 真实Electron双窗口交互、关闭重开、退出重启与截图 |
+| `npm run pack`         | 生成未安装目录到`release/`                       |
+| `npm run dist:win`     | 构建Windows x64 NSIS安装包                       |
 | `npm run format:check` | 检查格式                                         |
 
-打包工具及安装包配置已提供。代码签名、自动更新与发布流程留待后续接入。
-
-## 代码结构
-
-```text
-src/
-  main/                     Electron主进程：组装依赖、管理生命周期
-    desktop/                窗口、IPC与桌面适配
-    core/                   界面与MCP共享的应用核心
-    storage/                SQLite连接、迁移与仓储扩展位置
-    mcp/                    官方SDK、本机HTTP端点、凭证与协议探测
-  preload/                  仅暴露白名单桌面API
-  renderer/                 React界面
-    src/
-      components/           通用展示组件
-      features/             工程验证页与未来业务模块位置
-      platform/             界面调用桌面API的适配层
-      styles/               样式
-  shared/                   跨进程数据契约与IPC频道名
-scripts/                    Electron集成验证脚本
-tests/                      Node环境基础设施测试
-doc/                        需求、选型、架构与MCP说明
-```
-
-完整目录、每个模块的职责、调用顺序与扩展方式见[codebase结构说明](doc/codebase.md)。本机MCP的连接方法见[MCP说明](doc/mcp.md)。
+集成验证使用独立数据目录，模拟系统确认框的取消和确认返回值，其余链路运行真实React、preload、IPC、SQLite和MCP。输出位于`.local/smoke/`。
 
 ## 本地数据与配置
 
-| 项目           | 默认值                                    |
-| -------------- | ----------------------------------------- |
-| 开发数据目录   | `%APPDATA%/myTodo-development/`           |
-| 安装版数据目录 | `%APPDATA%/myTodo/`                       |
-| SQLite文件     | 数据目录下`mytodo.sqlite`                 |
-| MCP凭证        | 数据目录下`mcp-token`，首次启动生成并复用 |
-| MCP地址        | `http://127.0.0.1:32145/mcp`              |
-| 集成验证输出   | `.local/smoke/`，使用独立数据库与随机端口 |
+| 项目           | 默认值                          |
+| -------------- | ------------------------------- |
+| 开发数据目录   | `%APPDATA%/myTodo-development/` |
+| 安装版数据目录 | `%APPDATA%/myTodo/`             |
+| SQLite文件     | 数据目录下`mytodo.sqlite`       |
+| 便签位置       | 数据目录下`note-position.json`  |
+| MCP凭证        | 数据目录下`mcp-token`           |
+| MCP地址        | `http://127.0.0.1:32145/mcp`    |
 
-可以在启动前设置环境变量覆盖数据目录或端口。代码不会自动读取`.env`。
+可以设置`MYTODO_DATA_DIR`和`MYTODO_MCP_PORT`覆盖目录和端口，代码不会自动读取`.env`。MCP端点启动失败不影响任务功能，当前只提供`app_diagnostics`。全部窗口关闭时数据库和端点一起关闭。
 
-```powershell
-$env:MYTODO_DATA_DIR = 'E:\myTodo-local-data'
-$env:MYTODO_MCP_PORT = '32146'
-npm run dev
-```
-
-端口被占用或凭证异常时，窗口仍可打开，验证页展示MCP不可用的原因。当前关闭窗口会完全退出应用，MCP端点同时关闭。
-
-## 选型落地
-
-- React＋TypeScript＋Vite负责本地静态界面，electron-vite统一构建三个进程入口。
-- Electron主进程持有应用服务、SQLite连接和MCP HTTP端点，不启动独立常驻后端。
-- SQLite使用所选Electron内嵌Node.js提供的`node:sqlite`，避免原生npm驱动的Electron ABI重编译。驱动封装在`storage/database.ts`，后续可在此替换。
-- MCP使用官方`@modelcontextprotocol/sdk`，当前仅提供基础诊断工具。
-- 渲染进程启用sandbox、context isolation，关闭Node integration，通过明确的API访问主进程。
-
-需求以[需求文档](doc/todo.md)为准；既有[技术栈调研](doc/tech-stack-research.md)保留选型背景。
+工程分层见[codebase结构说明](doc/codebase.md)，接入说明见[MCP说明](doc/mcp.md)，需求见[需求文档](doc/todo.md)。代码签名、自动更新与发布流程留待后续接入。

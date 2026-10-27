@@ -1,5 +1,3 @@
-# 仓储扩展位置
+# 任务仓储
 
-后续在这里增加任务、习惯、灵感等仓储，实现核心层需要的持久化接口。复用主进程创建的同一个`AppDatabase`，不在IPC或MCP处理器中另开数据库连接。
-
-当前尚无业务表与业务仓储。数据库迁移放在`../migrations.ts`，迁移执行与连接生命周期放在`../database.ts`。
+`TaskRepository`接收AppDatabase的SQLite连接，实现核心层TaskStore。SQL限制在本层，创建顺序由持久化自增序号保证，修改与删除均限定id和所属日期。

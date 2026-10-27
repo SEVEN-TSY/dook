@@ -7,7 +7,7 @@ import { migrations } from './migrations'
 
 /** 由主进程创建并独占生命周期，后续仓储通过构造参数接收此连接。 */
 export class AppDatabase {
-  private readonly connection: DatabaseSync
+  readonly connection: DatabaseSync
 
   constructor(readonly path: string) {
     if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true })

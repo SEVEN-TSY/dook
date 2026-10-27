@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import electron from 'electron'
@@ -8,7 +8,6 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const runner = resolve(root, '.local/smoke/runner')
 const metadata = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'))
 mkdirSync(runner, { recursive: true })
-// 用真实应用元信息启动，避免单脚本模式将Electron版本误报为应用版本。
 writeFileSync(
   resolve(runner, 'package.json'),
   JSON.stringify({
@@ -18,25 +17,31 @@ writeFileSync(
     main: resolve(root, 'scripts/electron-smoke.mjs')
   })
 )
-const env = { ...process.env }
-// 某些终端会设置此变量；桌面验证需要以Electron模式启动。
+const env = { ...process.env, MYTODO_SMOKE_DATA: mkdtempSync(resolve(root, '.local/smoke/data-')) }
 delete env.ELECTRON_RUN_AS_NODE
-const child = spawn(electron, [runner], {
-  cwd: root,
-  env,
-  windowsHide: true,
-  stdio: 'inherit'
-})
-const timeout = setTimeout(() => {
-  child.kill()
-  process.exitCode = 1
-}, 30_000)
-child.on('error', (error) => {
-  clearTimeout(timeout)
-  console.error(error)
-  process.exitCode = 1
-})
-child.on('exit', (code) => {
-  clearTimeout(timeout)
-  process.exitCode = code ?? 1
-})
+for (const phase of ['create', 'restart']) {
+  const code = await new Promise((resolveExit, reject) => {
+    const child = spawn(electron, [runner], {
+      cwd: root,
+      env: { ...env, MYTODO_SMOKE_PHASE: phase },
+      windowsHide: true,
+      stdio: 'inherit'
+    })
+    const timeout = setTimeout(() => {
+      child.kill()
+      reject(new Error(`Electron smoke超时：${phase}`))
+    }, 55_000)
+    child.on('error', (error) => {
+      clearTimeout(timeout)
+      reject(error)
+    })
+    child.on('exit', (code) => {
+      clearTimeout(timeout)
+      resolveExit(code ?? 1)
+    })
+  })
+  if (code !== 0) {
+    process.exitCode = code
+    break
+  }
+}

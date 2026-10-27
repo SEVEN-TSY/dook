@@ -50,6 +50,27 @@ export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string }
 
 /** 显式白名单API；渲染进程不能调用任意IPC、SQL或Node.js接口。 */
 export interface DesktopApi {
+  listToday: () => Promise<ApiResult<TodayTasks>>
+  createTask: (description: string) => Promise<ApiResult<Task>>
+  updateTask: (id: string, description: string) => Promise<ApiResult<Task>>
+  setTaskCompleted: (id: string, completed: boolean) => Promise<ApiResult<Task>>
+  deleteTask: (id: string) => Promise<ApiResult<boolean>>
+  openWindow: (kind: WindowKind) => Promise<ApiResult<void>>
+  onTasksChanged: (listener: () => void) => () => void
   getBootstrap: () => Promise<ApiResult<BootstrapInfo>>
   runDiagnostics: () => Promise<ApiResult<DiagnosticReport>>
+}
+
+export type WindowKind = 'main' | 'note'
+
+export interface Task {
+  id: string
+  description: string
+  date: string
+  completed: boolean
+}
+
+export interface TodayTasks {
+  date: string
+  tasks: Task[]
 }
