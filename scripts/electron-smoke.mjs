@@ -172,6 +172,27 @@ async function runSmoke() {
       )
       assert.deepEqual(await rows(main), await rows(note))
     }
+    if (phase === 'create') {
+      for (let i = 0; i < 12; i++) await input(note, '[data-testid=task-new]', `长列表任务${i}`)
+      await count(main, 14)
+      const layout = await js(
+        note,
+        `(() => {
+        const input = document.querySelector('[data-testid=task-new]').getBoundingClientRect();
+        const list = document.querySelector('.task-list');
+        return { inputBottom: input.bottom, height: innerHeight, scrollable: list.scrollHeight > list.clientHeight };
+      })()`
+      )
+      assert.ok(layout.inputBottom <= layout.height, '长列表中新增入口始终可见')
+      assert.equal(layout.scrollable, true, '任务列表独立滚动')
+      const extra = (await rows(note)).slice(2)
+      for (const task of extra) {
+        const result = await js(note, `window.myTodo.deleteTask(${JSON.stringify(task.id)})`)
+        assert.deepEqual(result, { ok: true, data: true })
+      }
+      await count(main, 2)
+      await count(note, 2)
+    }
     const diagnostics = await js(main, 'window.myTodo.runDiagnostics()')
     assert.equal(diagnostics.ok, true)
     assert.ok(diagnostics.data.checks.every((check) => check.ok))

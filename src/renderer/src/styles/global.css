@@ -49,6 +49,11 @@ p {
 }
 .tasks-page.note {
   padding: 12px 16px;
+  height: 100vh;
+  overflow: hidden;
+}
+.note > :not(.task-list) {
+  flex-shrink: 0;
 }
 .task-toolbar {
   display: flex;
@@ -267,6 +272,8 @@ h1 {
 }
 .note .task-list {
   margin-top: 16px;
+  min-height: 0;
+  overflow-y: auto;
 }
 .note .task-row {
   min-height: 47px;
