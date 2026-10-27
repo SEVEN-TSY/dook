@@ -457,3 +457,49 @@ h1 {
   color: #526fc4;
   font-size: 13px;
 }
+.task-content {
+  flex: 1;
+  min-width: 0;
+}
+.task-content > .task-description {
+  display: block;
+  width: 100%;
+}
+.task-row.multi-day-start {
+  border-top: 1px solid #d3dceb;
+  margin-top: 12px;
+}
+.task-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6a7588;
+  font-size: 11px;
+  padding: 2px 0 5px;
+}
+.task-progress input {
+  min-width: 0;
+  flex: 1;
+  height: 14px;
+  margin: 0;
+  accent-color: #526fc4;
+  cursor: pointer;
+}
+.task-progress span {
+  min-width: 32px;
+  text-align: right;
+}
+.task-convert {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: #8792a4;
+  width: 24px;
+  height: 28px;
+  padding: 0;
+  border-radius: 4px;
+}
+.task-convert:hover {
+  color: #526fc4;
+  background: #e5eaf1;
+}

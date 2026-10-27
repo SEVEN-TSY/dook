@@ -19,7 +19,13 @@ writeFileSync(
 )
 const env = { ...process.env, MYTODO_SMOKE_DATA: mkdtempSync(resolve(root, '.local/smoke/data-')) }
 delete env.ELECTRON_RUN_AS_NODE
-for (const phase of process.argv[2] === 'drag' ? ['drag'] : ['create', 'restart']) {
+const phases =
+  process.argv[2] === 'drag'
+    ? ['drag']
+    : process.argv[2] === 'multiday'
+      ? ['multiday-create', 'multiday-restart']
+      : ['create', 'restart']
+for (const phase of phases) {
   const code = await new Promise((resolveExit, reject) => {
     const child = spawn(electron, [runner], {
       cwd: root,

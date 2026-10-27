@@ -18,7 +18,7 @@ test('SQLite迁移可重复启动，诊断不留下业务数据', (t) => {
   try {
     const probe = first.probe()
     assert.equal(probe.roundTrip, true)
-    assert.equal(probe.migrationVersion, 2)
+    assert.equal(probe.migrationVersion, 3)
     assert.equal(probe.journalMode, 'wal')
     assert.equal(first.probe().roundTrip, true)
   } finally {
@@ -26,13 +26,13 @@ test('SQLite迁移可重复启动，诊断不留下业务数据', (t) => {
   }
   const second = new AppDatabase(path)
   try {
-    assert.equal(second.probe().migrationVersion, 2)
+    assert.equal(second.probe().migrationVersion, 3)
   } finally {
     second.close()
   }
   const inspect = new DatabaseSync(path, { readOnly: true })
   try {
-    assert.equal(inspect.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get()!.count, 2)
+    assert.equal(inspect.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get()!.count, 3)
     const tables = inspect
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
       .all()

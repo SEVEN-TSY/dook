@@ -34,6 +34,8 @@ const api: DesktopApi = {
   updateTask: (id, description) => ipcRenderer.invoke(IPC_CHANNELS.updateTask, id, description),
   setTaskCompleted: (id, completed) =>
     ipcRenderer.invoke(IPC_CHANNELS.setTaskCompleted, id, completed),
+  convertToMultiDay: (id) => ipcRenderer.invoke(IPC_CHANNELS.convertToMultiDay, id),
+  setTaskProgress: (id, progress) => ipcRenderer.invoke(IPC_CHANNELS.setTaskProgress, id, progress),
   deleteTask: (id) => ipcRenderer.invoke(IPC_CHANNELS.deleteTask, id),
   openWindow: (kind) => ipcRenderer.invoke(IPC_CHANNELS.openWindow, kind),
   onTasksChanged: (listener) => {

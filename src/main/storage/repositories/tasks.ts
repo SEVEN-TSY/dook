@@ -1,58 +1,75 @@
 import { randomUUID } from 'node:crypto'
-import type { DatabaseSync } from 'node:sqlite'
+import type { DatabaseSync, SQLOutputValue } from 'node:sqlite'
 import type { Task } from '../../../shared/contracts'
-import type { TaskStore } from '../../core/tasks'
+import type { TaskStore, TaskChange } from '../../core/tasks'
+
+const visible = `(kind = 'today' AND date = ?) OR
+  (kind = 'multi-day' AND (completed = 0 OR completed_on = ?))`
+const fields = 'id, description, date, completed, kind, progress, completed_on'
+const taskFromRow = (row: Record<string, SQLOutputValue>): Task => ({
+  id: String(row.id),
+  description: String(row.description),
+  date: String(row.date),
+  completed: row.completed === 1,
+  kind: row.kind === 'multi-day' ? 'multi-day' : 'today',
+  progress: Number(row.progress),
+  completedOn: row.completed_on === null ? null : String(row.completed_on)
+})
 
 export class TaskRepository implements TaskStore {
   constructor(private readonly database: DatabaseSync) {}
 
   list(date: string): Task[] {
     return this.database
-      .prepare(
-        'SELECT id, description, date, completed FROM tasks WHERE date = ? ORDER BY sequence'
-      )
-      .all(date)
-      .map((row) => ({
-        id: String(row.id),
-        description: String(row.description),
-        date: String(row.date),
-        completed: row.completed === 1
-      }))
+      .prepare(`SELECT ${fields} FROM tasks WHERE ${visible} ORDER BY kind = 'multi-day', sequence`)
+      .all(date, date)
+      .map(taskFromRow)
+  }
+
+  get(id: string, date: string): Task {
+    const row = this.database
+      .prepare(`SELECT ${fields} FROM tasks WHERE id = ? AND (${visible})`)
+      .get(id, date, date)
+    if (!row) throw new Error('任务不存在，可能已删除或日期已切换。')
+    return taskFromRow(row)
   }
 
   create(description: string, date: string): Task {
-    const task = { id: randomUUID(), description, date, completed: false }
+    const id = randomUUID()
     this.database
       .prepare('INSERT INTO tasks (id, description, date) VALUES (?, ?, ?)')
-      .run(task.id, description, date)
-    return task
+      .run(id, description, date)
+    return this.get(id, date)
   }
 
-  update(id: string, date: string, change: { description?: string; completed?: boolean }): Task {
+  update(id: string, date: string, change: TaskChange): Task {
     const row = this.database
       .prepare(
-        `UPDATE tasks SET description = COALESCE(?, description), completed = COALESCE(?, completed)
-      WHERE id = ? AND date = ? RETURNING id, description, date, completed`
+        `UPDATE tasks SET
+      description = COALESCE(?, description), completed = COALESCE(?, completed),
+      kind = COALESCE(?, kind), progress = COALESCE(?, progress),
+      completed_on = CASE WHEN ? THEN ? ELSE completed_on END
+      WHERE id = ? AND (${visible}) RETURNING ${fields}`
       )
       .get(
         change.description ?? null,
         change.completed === undefined ? null : Number(change.completed),
+        change.kind ?? null,
+        change.progress ?? null,
+        Number(change.completedOn !== undefined),
+        change.completedOn ?? null,
         id,
+        date,
         date
       )
-    if (!row) throw new Error('今天任务不存在，可能已删除或日期已切换。')
-    return {
-      id: String(row.id),
-      description: String(row.description),
-      date: String(row.date),
-      completed: row.completed === 1
-    }
+    if (!row) throw new Error('任务不存在，可能已删除或日期已切换。')
+    return taskFromRow(row)
   }
 
   delete(id: string, date: string): void {
     const result = this.database
-      .prepare('DELETE FROM tasks WHERE id = ? AND date = ?')
-      .run(id, date)
-    if (!result.changes) throw new Error('今天任务不存在，可能已删除或日期已切换。')
+      .prepare(`DELETE FROM tasks WHERE id = ? AND (${visible})`)
+      .run(id, date, date)
+    if (!result.changes) throw new Error('任务不存在，可能已删除或日期已切换。')
   }
 }

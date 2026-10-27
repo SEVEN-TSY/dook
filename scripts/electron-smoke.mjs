@@ -310,6 +310,70 @@ async function dockingSmoke(main, note) {
     await move(80, 90)
   }
 }
+async function multidaySmoke(main, note) {
+  if (phase === 'multiday-create') {
+    await input(main, '[data-testid=task-new]', '持续整理需求')
+    await input(note, '[data-testid=task-new]', '今天检查构建')
+    await count(main, 2)
+    await click(main, '[data-testid=task-convert]')
+    await waitFor(
+      () => js(note, 'Boolean(document.querySelector("[data-task-kind=multi-day]"))'),
+      '多天转换同步'
+    )
+    assert.deepEqual(
+      (await rows(note)).map(({ description }) => description),
+      ['今天检查构建', '持续整理需求']
+    )
+    await input(note, '[data-testid=task-progress]', '42', null)
+    await waitFor(
+      () => js(main, 'document.querySelector(".task-progress span").textContent === "42%"'),
+      '进度同步'
+    )
+    await click(main, '[data-task-kind=multi-day] input[type=checkbox]')
+    await waitFor(
+      () => js(note, 'document.querySelector(".task-progress span").textContent === "100%"'),
+      '完成同步进度'
+    )
+    await click(note, '[data-task-kind=multi-day] input[type=checkbox]')
+    await waitFor(
+      () => js(main, 'document.querySelector(".task-progress span").textContent === "0%"'),
+      '取消完成同步进度'
+    )
+    await input(main, '[data-testid=task-progress]', '42', null)
+    await waitFor(
+      () => js(note, 'document.querySelector(".task-progress span").textContent === "42%"'),
+      '最终进度同步'
+    )
+  } else {
+    assert.deepEqual(
+      (await rows(note)).map(({ description }) => description),
+      ['今天检查构建', '持续整理需求']
+    )
+    assert.equal(await js(note, 'document.querySelector(".task-progress span").textContent'), '42%')
+    await click(note, '[data-task-kind=multi-day] [data-testid=task-description]')
+    await input(note, '[data-testid=task-edit]', '持续整理完整需求')
+    await waitFor(
+      async () => (await rows(main))[1].description === '持续整理完整需求',
+      '多天编辑同步'
+    )
+    dialog.showMessageBox = async () => ({ response: 1, checkboxChecked: false })
+    await click(main, '[data-task-kind=multi-day] [data-testid=task-delete]')
+    await count(note, 1)
+  }
+  assert.deepEqual(await rows(main), await rows(note))
+  for (const [name, window] of [
+    ['main', main],
+    ['note', note]
+  ]) {
+    writeFileSync(
+      resolve(output, `${name}-${phase}.png`),
+      (await window.webContents.capturePage()).toPNG()
+    )
+  }
+  console.log(`Electron multiday smoke passed: ${phase}`)
+  menuClick('退出')
+}
+
 async function runSmoke() {
   try {
     await import('../out/main/index.js')
@@ -340,6 +404,10 @@ async function runSmoke() {
     let main = await waitFor(() => findWindow('main'), '托盘打开主界面')
     assert.ok(main && note)
     await Promise.all([ready(main), ready(note)])
+    if (phase.startsWith('multiday-')) {
+      await multidaySmoke(main, note)
+      return
+    }
     const rendererErrors = []
     for (const window of [main, note])
       window.webContents.on('console-message', (event) => {

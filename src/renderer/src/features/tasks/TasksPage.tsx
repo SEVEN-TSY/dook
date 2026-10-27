@@ -16,10 +16,11 @@ export function TasksPage({
   hidden: boolean
   openSettings: () => void
 }) {
-  const { today, error, busy, setError, refresh, complete, remove } = useTasks()
+  const { today, error, busy, setError, refresh, complete, remove, convert, progress } = useTasks()
   const added = useTaskInput(today?.date, refresh, setError)
   const [editing, setEditing] = useState<string | null>(null)
   const [inputFocused, setInputFocused] = useState(false)
+  const [progressFocused, setProgressFocused] = useState(false)
   const edited = useTaskInput(today?.date, refresh, setError, () => {
     setEditing(null)
   })
@@ -52,9 +53,9 @@ export function TasksPage({
   useEffect(() => {
     if (kind === 'note')
       void getDesktopApi().setInteraction(
-        (inputFocused && Boolean(added.value.trim())) || editing !== null
+        (inputFocused && Boolean(added.value.trim())) || editing !== null || progressFocused
       )
-  }, [kind, inputFocused, added.value, editing])
+  }, [kind, inputFocused, added.value, editing, progressFocused])
   useEffect(() => {
     if (today) added.reconcile(today.tasks)
     if (editing && today && !today.tasks.some((task) => task.id === editing)) {
@@ -181,7 +182,7 @@ export function TasksPage({
         )}
       </header>
       {kind === 'main' && <p className="task-intro">把今天要做的事，简单记下来。</p>}
-      <div className="task-list" aria-label="今天任务">
+      <div className="task-list" aria-label="任务">
         {today?.tasks.length === 0 && (
           <div className="task-empty">
             <span aria-hidden="true">☀</span>
@@ -189,11 +190,12 @@ export function TasksPage({
             <small>在下方记下第一项任务</small>
           </div>
         )}
-        {today?.tasks.map((task) => (
+        {today?.tasks.map((task, index) => (
           <div
-            className={`task-row ${task.completed ? 'completed' : ''}`}
+            className={`task-row ${task.completed ? 'completed' : ''} ${task.kind === 'multi-day' && today.tasks[index - 1]?.kind !== 'multi-day' ? 'multi-day-start' : ''}`}
             key={task.id}
             data-task-id={task.id}
+            data-task-kind={task.kind}
           >
             <input
               type="checkbox"
@@ -202,43 +204,76 @@ export function TasksPage({
               aria-label={`完成：${task.description}`}
               onChange={() => void complete(task)}
             />
-            {editing === task.id ? (
-              <form className="task-edit-form" onSubmit={(event) => void save(event)}>
-                <input
-                  data-testid="task-edit"
-                  aria-label="编辑任务描述"
-                  value={edited.value}
-                  autoFocus
-                  onChange={(event) => edited.setValue(event.target.value)}
-                  onBlur={() => {
-                    void edited.save()
+            <div className="task-content">
+              {editing === task.id ? (
+                <form className="task-edit-form" onSubmit={(event) => void save(event)}>
+                  <input
+                    data-testid="task-edit"
+                    aria-label="编辑任务描述"
+                    value={edited.value}
+                    autoFocus
+                    onChange={(event) => edited.setValue(event.target.value)}
+                    onBlur={() => {
+                      void edited.save()
+                    }}
+                    onCompositionStart={() => {
+                      edited.composing.current = true
+                    }}
+                    onCompositionEnd={edited.endComposition}
+                    onKeyDown={(event) => {
+                      if (event.nativeEvent.isComposing || event.keyCode === 229) return
+                      if (event.key === 'Enter') {
+                        event.preventDefault()
+                        void save(event)
+                      }
+                    }}
+                  />
+                </form>
+              ) : (
+                <button
+                  className="task-description"
+                  data-testid="task-description"
+                  disabled={busy}
+                  onClick={async () => {
+                    if (editing && !(await edited.save())) return
+                    setEditing(task.id)
+                    edited.start(task)
+                    setError('')
                   }}
-                  onCompositionStart={() => {
-                    edited.composing.current = true
-                  }}
-                  onCompositionEnd={edited.endComposition}
-                  onKeyDown={(event) => {
-                    if (event.nativeEvent.isComposing || event.keyCode === 229) return
-                    if (event.key === 'Enter') {
-                      event.preventDefault()
-                      void save(event)
-                    }
-                  }}
-                />
-              </form>
-            ) : (
+                >
+                  {task.description}
+                </button>
+              )}
+              {task.kind === 'multi-day' && (
+                <label className="task-progress">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    data-testid="task-progress"
+                    aria-label={`进度：${task.description}`}
+                    value={task.progress}
+                    disabled={busy}
+                    onChange={(event) => void progress(task.id, Number(event.target.value))}
+                    onFocus={() => setProgressFocused(true)}
+                    onBlur={() => setProgressFocused(false)}
+                  />
+                  <span>{task.progress}%</span>
+                </label>
+              )}
+            </div>
+            {task.kind === 'today' && (
               <button
-                className="task-description"
-                data-testid="task-description"
+                className="task-convert"
+                data-testid="task-convert"
                 disabled={busy}
+                aria-label={`转为多天任务：${task.description}`}
                 onClick={async () => {
-                  if (editing && !(await edited.save())) return
-                  setEditing(task.id)
-                  edited.start(task)
-                  setError('')
+                  if (await flush.current()) await convert(task.id)
                 }}
               >
-                {task.description}
+                ↗
               </button>
             )}
             <button

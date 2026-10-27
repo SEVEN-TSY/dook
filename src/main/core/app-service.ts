@@ -43,11 +43,38 @@ export class AppService {
 
   setTaskCompleted(id: string, completed: boolean): Task {
     if (typeof completed !== 'boolean') throw new Error('完成状态无效。')
-    return this.taskStore().update(this.taskId(id), localDate(this.now()), { completed })
+    const date = localDate(this.now())
+    const task = this.taskStore().get(this.taskId(id), date)
+    if (task.kind === 'multi-day') return this.setTaskProgress(task.id, completed ? 100 : 0)
+    return this.taskStore().update(task.id, date, { completed })
   }
 
   deleteTask(id: string): void {
     this.taskStore().delete(this.taskId(id), localDate(this.now()))
+  }
+
+  convertToMultiDay(id: string): Task {
+    const date = localDate(this.now())
+    const task = this.taskStore().get(this.taskId(id), date)
+    if (task.kind === 'multi-day') return task
+    return this.taskStore().update(task.id, date, {
+      kind: 'multi-day',
+      progress: task.completed ? 100 : 0,
+      completedOn: task.completed ? date : null
+    })
+  }
+
+  setTaskProgress(id: string, progress: number): Task {
+    if (!Number.isInteger(progress) || progress < 0 || progress > 100)
+      throw new Error('进度必须为0至100的整数。')
+    const date = localDate(this.now())
+    const task = this.taskStore().get(this.taskId(id), date)
+    if (task.kind !== 'multi-day') throw new Error('今天任务无需设置进度。')
+    return this.taskStore().update(task.id, date, {
+      progress,
+      completed: progress === 100,
+      completedOn: progress === 100 ? (task.completedOn ?? date) : null
+    })
   }
 
   private taskId(id: string): string {

@@ -6,6 +6,7 @@ interface InputSession {
   creating: boolean
   id?: string
   date?: string
+  kind?: Task['kind']
   text: string
   saved: string
   observed?: boolean
@@ -30,6 +31,7 @@ export function useTaskInput(
       creating: !task,
       id: task?.id,
       date,
+      kind: task?.kind,
       text: task?.description ?? '',
       saved: task?.description ?? ''
     }
@@ -65,7 +67,7 @@ export function useTaskInput(
             finished?.()
             return true
           }
-          if (current.date !== date)
+          if (current.date !== date && current.kind !== 'multi-day')
             throw new Error('日期已切换，请重新记录今天任务。未保存的输入仍保留。')
           const api = getDesktopApi()
           const task = unwrap(

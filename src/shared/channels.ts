@@ -10,6 +10,8 @@ export const IPC_CHANNELS = {
   createTask: 'tasks:create',
   updateTask: 'tasks:update',
   setTaskCompleted: 'tasks:set-completed',
+  convertToMultiDay: 'tasks:convert-multi-day',
+  setTaskProgress: 'tasks:set-progress',
   deleteTask: 'tasks:delete',
   openWindow: 'app:open-window',
   getBootstrap: 'app:get-bootstrap',
