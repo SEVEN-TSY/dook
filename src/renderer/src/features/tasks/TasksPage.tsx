@@ -5,6 +5,12 @@ import { getDesktopApi, unwrap } from '../../platform/desktop'
 import { useTasks } from './useTasks'
 import { useTaskInput } from './useTaskInput'
 
+function focusTaskEditor(element: HTMLTextAreaElement | null) {
+  if (!element) return
+  element.focus({ preventScroll: true })
+  element.setSelectionRange(element.value.length, element.value.length)
+}
+
 export function TasksPage({
   kind,
   desktop,
@@ -204,11 +210,16 @@ export function TasksPage({
             />
             {editing === task.id ? (
               <form className="task-edit-form" onSubmit={(event) => void save(event)}>
-                <input
+                <span className="task-description task-edit-mirror" aria-hidden="true">
+                  {edited.value || '\u200b'}
+                </span>
+                <textarea
+                  className="task-description task-edit-input"
                   data-testid="task-edit"
                   aria-label="编辑任务描述"
+                  rows={1}
                   value={edited.value}
-                  autoFocus
+                  ref={focusTaskEditor}
                   onChange={(event) => edited.setValue(event.target.value)}
                   onBlur={() => {
                     void edited.save()

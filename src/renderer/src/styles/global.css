@@ -15,7 +15,8 @@ body {
   margin: 0;
 }
 button,
-input {
+input,
+textarea {
   font: inherit;
 }
 button {
@@ -152,6 +153,8 @@ h1 {
   margin: 0;
 }
 .task-description {
+  display: block;
+  margin: 0;
   border: 0;
   background: transparent;
   padding: 6px 0;
@@ -185,17 +188,27 @@ h1 {
 .task-edit-form {
   flex: 1;
   min-width: 0;
+  position: relative;
+  margin: 0;
 }
-.task-edit-form input {
+.task-edit-form .task-description {
   width: 100%;
-  border: 1px solid #526fc4;
-  padding: 6px;
-  border-radius: 4px;
-  background: #fff;
-  color: #303744;
-  font-size: 14px;
+}
+.task-edit-mirror {
+  visibility: hidden;
+}
+.task-edit-input {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  resize: none;
+  overflow: hidden;
   outline: none;
-  line-height: 1.6;
+}
+.task-edit-input:focus {
+  background: #f1f5ff;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px #aabbe7;
 }
 .task-add {
   display: flex;
@@ -291,9 +304,6 @@ h1 {
   gap: 8px;
 }
 .note .task-description {
-  font-size: 13px;
-}
-.note .task-edit-form input {
   font-size: 13px;
 }
 .note .task-empty {

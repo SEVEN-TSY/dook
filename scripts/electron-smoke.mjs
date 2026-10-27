@@ -65,7 +65,8 @@ async function input(window, selector, value, key = 'Enter') {
     `(() => {
     const input = document.querySelector(${JSON.stringify(selector)});
     input.focus();
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(value)});
+    const prototype = input instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(prototype, 'value').set.call(input, ${JSON.stringify(value)});
     input.dispatchEvent(new Event('input', { bubbles: true }));
   })()`
   )
@@ -99,12 +100,59 @@ const click = async (window, selector) => {
   window.focus()
   return js(window, `document.querySelector(${JSON.stringify(selector)}).click()`)
 }
-async function edit(window, value, key = 'Enter') {
-  await click(window, '[data-testid=task-description]')
+const editLayout = (window, selector) =>
+  js(
+    window,
+    `(() => {
+  const row = document.querySelector(${JSON.stringify(selector)}).closest('[data-task-id]');
+  const text = row.querySelector('[data-testid=task-edit], [data-testid=task-description]');
+  const style = getComputedStyle(text);
+  const rect = element => { const { x, y, width, height } = element.getBoundingClientRect(); return { x, y, width, height }; };
+  const source = row.querySelector('.task-edit-mirror') || text;
+  const range = document.createRange(); range.setStart(source.firstChild, 0); range.setEnd(source.firstChild, 1);
+  const glyph = range.getBoundingClientRect();
+  return {
+    rows: Array.from(document.querySelectorAll('[data-task-id]')).map(rect),
+    text: rect(text),
+    glyph: { x: glyph.x, y: glyph.y, width: glyph.width, height: glyph.height },
+    controls: [row.querySelector('input[type=checkbox]'), row.querySelector('.task-delete')].map(rect),
+    style: Object.fromEntries(['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'padding', 'borderWidth', 'color', 'textDecorationLine', 'whiteSpace', 'overflowWrap'].map(name => [name, style[name]]))
+  };
+})()`
+  )
+
+async function beginEdit(window, selector = '[data-testid=task-description]') {
+  const before = await editLayout(window, selector)
+  await click(window, selector)
   await waitFor(
     () => js(window, 'Boolean(document.querySelector("[data-testid=task-edit]"))'),
     '行内编辑'
   )
+  assert.deepEqual(
+    await editLayout(window, '[data-testid=task-edit]'),
+    before,
+    '进入行内编辑不改变文字、行高及相邻控件位置'
+  )
+  assert.notEqual(
+    await js(
+      window,
+      `getComputedStyle(document.querySelector('[data-testid=task-edit]')).boxShadow`
+    ),
+    'none',
+    '保留不占布局空间的编辑描边'
+  )
+  assert.equal(
+    await js(
+      window,
+      `(() => { const field = document.querySelector('[data-testid=task-edit]'); return field.selectionStart === field.value.length && field.selectionEnd === field.value.length })()`
+    ),
+    true,
+    '进入编辑时光标位于文字末尾'
+  )
+  return before
+}
+async function edit(window, value, key = 'Enter') {
+  await beginEdit(window)
   await input(window, '[data-testid=task-edit]', value, key)
 }
 
@@ -471,7 +519,7 @@ async function runSmoke() {
             `getComputedStyle(document.querySelector('[data-testid=task-edit]')).outlineStyle`
           ),
           'none',
-          '编辑输入只有单层边框'
+          '编辑输入不出现额外焦点外框'
         )
         if (window === note)
           writeFileSync(
@@ -518,6 +566,33 @@ async function runSmoke() {
         await input(window, '[data-testid=task-new]', '检查构建')
         await count(other, 2)
       }
+      const wrappingTask = (
+        await js(
+          main,
+          `window.myTodo.createTask(${JSON.stringify('检查行内编辑的位置与换行：保留原来的字体和间距，点击前后任务内容和勾选框都保持稳定。Mixed words, 中文与标点。\n第二行同样保持原位。')})`
+        )
+      ).data
+      await count(note, 3)
+      for (const window of [main, note]) {
+        const selector = `[data-task-id="${wrappingTask.id}"] [data-testid=task-description]`
+        const before = await beginEdit(window, selector)
+        if (window === note)
+          writeFileSync(
+            resolve(output, 'note-editing-wrapped.png'),
+            (await window.webContents.capturePage()).toPNG()
+          )
+        await js(
+          window,
+          `document.querySelector('.task-list').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))`
+        )
+        await waitFor(
+          () => js(window, '!document.querySelector("[data-testid=task-edit]")'),
+          '退出多行编辑'
+        )
+        assert.deepEqual(await editLayout(window, selector), before, '结束行内编辑保持原布局')
+      }
+      await js(main, `window.myTodo.deleteTask(${JSON.stringify(wrappingTask.id)})`)
+      await count(note, 2)
       await edit(note, ' 持久化的任务描述 ')
       await waitFor(
         async () => (await rows(main))[0].description === '持久化的任务描述',
