@@ -52,5 +52,23 @@ export const migrations = [
         PRIMARY KEY (habit_id, date)
       ) STRICT;
     `
+  },
+  {
+    version: 5,
+    name: 'inspirations',
+    sql: `
+      CREATE TABLE inspirations (
+        sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+        id TEXT NOT NULL UNIQUE,
+        description TEXT NOT NULL CHECK(length(trim(description)) > 0)
+      ) STRICT;
+      CREATE TABLE inspiration_additions (
+        sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+        id TEXT NOT NULL UNIQUE,
+        inspiration_id TEXT NOT NULL REFERENCES inspirations(id) ON DELETE CASCADE,
+        content TEXT NOT NULL CHECK(length(trim(content)) > 0)
+      ) STRICT;
+      CREATE INDEX inspiration_additions_parent_sequence ON inspiration_additions(inspiration_id, sequence);
+    `
   }
 ] as const

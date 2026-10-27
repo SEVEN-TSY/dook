@@ -5,6 +5,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
+import { inspirationSmoke } from './inspiration-smoke.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const output = resolve(root, '.local/smoke')
@@ -731,6 +732,7 @@ async function runSmoke() {
       assert.equal(note.isAlwaysOnTop(), false, '重启采用设置默认值')
     }
     await habitsSmoke({ phase, main, note, input, click, js, waitFor, assert })
+    await inspirationSmoke({ main, note, phase, js, click, input, waitFor })
     const diagnostics = await js(main, 'window.myTodo.runDiagnostics()')
     assert.equal(diagnostics.ok, true)
     assert.ok(diagnostics.data.checks.every((check) => check.ok))

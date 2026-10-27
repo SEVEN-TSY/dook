@@ -5,6 +5,9 @@ import { getDesktopApi, unwrap } from '../../platform/desktop'
 import { useTasks } from './useTasks'
 import { useTaskInput } from './useTaskInput'
 import { HabitsPanel } from '../habits/HabitsPanel'
+import { InspirationPanel } from '../inspirations/InspirationPanel'
+import type { InspirationPanelHandle } from '../inspirations/InspirationPanel'
+import { useInspirationInput } from '../inspirations/useInspirationInput'
 
 export function TasksPage({
   kind,
@@ -18,7 +21,21 @@ export function TasksPage({
   openSettings: () => void
 }) {
   const { today, error, busy, setError, refresh, complete, remove, convert, progress } = useTasks()
-  const added = useTaskInput(today?.date, refresh, setError)
+  const [newKind, setNewKind] = useState<'task' | 'inspiration'>('task')
+  const taskAdded = useTaskInput(today?.date, refresh, setError)
+  const inspirationAdded = useInspirationInput(
+    async (text, id) =>
+      unwrap(
+        await (id
+          ? getDesktopApi().updateInspiration(id, text)
+          : getDesktopApi().createInspiration(text))
+      ),
+    async () => {},
+    setError
+  )
+  const added = newKind === 'task' ? taskAdded : inspirationAdded
+  const inspirationPanel = useRef<InspirationPanelHandle>(null)
+  const [inspirationEditing, setInspirationEditing] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
   const [inputFocused, setInputFocused] = useState(false)
   const [progressFocused, setProgressFocused] = useState(false)
@@ -40,7 +57,13 @@ export function TasksPage({
     if (!element?.closest('[data-testid="task-edit"]')) void edited.save()
   }
   flush.current = async () => {
-    const results = await Promise.all([added.save(), edited.save(), habitSave.current()])
+    const results = await Promise.all([
+      taskAdded.save(),
+      inspirationAdded.save(),
+      edited.save(),
+      habitSave.current(),
+      inspirationPanel.current?.save() ?? true
+    ])
     return results.every(Boolean)
   }
   useEffect(() => {
@@ -61,11 +84,14 @@ export function TasksPage({
   useEffect(() => {
     if (kind === 'note')
       void getDesktopApi().setInteraction(
-        (inputFocused && Boolean(added.value.trim())) || editing !== null || progressFocused
+        (inputFocused && Boolean(added.value.trim())) ||
+          editing !== null ||
+          inspirationEditing ||
+          progressFocused
       )
-  }, [kind, inputFocused, added.value, editing, progressFocused])
+  }, [kind, inputFocused, added.value, editing, inspirationEditing, progressFocused])
   useEffect(() => {
-    if (today) added.reconcile(today.tasks)
+    if (today) taskAdded.reconcile(today.tasks)
     if (editing && today && !today.tasks.some((task) => task.id === editing)) {
       setEditing(null)
       void edited.cancel()
@@ -301,17 +327,41 @@ export function TasksPage({
           </div>
         ))}
       </div>
+      <InspirationPanel
+        ref={inspirationPanel}
+        report={setError}
+        onEditingChange={setInspirationEditing}
+      />
       {error && (
         <p className="task-error" role="alert">
           {error}
         </p>
       )}
       <form className="task-add" onSubmit={(event) => void add(event)}>
+        <div className="new-kind-switch" aria-label="新增类别">
+          {(['task', 'inspiration'] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              data-testid={`new-kind-${value}`}
+              aria-pressed={newKind === value}
+              onClick={async () => {
+                if (newKind !== value && (await added.save())) {
+                  setNewKind(value)
+                  setError('')
+                }
+              }}
+            >
+              {value === 'task' ? '任务' : '灵感'}
+            </button>
+          ))}
+        </div>
         <span aria-hidden="true">＋</span>
         <input
           data-testid="task-new"
-          aria-label="新增任务描述"
-          placeholder="记下一项任务，自动保存"
+          aria-label={newKind === 'task' ? '新增任务描述' : '新增灵感'}
+          placeholder={newKind === 'task' ? '记下一项任务，自动保存' : '记下一个想法，自动保存'}
+          data-new-kind={newKind}
           value={added.value}
           disabled={!today}
           onChange={(event) => added.setValue(event.target.value)}

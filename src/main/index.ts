@@ -4,6 +4,7 @@ import type { McpStatus } from '../shared/contracts'
 import { TASKS_CHANGED } from '../shared/channels'
 import { TaskRepository } from './storage/repositories/tasks'
 import { HabitRepository } from './storage/repositories/habits'
+import { InspirationRepository } from './storage/repositories/inspirations'
 import { localDate } from './core/tasks'
 import { AppDatabase } from './storage/database'
 import { AppService } from './core/app-service'
@@ -30,7 +31,8 @@ if (!app.requestSingleInstanceLock()) {
     .then(async () => {
       const database = new AppDatabase(resolve(dataDirectory, 'mytodo.sqlite'))
       const service = new AppService(database, new TaskRepository(database.connection), undefined, {
-        habits: new HabitRepository(database.connection)
+        habits: new HabitRepository(database.connection),
+        inspirations: new InspirationRepository(database.connection)
       })
       service.ensureDailyTasks()
       const desktop = new Desktop(dataDirectory, () => app.quit())
