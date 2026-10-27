@@ -34,6 +34,7 @@
 - `renderer/src/features/tasks/TasksPage.tsx`是两端共用的分类界面；SubitemsPanel、HabitsPanel和InspirationPanel分别承载子事项、主界面习惯管理及灵感编辑。
 - `renderer/src/features/tasks/useTasks.ts`读取列表、订阅通知、协调操作及错误，丢弃过时列表响应。
 - `renderer/src/features/tasks/useTaskInput.ts`串行协调同一轮输入的创建和更新，不阻塞继续输入；任务组件在设置页和收起状态保持挂载。
+- `renderer/src/features/shared/useSerialSave.ts`统一管理草稿串行保存、组合输入延后和失败保留；任务、灵感及子事项各自保留领域校验和持久化动作。
 - `renderer/src/features/settings/SettingsPage.tsx`提供默认置顶及贴边自动隐藏设置。
 - `renderer/src/styles/global.css`定义两种布局的共同蓝白样式。
 
