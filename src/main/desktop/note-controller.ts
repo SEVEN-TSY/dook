@@ -19,6 +19,7 @@ export class NoteController {
   private applying = false
   private dragging = false
   private dragTimer?: ReturnType<typeof setInterval>
+  private dragBounds?: Rectangle
   private readonly timer: ReturnType<typeof setInterval>
 
   constructor(
@@ -103,6 +104,10 @@ export class NoteController {
   private readonly moved = () => {
     if (this.applying || this.dragging || this.collapsed || this.window.isDestroyed()) return
     const bounds = this.window.getBounds()
+    if (this.dragBounds) {
+      bounds.width = this.dragBounds.width
+      bounds.height = this.dragBounds.height
+    }
     if (JSON.stringify(bounds) === JSON.stringify(this.expanded)) {
       this.dragging = false
       return
@@ -178,14 +183,34 @@ export class NoteController {
     if (active) {
       const origin = screen.getCursorScreenPoint()
       const bounds = this.window.getBounds()
+      const [width, height] = this.window.getContentSize()
+      bounds.width = width
+      bounds.height = height
+      this.dragBounds = bounds
+      // Windows分数缩放下，移动会对外接矩形取整；锁定内容尺寸，避免逐帧累积变大。
+      this.window.setMinimumSize(bounds.width, bounds.height)
+      this.window.setMaximumSize(bounds.width, bounds.height)
+      let previous = origin
       this.dragTimer = setInterval(() => {
         const point = screen.getCursorScreenPoint()
-        this.window.setPosition(bounds.x + point.x - origin.x, bounds.y + point.y - origin.y)
+        if (point.x === previous.x && point.y === previous.y) return
+        previous = point
+        this.window.setBounds({
+          ...bounds,
+          x: bounds.x + point.x - origin.x,
+          y: bounds.y + point.y - origin.y
+        })
       }, 16)
     } else {
       clearInterval(this.dragTimer)
       this.dragTimer = undefined
       this.moved()
+      this.dragBounds = undefined
+      this.window.setMaximumSize(0, 0)
+      this.window.setMinimumSize(
+        Math.min(334, this.expanded.width),
+        Math.min(260, this.expanded.height)
+      )
     }
   }
 

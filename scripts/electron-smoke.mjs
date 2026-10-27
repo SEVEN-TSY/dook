@@ -69,10 +69,14 @@ async function input(window, selector, value, key = 'Enter') {
     input.dispatchEvent(new Event('input', { bubbles: true }));
   })()`
   )
-  if (key === 'mouseleave') {
+  if (key === 'outside-click') {
     await js(
       window,
       `document.querySelector(${JSON.stringify(selector)}).dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }))`
+    )
+    await js(
+      window,
+      `document.querySelector('.task-list').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse', button: 0 }))`
     )
   } else if (key) {
     window.webContents.sendInputEvent({ type: 'keyDown', keyCode: key })
@@ -104,6 +108,42 @@ async function edit(window, value, key = 'Enter') {
   await input(window, '[data-testid=task-edit]', value, key)
 }
 
+async function draggingSmoke(note) {
+  const cursor = screen.getCursorScreenPoint
+  const before = note.getBounds()
+  const size = note.getContentSize()
+  let point = { x: before.x + 80, y: before.y + 25 }
+  screen.getCursorScreenPoint = () => point
+  try {
+    note.focus()
+    note.webContents.sendInputEvent({
+      type: 'mouseDown',
+      x: 80,
+      y: 25,
+      button: 'left',
+      clickCount: 1
+    })
+    await new Promise((resolve) => setTimeout(resolve, 80))
+    for (let step = 1; step <= 19; step++) {
+      point = { x: before.x + 80 + step, y: before.y + 25 + step }
+      await waitFor(() => note.getBounds().x === before.x + step, '连续拖动跟随鼠标')
+      assert.deepEqual(note.getContentSize(), size, `第${step}次移动内容尺寸不变`)
+    }
+    note.webContents.sendInputEvent({
+      type: 'mouseUp',
+      x: 80,
+      y: 25,
+      button: 'left',
+      clickCount: 1
+    })
+    await new Promise((resolve) => setTimeout(resolve, 80))
+    assert.deepEqual(note.getContentSize(), size, '拖动结束内容尺寸不变')
+  } finally {
+    await js(note, 'window.myTodo.setNoteDragging(false)')
+    screen.getCursorScreenPoint = cursor
+  }
+}
+
 async function dockingSmoke(main, note) {
   const display = screen.getPrimaryDisplay()
   const area = display.workArea
@@ -123,6 +163,7 @@ async function dockingSmoke(main, note) {
   }
   try {
     await js(note, 'document.activeElement?.blur()')
+    await draggingSmoke(note)
     const beforeDrag = note.getBounds()
     pointer = { x: beforeDrag.x + 80, y: beforeDrag.y + 25 }
     note.webContents.sendInputEvent({
@@ -278,6 +319,20 @@ async function runSmoke() {
     assert.equal(BrowserWindow.getAllWindows().length, 1, '启动只创建便签')
     await waitFor(() => trays.size === 1, '唯一托盘')
     await waitFor(() => note.isVisible(), '便签可见')
+    if (phase === 'drag') {
+      await draggingSmoke(note)
+      const size = note.getContentSize()
+      note.setBounds({ x: 200, y: 100, width: size[0], height: size[1] })
+      note.emit('moved')
+      await draggingSmoke(note)
+      await draggingSmoke(note)
+      await js(note, 'window.myTodo.setNoteDragging(true)')
+      await js(note, 'window.myTodo.setNoteDragging(false)')
+      assert.deepEqual(note.getMinimumSize(), [334, 260], '仅点击头部不锁死最小尺寸')
+      console.log('Electron drag size passed')
+      app.exit(0)
+      return
+    }
     assert.equal(note.isMenuBarVisible(), false)
     assert.equal(await js(note, 'Boolean(document.querySelector(".task-toolbar"))'), false)
     assert.equal(await js(note, 'document.querySelectorAll("[title]").length'), 0, '无多余悬停提示')
@@ -302,7 +357,7 @@ async function runSmoke() {
         field.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
       })()`
       )
-      await input(main, '[data-testid=task-new]', '中文组合输入', 'mouseleave')
+      await input(main, '[data-testid=task-new]', '中文组合输入', 'outside-click')
       await count(note, 0)
       await js(
         main,
@@ -313,7 +368,17 @@ async function runSmoke() {
         () => js(main, `document.querySelector('[data-testid=task-new]').value === ''`),
         '自动保存后清空新增栏'
       )
-      await input(main, '[data-testid=task-new]', ' 检查构建 ', 'mouseleave')
+      await input(main, '[data-testid=task-new]', ' 检查构建 ', null)
+      await js(
+        main,
+        `document.querySelector('[data-testid=task-new]').dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }))`
+      )
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      assert.equal((await rows(note)).length, 1, '单纯移开鼠标不保存新增')
+      await js(
+        main,
+        `document.querySelector('.task-list').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse', button: 0 }))`
+      )
       await count(note, 2)
       await waitFor(
         () => js(main, `document.querySelector('[data-testid=task-new]').value === ''`),
@@ -327,7 +392,7 @@ async function runSmoke() {
         `(() => {
         const field = document.querySelector('[data-testid=task-new]');
         const set = value => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(field, value); field.dispatchEvent(new Event('input', { bubbles: true })); };
-        set('保存期间清空的任务'); field.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body })); set('');
+        set('保存期间清空的任务'); document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); set('');
       })()`
       )
       await count(note, 2)
@@ -350,7 +415,7 @@ async function runSmoke() {
         `(() => {
         const field = document.querySelector('[data-testid=task-new]');
         const set = value => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(field, value); field.dispatchEvent(new Event('input', { bubbles: true })); };
-        const leave = () => field.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }));
+        const leave = () => document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
         set('保存进行中'); leave(); set('保存期间继续输入'); leave();
       })()`
       )
@@ -365,10 +430,25 @@ async function runSmoke() {
       )
       await js(main, `window.myTodo.deleteTask(${JSON.stringify((await rows(note))[0].id)})`)
       await count(note, 1)
-      await edit(main, ' 检查构建并更新 ', 'mouseleave')
+      const originalDescription = (await rows(note))[0].description
+      await edit(main, ' 检查构建并更新 ', null)
+      await js(
+        main,
+        `document.querySelector('[data-testid=task-edit]').dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }))`
+      )
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      assert.equal(
+        (await rows(note))[0].description,
+        originalDescription,
+        '单纯移开鼠标不保存行内编辑'
+      )
+      await js(
+        main,
+        `document.querySelector('.task-list').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse', button: 0 }))`
+      )
       await waitFor(
         async () => (await rows(note))[0].description === '检查构建并更新',
-        '行内编辑移出后同步保存'
+        '行内编辑移开并点击后同步保存'
       )
       await count(note, 1)
       await waitFor(
@@ -407,7 +487,7 @@ async function runSmoke() {
           window,
           '[data-testid=task-edit]',
           window === main ? ' 主界面已编辑 ' : ' 便签已编辑 ',
-          'mouseleave'
+          'outside-click'
         )
         const expected = window === main ? '主界面已编辑' : '便签已编辑'
         await waitFor(async () => (await rows(other))[0].description === expected, '编辑同步')
@@ -519,7 +599,7 @@ async function runSmoke() {
       }
       await count(main, 2)
       await count(note, 2)
-      await input(note, '[data-testid=task-new]', '先成功保存', 'mouseleave')
+      await input(note, '[data-testid=task-new]', '先成功保存', 'outside-click')
       await count(main, 3)
       await waitFor(
         () => js(note, `document.querySelector('[data-testid=task-new]').value === ''`),

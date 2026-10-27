@@ -24,6 +24,12 @@ export function TasksPage({
     setEditing(null)
   })
   const flush = useRef(async () => true)
+  const clickOutside = useRef((_target: EventTarget | null) => {})
+  clickOutside.current = (target) => {
+    const element = target instanceof Element ? target : null
+    if (!element?.closest('[data-testid="task-new"]')) void added.save()
+    if (!element?.closest('[data-testid="task-edit"]')) void edited.save()
+  }
   flush.current = async () => {
     const results = await Promise.all([added.save(), edited.save()])
     return results.every(Boolean)
@@ -34,10 +40,13 @@ export function TasksPage({
     const onBlur = () => {
       void flush.current()
     }
+    const onPointerDown = (event: PointerEvent) => clickOutside.current(event.target)
     window.addEventListener('blur', onBlur)
+    document.addEventListener('pointerdown', onPointerDown, true)
     return () => {
       unsubscribe()
       window.removeEventListener('blur', onBlur)
+      document.removeEventListener('pointerdown', onPointerDown, true)
     }
   }, [])
   useEffect(() => {
@@ -80,7 +89,6 @@ export function TasksPage({
     <section
       className={`tasks-page ${kind} ${desktop?.edge ? `docked-${desktop.edge}` : ''}`}
       hidden={hidden}
-      onMouseLeave={() => void flush.current()}
     >
       {kind === 'main' && (
         <div className="task-toolbar">
@@ -186,9 +194,6 @@ export function TasksPage({
             className={`task-row ${task.completed ? 'completed' : ''}`}
             key={task.id}
             data-task-id={task.id}
-            onMouseLeave={() => {
-              if (editing === task.id) void edited.save()
-            }}
           >
             <input
               type="checkbox"
@@ -205,7 +210,6 @@ export function TasksPage({
                   value={edited.value}
                   autoFocus
                   onChange={(event) => edited.setValue(event.target.value)}
-                  onMouseLeave={() => void edited.save()}
                   onBlur={() => {
                     void edited.save()
                   }}
@@ -263,7 +267,6 @@ export function TasksPage({
           value={added.value}
           disabled={!today}
           onChange={(event) => added.setValue(event.target.value)}
-          onMouseLeave={() => void added.save()}
           onFocus={() => setInputFocused(true)}
           onBlur={() => {
             setInputFocused(false)
