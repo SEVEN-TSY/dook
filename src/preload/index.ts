@@ -29,6 +29,13 @@ const api: DesktopApi = {
     return () => ipcRenderer.removeListener(SAVE_REQUEST, callback)
   },
   listToday: () => ipcRenderer.invoke(IPC_CHANNELS.listToday),
+  listInspirations: () => ipcRenderer.invoke(IPC_CHANNELS.listInspirations),
+  createInspiration: (description) =>
+    ipcRenderer.invoke(IPC_CHANNELS.createInspiration, description),
+  updateInspiration: (id, description) =>
+    ipcRenderer.invoke(IPC_CHANNELS.updateInspiration, id, description),
+  appendInspiration: (id, content, additionId) =>
+    ipcRenderer.invoke(IPC_CHANNELS.appendInspiration, id, content, additionId),
   createTask: (description, expectedDate) =>
     ipcRenderer.invoke(IPC_CHANNELS.createTask, description, expectedDate),
   updateTask: (id, description) => ipcRenderer.invoke(IPC_CHANNELS.updateTask, id, description),

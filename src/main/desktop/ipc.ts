@@ -84,6 +84,22 @@ export function registerIpc(handlers: Handlers): () => void {
   })
   register(IPC_CHANNELS.runDiagnostics, handlers.runDiagnostics)
   register(IPC_CHANNELS.listToday, () => handlers.service.listToday())
+  register(IPC_CHANNELS.listInspirations, () => handlers.service.listInspirations())
+  register(IPC_CHANNELS.createInspiration, (_, description) =>
+    mutate(() => handlers.service.createInspiration(text(description)))
+  )
+  register(IPC_CHANNELS.updateInspiration, (_, id, description) =>
+    mutate(() => handlers.service.updateInspiration(text(id), text(description)))
+  )
+  register(IPC_CHANNELS.appendInspiration, (_, id, content, additionId) =>
+    mutate(() =>
+      handlers.service.appendInspiration(
+        text(id),
+        text(content),
+        additionId === undefined ? undefined : text(additionId)
+      )
+    )
+  )
   register(IPC_CHANNELS.createTask, (_, description, expectedDate) =>
     mutate(() =>
       handlers.service.createTask(

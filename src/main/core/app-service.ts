@@ -1,6 +1,7 @@
-import type { CoreProbe, StorageProbe, Task, TodayTasks } from '../../shared/contracts'
+import type { CoreProbe, Inspiration, StorageProbe, Task, TodayTasks } from '../../shared/contracts'
 import { localDate } from './tasks'
 import type { TaskStore } from './tasks'
+import type { InspirationStore } from './inspirations'
 
 export interface StorageDiagnostics {
   probe: () => StorageProbe
@@ -11,12 +12,41 @@ export class AppService {
   constructor(
     private readonly storage: StorageDiagnostics,
     private readonly tasks?: TaskStore,
-    private readonly now: () => Date = () => new Date()
+    private readonly now: () => Date = () => new Date(),
+    private readonly features: { inspirations?: InspirationStore } = {}
   ) {}
 
   private taskStore(): TaskStore {
     if (!this.tasks) throw new Error('任务存储不可用。')
     return this.tasks
+  }
+
+  private inspirationStore(): InspirationStore {
+    if (!this.features.inspirations) throw new Error('灵感存储不可用。')
+    return this.features.inspirations
+  }
+
+  listInspirations(): Inspiration[] {
+    return this.inspirationStore().list()
+  }
+
+  createInspiration(description: string): Inspiration {
+    if (typeof description !== 'string' || !description.trim()) throw new Error('灵感不能为空。')
+    return this.inspirationStore().create(description.trim())
+  }
+
+  updateInspiration(id: string, description: string): Inspiration {
+    if (typeof id !== 'string' || !id) throw new Error('灵感标识无效。')
+    if (typeof description !== 'string' || !description.trim()) throw new Error('灵感不能为空。')
+    return this.inspirationStore().update(id, description.trim())
+  }
+
+  appendInspiration(id: string, content: string, additionId?: string): Inspiration {
+    if (typeof id !== 'string' || !id) throw new Error('灵感标识无效。')
+    if (typeof content !== 'string' || !content.trim()) throw new Error('补充内容不能为空。')
+    if (additionId !== undefined && (typeof additionId !== 'string' || !additionId))
+      throw new Error('补充标识无效。')
+    return this.inspirationStore().append(id, content.trim(), additionId)
   }
 
   listToday(): TodayTasks {

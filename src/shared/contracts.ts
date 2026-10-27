@@ -59,6 +59,14 @@ export interface DesktopApi {
   onWindowState: (listener: (state: DesktopState) => void) => () => void
   onSaveRequested: (listener: () => Promise<boolean>) => () => void
   listToday: () => Promise<ApiResult<TodayTasks>>
+  listInspirations: () => Promise<ApiResult<Inspiration[]>>
+  createInspiration: (description: string) => Promise<ApiResult<Inspiration>>
+  updateInspiration: (id: string, description: string) => Promise<ApiResult<Inspiration>>
+  appendInspiration: (
+    id: string,
+    content: string,
+    additionId?: string
+  ) => Promise<ApiResult<Inspiration>>
   createTask: (description: string, expectedDate?: string) => Promise<ApiResult<Task>>
   updateTask: (id: string, description: string) => Promise<ApiResult<Task>>
   setTaskCompleted: (id: string, completed: boolean) => Promise<ApiResult<Task>>
@@ -94,4 +102,15 @@ export interface Task {
 export interface TodayTasks {
   date: string
   tasks: Task[]
+}
+
+export interface InspirationAddition {
+  id: string
+  content: string
+}
+
+export interface Inspiration {
+  id: string
+  description: string
+  additions: InspirationAddition[]
 }
