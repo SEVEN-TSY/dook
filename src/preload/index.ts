@@ -28,6 +28,8 @@ const api: DesktopApi = {
     ipcRenderer.on(SAVE_REQUEST, callback)
     return () => ipcRenderer.removeListener(SAVE_REQUEST, callback)
   },
+  listHabits: () => ipcRenderer.invoke(IPC_CHANNELS.listHabits),
+  createHabit: (description) => ipcRenderer.invoke(IPC_CHANNELS.createHabit, description),
   listToday: () => ipcRenderer.invoke(IPC_CHANNELS.listToday),
   createTask: (description, expectedDate) =>
     ipcRenderer.invoke(IPC_CHANNELS.createTask, description, expectedDate),

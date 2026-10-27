@@ -1,3 +1,4 @@
+import { habitsSmoke } from './smoke-habits.mjs'
 import { app, BrowserWindow, dialog, Tray, screen } from 'electron'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -729,6 +730,7 @@ async function runSmoke() {
     } else {
       assert.equal(note.isAlwaysOnTop(), false, '重启采用设置默认值')
     }
+    await habitsSmoke({ phase, main, note, input, click, js, waitFor, assert })
     const diagnostics = await js(main, 'window.myTodo.runDiagnostics()')
     assert.equal(diagnostics.ok, true)
     assert.ok(diagnostics.data.checks.every((check) => check.ok))

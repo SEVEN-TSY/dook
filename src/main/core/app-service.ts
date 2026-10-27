@@ -1,6 +1,7 @@
-import type { CoreProbe, StorageProbe, Task, TodayTasks } from '../../shared/contracts'
+import type { CoreProbe, StorageProbe, Task, TodayTasks, Habit } from '../../shared/contracts'
 import { localDate } from './tasks'
 import type { TaskStore } from './tasks'
+import type { HabitStore } from './habits'
 
 export interface StorageDiagnostics {
   probe: () => StorageProbe
@@ -11,8 +12,28 @@ export class AppService {
   constructor(
     private readonly storage: StorageDiagnostics,
     private readonly tasks?: TaskStore,
-    private readonly now: () => Date = () => new Date()
+    private readonly now: () => Date = () => new Date(),
+    private readonly features: { habits?: HabitStore } = {}
   ) {}
+
+  listHabits(): Habit[] {
+    return this.habitStore().list()
+  }
+
+  createHabit(description: string): Habit {
+    if (typeof description !== 'string' || !description.trim())
+      throw new Error('习惯描述不能为空。')
+    return this.habitStore().create(description.trim(), localDate(this.now()))
+  }
+
+  ensureDailyTasks(): boolean {
+    return this.features.habits?.ensureToday(localDate(this.now())) ?? false
+  }
+
+  private habitStore(): HabitStore {
+    if (!this.features.habits) throw new Error('习惯存储不可用。')
+    return this.features.habits
+  }
 
   private taskStore(): TaskStore {
     if (!this.tasks) throw new Error('任务存储不可用。')

@@ -6,6 +6,8 @@ export const IPC_CHANNELS = {
   setInteraction: 'desktop:interaction',
   setNoteDragging: 'desktop:dragging',
   saveReply: 'desktop:save-reply',
+  listHabits: 'habits:list',
+  createHabit: 'habits:create',
   listToday: 'tasks:list-today',
   createTask: 'tasks:create',
   updateTask: 'tasks:update',

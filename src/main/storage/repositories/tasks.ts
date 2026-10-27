@@ -5,7 +5,7 @@ import type { TaskStore, TaskChange } from '../../core/tasks'
 
 const visible = `(kind = 'today' AND date = ?) OR
   (kind = 'multi-day' AND (completed = 0 OR completed_on = ?))`
-const fields = 'id, description, date, completed, kind, progress, completed_on'
+const fields = 'id, description, date, completed, kind, progress, completed_on, habit_id'
 const taskFromRow = (row: Record<string, SQLOutputValue>): Task => ({
   id: String(row.id),
   description: String(row.description),
@@ -13,7 +13,8 @@ const taskFromRow = (row: Record<string, SQLOutputValue>): Task => ({
   completed: row.completed === 1,
   kind: row.kind === 'multi-day' ? 'multi-day' : 'today',
   progress: Number(row.progress),
-  completedOn: row.completed_on === null ? null : String(row.completed_on)
+  completedOn: row.completed_on === null ? null : String(row.completed_on),
+  ...(row.habit_id == null ? {} : { habitId: String(row.habit_id) })
 })
 
 export class TaskRepository implements TaskStore {

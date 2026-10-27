@@ -58,6 +58,8 @@ export interface DesktopApi {
   setNoteDragging: (active: boolean) => Promise<ApiResult<void>>
   onWindowState: (listener: (state: DesktopState) => void) => () => void
   onSaveRequested: (listener: () => Promise<boolean>) => () => void
+  listHabits: () => Promise<ApiResult<Habit[]>>
+  createHabit: (description: string) => Promise<ApiResult<Habit>>
   listToday: () => Promise<ApiResult<TodayTasks>>
   createTask: (description: string, expectedDate?: string) => Promise<ApiResult<Task>>
   updateTask: (id: string, description: string) => Promise<ApiResult<Task>>
@@ -86,10 +88,16 @@ export interface DesktopState {
 
 export type WindowKind = 'main' | 'note'
 
+export interface Habit {
+  id: string
+  description: string
+}
+
 export interface Task {
   id: string
   description: string
   date: string
+  habitId?: string
   completed: boolean
   kind: 'today' | 'multi-day'
   progress: number
