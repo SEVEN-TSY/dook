@@ -93,6 +93,12 @@ export interface Habit {
   description: string
 }
 
+export interface Subitem {
+  id: string
+  description: string
+  completed: boolean
+}
+
 export interface Task {
   id: string
   description: string
@@ -102,6 +108,7 @@ export interface Task {
   kind: 'today' | 'multi-day'
   progress: number
   completedOn: string | null
+  subitems?: Subitem[]
 }
 
 export interface TodayTasks {

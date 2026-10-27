@@ -52,5 +52,19 @@ export const migrations = [
         PRIMARY KEY (habit_id, date)
       ) STRICT;
     `
+  },
+  {
+    version: 6,
+    name: 'task_subitems',
+    sql: `
+      CREATE TABLE task_subitems (
+        sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+        id TEXT NOT NULL UNIQUE,
+        task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+        description TEXT NOT NULL CHECK(length(trim(description)) > 0),
+        completed INTEGER NOT NULL DEFAULT 0 CHECK(completed IN (0, 1))
+      ) STRICT;
+      CREATE INDEX task_subitems_task_sequence ON task_subitems(task_id, sequence);
+    `
   }
 ] as const
