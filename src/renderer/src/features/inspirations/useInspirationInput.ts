@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { useSerialSave } from '../shared/useSerialSave'
 
 interface InputSession {
   key: string
@@ -19,9 +20,6 @@ export function useInspirationInput(
   finished?: () => void
 ) {
   const session = useRef<InputSession>({ key: crypto.randomUUID(), text: '', saved: '' })
-  const pending = useRef<Promise<boolean> | null>(null)
-  const composing = useRef(false)
-  const compositionSave = useRef(false)
   const [, render] = useState(0)
   const redraw = () => render((value) => value + 1)
   const start = (value?: { id: string; description: string }) => {
@@ -37,52 +35,33 @@ export function useInspirationInput(
     session.current.text = value
     redraw()
   }
-  const save = (): Promise<boolean> => {
-    if (pending.current) return pending.current
-    if (composing.current) {
-      compositionSave.current = true
-      return Promise.resolve(false)
-    }
-    const current = session.current
-    const run = async () => {
-      try {
-        while (session.current === current) {
-          if (composing.current) {
-            compositionSave.current = true
-            return false
-          }
-          const text = current.text.trim()
-          if (!text) {
-            if (current.id) {
-              report('灵感内容不能为空。')
-              return false
-            }
-            return true
-          }
-          if (text === current.saved) {
-            start()
-            finished?.()
-            return true
-          }
-          const saved = await persist(text, current.id, current.key)
-          current.id = saved.id
-          current.saved = saved.description
-          report('')
-          redraw()
-          await changed()
+  const { save, saving, composing, endComposition } = useSerialSave(
+    session,
+    async (current) => {
+      const text = current.text.trim()
+      if (!text) {
+        if (current.id) {
+          report('灵感内容不能为空。')
+          return 'blocked'
         }
-        return true
-      } catch (error) {
-        report(error instanceof Error ? error.message : '保存灵感失败，请重试。')
-        return false
+        return 'done'
       }
-    }
-    pending.current = run().finally(() => {
-      pending.current = null
+      if (text === current.saved) {
+        start()
+        finished?.()
+        return 'done'
+      }
+      const saved = await persist(text, current.id, current.key)
+      current.id = saved.id
+      current.saved = saved.description
+      report('')
       redraw()
-    })
-    return pending.current
-  }
+      await changed()
+      return 'continue'
+    },
+    report,
+    '保存灵感失败，请重试。'
+  )
   const submit = () => {
     if (!session.current.text.trim()) {
       report('灵感内容不能为空。')
@@ -90,16 +69,9 @@ export function useInspirationInput(
     }
     return save()
   }
-  const endComposition = () => {
-    composing.current = false
-    if (compositionSave.current) {
-      compositionSave.current = false
-      void save()
-    }
-  }
   return {
     value: session.current.text,
-    saving: Boolean(pending.current),
+    saving,
     start,
     setValue,
     save,

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Subitem, Task } from '../../../../shared/contracts'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
+import { useSerialSave } from '../shared/useSerialSave'
 
 interface Props {
   task: Task
@@ -13,76 +14,73 @@ interface Draft {
   id?: string
   text: string
   saved: string
+  observed?: boolean
 }
 
 export function SubitemsPanel({ task, changed, report, onSaveReady, onInteraction }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [draft, setDraft] = useState<Draft>({ text: '', saved: '' })
   const current = useRef(draft)
-  const [busy, setBusy] = useState(false)
+  const [mutating, setMutating] = useState(false)
   const [focused, setFocused] = useState(false)
-  const composing = useRef(false)
-  const afterComposition = useRef(false)
-  const pending = useRef<Promise<boolean> | null>(null)
   const save = useRef(async () => true)
   const reset = () => {
     current.current = { text: '', saved: '' }
     setDraft(current.current)
   }
-  save.current = () => {
-    if (pending.current) return pending.current
-    if (composing.current) {
-      afterComposition.current = true
-      return Promise.resolve(false)
-    }
-    const session = current.current
-    setBusy(true)
-    const run = async () => {
-      try {
-        while (current.current === session) {
-          if (composing.current) {
-            afterComposition.current = true
-            return false
-          }
-          const text = session.text.trim()
-          if (!text) {
-            if (session.id) {
-              report('子事项内容不能为空。')
-              return false
-            }
-            return true
-          }
-          if (text === session.saved) {
-            reset()
-            return true
-          }
-          const api = getDesktopApi()
-          const updated = unwrap(
-            await (session.id
-              ? api.updateSubitem(task.id, session.id, text)
-              : api.addSubitem(task.id, text))
-          )
-          const item = session.id
-            ? updated.subitems?.find((item) => item.id === session.id)
-            : updated.subitems?.at(-1)
-          if (!item) throw new Error('子事项已失效，请重试。')
-          session.id = item.id
-          session.saved = item.description
-          report('')
-          await changed()
+  const {
+    save: saveDraft,
+    saving,
+    composing,
+    endComposition,
+    resetComposition
+  } = useSerialSave(
+    current,
+    async (session) => {
+      const text = session.text.trim()
+      if (!text) {
+        if (session.id) {
+          report('子事项内容不能为空。')
+          return 'blocked'
         }
-        return true
-      } catch (error) {
-        report(error instanceof Error ? error.message : '子事项保存失败，请重试。')
-        return false
+        return 'done'
       }
+      if (text === session.saved) {
+        reset()
+        return 'done'
+      }
+      const api = getDesktopApi()
+      const updated = unwrap(
+        await (session.id
+          ? api.updateSubitem(task.id, session.id, text)
+          : api.addSubitem(task.id, text))
+      )
+      const item = session.id
+        ? updated.subitems?.find((item) => item.id === session.id)
+        : updated.subitems?.at(-1)
+      if (!item) throw new Error('子事项已失效，请重试。')
+      session.id = item.id
+      session.saved = item.description
+      report('')
+      await changed()
+      return 'continue'
+    },
+    report,
+    '子事项保存失败，请重试。'
+  )
+  save.current = saveDraft
+  const busy = saving || mutating
+  useEffect(() => {
+    const session = current.current
+    if (!session.id) return
+    if (task.subitems?.some((item) => item.id === session.id)) {
+      session.observed = true
+    } else if (session.observed) {
+      resetComposition()
+      reset()
+      report('正在编辑的子事项已删除，编辑已结束。')
     }
-    pending.current = run().finally(() => {
-      pending.current = null
-      setBusy(false)
-    })
-    return pending.current
-  }
+  }, [task.subitems])
   useEffect(() => onSaveReady(task.id, () => save.current()), [task.id, onSaveReady])
   useEffect(() => {
     onInteraction(task.id, draft.id !== undefined || (focused && Boolean(draft.text.trim())))
@@ -94,12 +92,17 @@ export function SubitemsPanel({ task, changed, report, onSaveReady, onInteractio
   }
   const beginEdit = async (item: Subitem) => {
     if (!(await save.current())) return
-    current.current = { id: item.id, text: item.description, saved: item.description }
+    current.current = {
+      id: item.id,
+      text: item.description,
+      saved: item.description,
+      observed: true
+    }
     setDraft(current.current)
   }
   const mutate = async (action: () => Promise<unknown>) => {
     if (!(await save.current())) return
-    setBusy(true)
+    setMutating(true)
     try {
       await action()
       report('')
@@ -107,7 +110,7 @@ export function SubitemsPanel({ task, changed, report, onSaveReady, onInteractio
     } catch (error) {
       report(error instanceof Error ? error.message : '子事项操作失败。')
     } finally {
-      setBusy(false)
+      setMutating(false)
     }
   }
   const inputProps = {
@@ -122,13 +125,7 @@ export function SubitemsPanel({ task, changed, report, onSaveReady, onInteractio
     onCompositionStart: () => {
       composing.current = true
     },
-    onCompositionEnd: () => {
-      composing.current = false
-      if (afterComposition.current) {
-        afterComposition.current = false
-        void save.current()
-      }
-    },
+    onCompositionEnd: endComposition,
     onKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => {
       if (event.key !== 'Enter') return
       event.preventDefault()

@@ -41,6 +41,35 @@ export async function subitemsSmoke({ phase, main, note, input, click, js, waitF
       async () => (await find())?.subitems?.every((item) => !item.completed),
       '整条取消同步全部子事项'
     )
+    await input(note, `${row(task.id)} [data-testid=subitem-new]`, '同步删除中的子事项')
+    const removed = (await find()).subitems.at(-1)
+    await click(note, `[data-subitem-id="${removed.id}"] [data-testid=subitem-description]`)
+    await input(note, '[data-testid=subitem-edit]', '   ', null)
+    await js(note, 'document.activeElement.blur()')
+    await waitFor(
+      () =>
+        js(
+          note,
+          `document.querySelector('[role=alert]')?.textContent.includes('子事项内容不能为空')`
+        ),
+      '空白子事项保留校验反馈'
+    )
+    await click(main, `${row(task.id)} [data-testid=subitems-toggle]`)
+    await click(main, `[data-subitem-id="${removed.id}"] [data-testid=subitem-delete]`)
+    await waitFor(
+      async () => !(await find()).subitems.some((item) => item.id === removed.id),
+      '另一窗口删除正在编辑的子事项'
+    )
+    await waitFor(
+      () =>
+        js(note, `Boolean(document.querySelector('${row(task.id)} [data-testid=subitem-new]'))`),
+      '同步删除后结束失效编辑并恢复新增入口'
+    )
+    assert.equal(
+      await js(note, `Boolean(document.querySelector('[data-subitem-id="${removed.id}"]'))`),
+      false,
+      '不会恢复已删除的子事项'
+    )
     await input(note, `${row(task.id)} [data-testid=subitem-new]`, '隐藏前保存子事项', null)
     await js(note, 'window.myTodo.hideWindow()')
     await waitFor(() => !note.isVisible(), '等待子事项保存后隐藏')
