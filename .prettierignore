@@ -1,0 +1,7 @@
+node_modules
+out
+release
+.local
+package-lock.json
+doc/todo.md
+doc/*research.md

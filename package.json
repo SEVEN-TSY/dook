@@ -1,0 +1,44 @@
+{
+  "name": "mytodo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "myTodo Windows桌面应用工程骨架",
+  "type": "module",
+  "main": "out/main/index.js",
+  "author": "myTodo",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=24.15.0 <25"
+  },
+  "scripts": {
+    "dev": "electron-vite dev",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "tsx --test tests/*.test.ts",
+    "build": "npm run typecheck && electron-vite build",
+    "smoke": "npm run build && node scripts/run-smoke.mjs",
+    "pack": "npm run build && electron-builder --dir",
+    "dist:win": "npm run build && electron-builder --win nsis",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "electron": "45.0.0",
+    "electron-builder": "26.18.0",
+    "electron-vite": "6.0.0",
+    "prettier": "^3.9.10",
+    "tsx": "^4.21.0",
+    "typescript": "6.0.3",
+    "vite": "8.3.5"
+  }
+}
