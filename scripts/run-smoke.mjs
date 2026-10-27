@@ -24,7 +24,8 @@ for (const phase of ['create', 'restart']) {
     const child = spawn(electron, [runner], {
       cwd: root,
       env: { ...env, MYTODO_SMOKE_PHASE: phase },
-      windowsHide: true,
+      // Electron是GUI进程；SW_HIDE会吞掉首个窗口的show，无法验收真实可见性。
+      windowsHide: false,
       stdio: 'inherit'
     })
     const timeout = setTimeout(() => {

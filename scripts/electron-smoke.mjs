@@ -1,8 +1,9 @@
-import { app, BrowserWindow, dialog } from 'electron'
+import { app, BrowserWindow, dialog, Tray, screen } from 'electron'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
+import { DatabaseSync } from 'node:sqlite'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const output = resolve(root, '.local/smoke')
@@ -11,6 +12,21 @@ process.env.MYTODO_DATA_DIR = process.env.MYTODO_SMOKE_DATA
 process.env.MYTODO_MCP_PORT = '0'
 app.disableHardwareAcceleration()
 const phase = process.env.MYTODO_SMOKE_PHASE || 'create'
+const trays = new Set()
+let trayMenu
+const setContextMenu = Tray.prototype.setContextMenu
+Tray.prototype.setContextMenu = function (menu) {
+  trays.add(this)
+  trayMenu = menu
+  return setContextMenu.call(this, menu)
+}
+const findWindow = (kind) =>
+  BrowserWindow.getAllWindows().find((window) =>
+    window.webContents.getURL().includes(`window=${kind}`)
+  )
+const trayClick = () => [...trays][0].emit('click')
+const menuClick = (label) => trayMenu.items.find((item) => item.label === label).click()
+const state = async (window) => (await js(window, 'window.myTodo.getWindowState()')).data
 const waitFor = async (condition, label) => {
   const deadline = Date.now() + 12_000
   while (Date.now() < deadline) {
@@ -52,15 +68,31 @@ async function input(window, selector, value, key = 'Enter') {
     input.dispatchEvent(new Event('input', { bubbles: true }));
   })()`
   )
-  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: key })
-  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: key })
+  if (key === 'mouseleave') {
+    await js(
+      window,
+      `document.querySelector(${JSON.stringify(selector)}).dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }))`
+    )
+  } else if (key) {
+    window.webContents.sendInputEvent({ type: 'keyDown', keyCode: key })
+    window.webContents.sendInputEvent({ type: 'keyUp', keyCode: key })
+  }
   await js(
     window,
     'new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))'
   )
 }
-const click = (window, selector) =>
-  js(window, `document.querySelector(${JSON.stringify(selector)}).click()`)
+const click = async (window, selector) => {
+  await waitFor(
+    () =>
+      js(
+        window,
+        `(() => { const element = document.querySelector(${JSON.stringify(selector)}); return element && !element.disabled && element.getClientRects().length > 0 })()`
+      ),
+    `控件可操作：${selector}`
+  )
+  return js(window, `document.querySelector(${JSON.stringify(selector)}).click()`)
+}
 async function edit(window, value, key = 'Enter') {
   await click(window, '[data-testid=task-description]')
   await waitFor(
@@ -69,13 +101,129 @@ async function edit(window, value, key = 'Enter') {
   )
   await input(window, '[data-testid=task-edit]', value, key)
 }
+
+async function dockingSmoke(main, note) {
+  const display = screen.getPrimaryDisplay()
+  const area = display.workArea
+  const original = {
+    cursor: screen.getCursorScreenPoint,
+    all: screen.getAllDisplays,
+    matching: screen.getDisplayMatching
+  }
+  let pointer = { x: area.x + area.width / 2, y: area.y + area.height / 2 }
+  screen.getCursorScreenPoint = () => pointer
+  const pause = (ms) => new Promise((resolveWait) => setTimeout(resolveWait, ms))
+  const move = async (x, y) => {
+    note.setPosition(Math.round(x), Math.round(y))
+    // 程序移动不会产生Windows的用户拖动完成事件，模拟该操作系统边界。
+    note.emit('moved')
+    await pause(100)
+  }
+  try {
+    await js(note, 'document.activeElement?.blur()')
+    if ((await state(note)).pinned) await click(note, '[data-testid=note-pin]')
+    await move(area.x + 5, area.y + 100)
+    assert.equal((await state(note)).edge, 'left')
+    assert.equal(note.isAlwaysOnTop(), true, '贴边强制置顶')
+    const full = note.getBounds()
+    pointer = { x: full.x + 30, y: full.y + 40 }
+    await pause(150)
+    pointer = { x: area.x + area.width - 40, y: area.y + area.height - 50 }
+    await waitFor(async () => (await state(note)).collapsed, '离开后贴边收起')
+    assert.ok(note.getSize()[0] <= 40, `可见边缘入口：${JSON.stringify(note.getBounds())}`)
+    writeFileSync(resolve(output, 'note-edge.png'), (await note.webContents.capturePage()).toPNG())
+    main.focus()
+    await waitFor(() => main.isFocused(), '主界面获得焦点')
+    const strip = note.getBounds()
+    pointer = { x: strip.x + 2, y: strip.y + 20 }
+    await pause(100)
+    assert.equal((await state(note)).collapsed, true, '短暂悬停不会立即展开')
+    await waitFor(async () => !(await state(note)).collapsed, '悬停展开')
+    assert.equal(main.isFocused(), true, '悬停展开不抢焦点')
+    await click(note, '[data-testid=task-description]')
+    pointer = { x: area.x + area.width - 40, y: area.y + area.height - 50 }
+    await pause(750)
+    assert.equal((await state(note)).collapsed, false, '行内编辑保护')
+    note.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' })
+    note.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' })
+    await js(note, 'document.activeElement?.blur()')
+    await waitFor(async () => (await state(note)).collapsed, '编辑结束恢复收起')
+    trayClick()
+    await waitFor(async () => !(await state(note)).collapsed && note.isFocused(), '托盘展开并聚焦')
+    await pause(750)
+    assert.equal((await state(note)).collapsed, false, '主动唤出等待进入再离开')
+    await click(main, '[data-testid=open-settings]')
+    await click(main, '[data-testid=edge-auto-hide]')
+    await waitFor(async () => !(await state(note)).settings.edgeAutoHide, '关闭贴边开关')
+    assert.equal((await state(note)).edge, null)
+    assert.equal(note.isAlwaysOnTop(), false, '解除贴边恢复本次图钉选择')
+    await click(main, '[data-testid=edge-auto-hide]')
+    await waitFor(async () => (await state(note)).settings.edgeAutoHide, '重新开启贴边开关')
+    assert.equal((await state(note)).edge, null, '开启开关不自动吸附')
+    await js(main, 'document.querySelector(".back-button").click()')
+
+    // 在真实Electron窗口外侧替换屏幕拓扑，覆盖CI不能实际插拔的系统边界。
+    const half = Math.floor(area.width / 2)
+    const left = {
+      ...display,
+      id: 1001,
+      bounds: { x: area.x, y: area.y, width: half, height: area.height },
+      workArea: { x: area.x, y: area.y, width: half, height: area.height }
+    }
+    const right = {
+      ...display,
+      id: 1002,
+      bounds: { x: area.x + half, y: area.y, width: area.width - half, height: area.height },
+      workArea: { x: area.x + half, y: area.y, width: area.width - half, height: area.height }
+    }
+    screen.getAllDisplays = () => [left, right]
+    screen.getDisplayMatching = (bounds) =>
+      bounds.x + bounds.width / 2 < right.bounds.x ? left : right
+    await move(right.workArea.x + 5, area.y + 100)
+    assert.equal((await state(note)).edge, null, '双屏接缝不吸附')
+    await move(area.x + 100, area.y + area.height - note.getSize()[1] - 5)
+    assert.equal((await state(note)).edge, null, '底边不吸附')
+    await move(area.x + 100, area.y + 5)
+    assert.equal((await state(note)).edge, 'top')
+    await move(area.x + area.width - note.getSize()[0] - 5, area.y + 100)
+    assert.equal((await state(note)).edge, 'right')
+    screen.getAllDisplays = () => [left]
+    screen.getDisplayMatching = () => left
+    screen.emit('display-removed', {}, right)
+    await waitFor(
+      () =>
+        note.getBounds().x + note.getBounds().width <= left.workArea.x + left.workArea.width + 1,
+      '拔屏后恢复可见位置'
+    )
+    menuClick('隐藏桌面便签')
+    await waitFor(() => !note.isVisible(), '屏幕变化前主动隐藏')
+    screen.emit('display-metrics-changed', {}, left, ['workArea'])
+    await pause(100)
+    assert.equal(note.isVisible(), false, '屏幕变化不唤出主动隐藏的便签')
+    trayClick()
+    await waitFor(() => note.isVisible(), '恢复调整后的便签')
+    assert.equal((await state(note)).collapsed, false)
+  } finally {
+    screen.getCursorScreenPoint = original.cursor
+    screen.getAllDisplays = original.all
+    screen.getDisplayMatching = original.matching
+    screen.emit('display-metrics-changed', {}, display, ['workArea'])
+    await move(80, 90)
+  }
+}
 async function runSmoke() {
   try {
     await import('../out/main/index.js')
     await app.whenReady()
-    await waitFor(() => BrowserWindow.getAllWindows().length === 2, '双窗口')
-    let main = BrowserWindow.getAllWindows().find((window) => !window.isAlwaysOnTop())
-    let note = BrowserWindow.getAllWindows().find((window) => window.isAlwaysOnTop())
+    let note = await waitFor(() => findWindow('note'), '启动显示便签')
+    await ready(note)
+    assert.equal(BrowserWindow.getAllWindows().length, 1, '启动只创建便签')
+    await waitFor(() => trays.size === 1, '唯一托盘')
+    await waitFor(() => note.isVisible(), '便签可见')
+    assert.equal(note.isMenuBarVisible(), false)
+    assert.equal(await js(note, 'Boolean(document.querySelector(".task-toolbar"))'), false)
+    menuClick('打开主界面')
+    let main = await waitFor(() => findWindow('main'), '托盘打开主界面')
     assert.ok(main && note)
     await Promise.all([ready(main), ready(note)])
     const rendererErrors = []
@@ -88,7 +236,41 @@ async function runSmoke() {
       await count(main, 0)
       await input(main, '[data-testid=task-new]', '   ')
       await count(main, 0)
-      await input(main, '[data-testid=task-new]', ' 检查构建 ')
+      await js(
+        main,
+        `(() => {
+        const field = document.querySelector('[data-testid=task-new]');
+        field.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+      })()`
+      )
+      await input(main, '[data-testid=task-new]', '中文组合输入', 'mouseleave')
+      await count(note, 0)
+      await js(
+        main,
+        `document.querySelector('[data-testid=task-new]').dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: '中文组合输入' }))`
+      )
+      await count(note, 1)
+      await input(main, '[data-testid=task-new]', ' 检查构建 ', 'mouseleave')
+      await count(note, 1)
+      await js(
+        main,
+        `(() => {
+        const field = document.querySelector('[data-testid=task-new]');
+        const set = value => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(field, value); field.dispatchEvent(new Event('input', { bubbles: true })); };
+        const leave = () => field.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }));
+        set('保存进行中'); leave(); set('保存期间继续输入'); leave();
+      })()`
+      )
+      await waitFor(
+        async () => (await rows(note))[0].description === '保存期间继续输入',
+        '保存期间继续输入不丢字'
+      )
+      await count(note, 1)
+      await input(main, '[data-testid=task-new]', ' 检查构建并更新 ', 'mouseleave')
+      await waitFor(
+        async () => (await rows(note))[0].description === '检查构建并更新',
+        '同一轮输入更新已保存任务'
+      )
       await count(note, 1)
       await input(note, '[data-testid=task-new]', '更新进展')
       await count(main, 2)
@@ -141,33 +323,51 @@ async function runSmoke() {
       await click(note, 'input[type=checkbox]')
       await waitFor(async () => (await rows(main))[0].completed, '最终状态同步')
       note.setPosition(80, 90)
+      await input(note, '[data-testid=task-new]', '隐藏前保存', null)
       note.close()
-      await waitFor(() => BrowserWindow.getAllWindows().length === 1, '便签关闭后主界面保留')
+      await waitFor(() => !note.isVisible(), '便签关闭后隐藏')
+      await count(main, 3)
+      assert.equal(main.isVisible(), true)
       await click(main, '[data-testid=open-other]')
-      note = await waitFor(
-        () => BrowserWindow.getAllWindows().find((window) => window.isAlwaysOnTop()),
-        '重开便签'
-      )
+      await waitFor(() => note.isVisible(), '恢复便签')
       await ready(note)
       assert.deepEqual(note.getPosition(), [80, 90])
+      assert.equal(
+        (await js(note, 'window.myTodo.listToday()')).data.tasks.at(-1).description,
+        '隐藏前保存'
+      )
+      const hiddenTask = (await rows(main)).at(-1)
+      await js(note, `window.myTodo.deleteTask(${JSON.stringify(hiddenTask.id)})`)
+      await count(main, 2)
       await click(main, '[data-testid=open-other]')
       assert.equal(BrowserWindow.getAllWindows().length, 2)
       main.close()
-      await waitFor(() => BrowserWindow.getAllWindows().length === 1, '主界面关闭后便签保留')
-      await click(note, '[data-testid=open-other]')
-      main = await waitFor(
-        () => BrowserWindow.getAllWindows().find((window) => !window.isAlwaysOnTop()),
-        '重开主界面'
-      )
+      await waitFor(() => !main.isVisible(), '主界面关闭后隐藏')
+      assert.equal(note.isVisible(), true)
+      menuClick('打开主界面')
+      await waitFor(() => main.isVisible(), '重开主界面')
       await ready(main)
       await count(main, 2)
+      main.minimize()
+      await waitFor(() => !main.isVisible(), '主界面最小化后隐藏')
+      assert.equal(note.isVisible(), true)
+      menuClick('隐藏桌面便签')
+      await waitFor(() => !note.isVisible(), '托盘隐藏便签')
+      assert.equal(BrowserWindow.getAllWindows().length, 2, '全部隐藏仍常驻')
+      trayClick()
+      await waitFor(() => note.isVisible() && note.isFocused(), '托盘恢复并聚焦')
+      trayClick()
+      assert.equal(BrowserWindow.getAllWindows().length, 2)
+      menuClick('打开主界面')
+      await waitFor(() => main.isVisible(), '恢复主界面')
     } else {
       assert.deepEqual(note.getPosition(), [80, 90])
       assert.deepEqual(
         (await rows(main)).map(({ description, completed }) => ({ description, completed })),
         [
           { description: '持久化的任务描述', completed: true },
-          { description: '检查构建', completed: false }
+          { description: '检查构建', completed: false },
+          { description: '退出前保存', completed: false }
         ]
       )
       assert.deepEqual(await rows(main), await rows(note))
@@ -192,6 +392,49 @@ async function runSmoke() {
       }
       await count(main, 2)
       await count(note, 2)
+      const lock = new DatabaseSync(resolve(process.env.MYTODO_SMOKE_DATA, 'mytodo.sqlite'))
+      let saveFailures = 0
+      dialog.showMessageBox = async (_window, options) => {
+        if (options.type === 'error') saveFailures++
+        return { response: 1, checkboxChecked: false }
+      }
+      try {
+        lock.exec('BEGIN IMMEDIATE')
+        await input(note, '[data-testid=task-new]', '失败后保留输入', null)
+        note.close()
+        await waitFor(() => saveFailures === 1, '保存失败保留窗口')
+        assert.equal(note.isVisible(), true)
+        assert.equal(
+          await js(note, 'document.querySelector("[data-testid=task-new]").value'),
+          '失败后保留输入'
+        )
+        assert.match(
+          await js(note, 'document.querySelector("[role=alert]").textContent'),
+          /locked|锁/i
+        )
+      } finally {
+        lock.exec('ROLLBACK')
+        lock.close()
+      }
+      await input(note, '[data-testid=task-new]', '失败后重试保存')
+      await count(main, 3)
+      await js(note, `window.myTodo.deleteTask(${JSON.stringify((await rows(main)).at(-1).id)})`)
+      await count(main, 2)
+      await dockingSmoke(main, note)
+      if (note.isAlwaysOnTop()) await click(note, '[data-testid=note-pin]')
+      await waitFor(() => !note.isAlwaysOnTop(), '自由摆放取消置顶')
+      await click(main, '[data-testid=open-settings]')
+      await click(main, '[data-testid=default-pin]')
+      await waitFor(
+        async () => !(await state(main)).settings.defaultAlwaysOnTop,
+        '默认置顶设置持久化'
+      )
+      await click(note, '[data-testid=note-pin]')
+      await waitFor(() => note.isAlwaysOnTop(), '图钉临时开启')
+      assert.equal((await state(main)).settings.defaultAlwaysOnTop, false, '图钉不改变启动默认值')
+      await js(main, 'document.querySelector(".back-button").click()')
+    } else {
+      assert.equal(note.isAlwaysOnTop(), false, '重启采用设置默认值')
     }
     const diagnostics = await js(main, 'window.myTodo.runDiagnostics()')
     assert.equal(diagnostics.ok, true)
@@ -216,12 +459,10 @@ async function runSmoke() {
       )
     }
     console.log(`Electron smoke passed: ${phase}`)
-    main.close()
-    note.close()
+    if (phase === 'create') await input(note, '[data-testid=task-new]', '退出前保存', null)
+    menuClick('退出')
   } catch (error) {
     console.error(error)
-    for (const window of BrowserWindow.getAllWindows())
-      console.error(await js(window, 'document.body.innerText'))
     app.exit(1)
   }
 }

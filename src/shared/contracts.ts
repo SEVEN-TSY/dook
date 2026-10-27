@@ -50,8 +50,15 @@ export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string }
 
 /** 显式白名单API；渲染进程不能调用任意IPC、SQL或Node.js接口。 */
 export interface DesktopApi {
+  getWindowState: () => Promise<ApiResult<DesktopState>>
+  updateSettings: (settings: WindowSettings) => Promise<ApiResult<void>>
+  toggleNotePin: () => Promise<ApiResult<void>>
+  hideWindow: () => Promise<ApiResult<void>>
+  setInteraction: (active: boolean) => Promise<ApiResult<void>>
+  onWindowState: (listener: (state: DesktopState) => void) => () => void
+  onSaveRequested: (listener: () => Promise<boolean>) => () => void
   listToday: () => Promise<ApiResult<TodayTasks>>
-  createTask: (description: string) => Promise<ApiResult<Task>>
+  createTask: (description: string, expectedDate?: string) => Promise<ApiResult<Task>>
   updateTask: (id: string, description: string) => Promise<ApiResult<Task>>
   setTaskCompleted: (id: string, completed: boolean) => Promise<ApiResult<Task>>
   deleteTask: (id: string) => Promise<ApiResult<boolean>>
@@ -59,6 +66,18 @@ export interface DesktopApi {
   onTasksChanged: (listener: () => void) => () => void
   getBootstrap: () => Promise<ApiResult<BootstrapInfo>>
   runDiagnostics: () => Promise<ApiResult<DiagnosticReport>>
+}
+
+export type DockEdge = 'left' | 'right' | 'top'
+export interface WindowSettings {
+  defaultAlwaysOnTop: boolean
+  edgeAutoHide: boolean
+}
+export interface DesktopState {
+  settings: WindowSettings
+  pinned: boolean
+  edge: DockEdge | null
+  collapsed: boolean
 }
 
 export type WindowKind = 'main' | 'note'

@@ -7,6 +7,22 @@ import { AppDatabase } from '../src/main/storage/database'
 import { AppService } from '../src/main/core/app-service'
 import { TaskRepository } from '../src/main/storage/repositories/tasks'
 
+test('跨日到达的自动保存不把昨天输入创建为今天任务', () => {
+  const database = new AppDatabase(':memory:')
+  const service = new AppService(
+    database,
+    new TaskRepository(database.connection),
+    () => new Date(2026, 9, 28, 0, 0)
+  )
+  try {
+    assert.throws(() => service.createTask('昨天尚未保存的输入', '2026-10-27'), /日期已切换/)
+    assert.equal(service.listToday().tasks.length, 0)
+    assert.equal(service.createTask('今天的输入', '2026-10-28').date, '2026-10-28')
+  } finally {
+    database.close()
+  }
+})
+
 test('今天任务去除空白并按创建顺序展示，跨日不延续', () => {
   const database = new AppDatabase(':memory:')
   let now = new Date(2026, 9, 27, 23, 59)

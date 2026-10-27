@@ -3,8 +3,10 @@ import type { BrowserWindow, IpcMainInvokeEvent } from 'electron'
 import type { ApiResult, BootstrapInfo, DiagnosticReport, WindowKind } from '../../shared/contracts'
 import { IPC_CHANNELS } from '../../shared/channels'
 import type { AppService } from '../core/app-service'
+import type { Desktop } from './desktop'
 
 interface Handlers {
+  desktop: Desktop
   windows: () => BrowserWindow[]
   service: AppService
   changed: () => void
@@ -50,10 +52,41 @@ export function registerIpc(handlers: Handlers): () => void {
     return result
   }
   register(IPC_CHANNELS.getBootstrap, handlers.getBootstrap)
+  register(IPC_CHANNELS.getWindowState, () => handlers.desktop.state())
+  register(IPC_CHANNELS.updateSettings, (_, settings) => {
+    if (
+      !settings ||
+      typeof settings !== 'object' ||
+      !('defaultAlwaysOnTop' in settings) ||
+      !('edgeAutoHide' in settings) ||
+      typeof settings.defaultAlwaysOnTop !== 'boolean' ||
+      typeof settings.edgeAutoHide !== 'boolean'
+    )
+      throw new Error('窗口设置无效。')
+    handlers.desktop.updateSettings({
+      defaultAlwaysOnTop: settings.defaultAlwaysOnTop,
+      edgeAutoHide: settings.edgeAutoHide
+    })
+  })
+  register(IPC_CHANNELS.toggleNotePin, (window) => handlers.desktop.togglePin(window))
+  register(IPC_CHANNELS.hideWindow, (window) => handlers.desktop.hide(window))
+  register(IPC_CHANNELS.setInteraction, (window, active) => {
+    if (typeof active !== 'boolean') throw new Error('交互状态无效。')
+    handlers.desktop.setInteraction(window, active)
+  })
+  register(IPC_CHANNELS.saveReply, (window, id, success) => {
+    if (typeof id !== 'string' || typeof success !== 'boolean') throw new Error('保存回复无效。')
+    handlers.desktop.saves.reply(window, id, success)
+  })
   register(IPC_CHANNELS.runDiagnostics, handlers.runDiagnostics)
   register(IPC_CHANNELS.listToday, () => handlers.service.listToday())
-  register(IPC_CHANNELS.createTask, (_, description) =>
-    mutate(() => handlers.service.createTask(text(description)))
+  register(IPC_CHANNELS.createTask, (_, description, expectedDate) =>
+    mutate(() =>
+      handlers.service.createTask(
+        text(description),
+        expectedDate === undefined ? undefined : text(expectedDate)
+      )
+    )
   )
   register(IPC_CHANNELS.updateTask, (_, id, description) =>
     mutate(() => handlers.service.updateTask(text(id), text(description)))
@@ -66,16 +99,18 @@ export function registerIpc(handlers: Handlers): () => void {
     const taskId = text(id)
     const task = handlers.service.listToday().tasks.find((item) => item.id === taskId)
     if (!task) throw new Error('今天任务不存在，可能已删除或日期已切换。')
-    const result = await dialog.showMessageBox(window, {
-      type: 'question',
-      title: '删除任务',
-      message: '永久删除这项任务？',
-      detail: task.description,
-      buttons: ['取消', '删除'],
-      defaultId: 0,
-      cancelId: 0,
-      noLink: true
-    })
+    const result = await handlers.desktop.protect(() =>
+      dialog.showMessageBox(window, {
+        type: 'question',
+        title: '删除任务',
+        message: '永久删除这项任务？',
+        detail: task.description,
+        buttons: ['取消', '删除'],
+        defaultId: 0,
+        cancelId: 0,
+        noLink: true
+      })
+    )
     if (result.response !== 1) return false
     mutate(() => handlers.service.deleteTask(taskId))
     return true

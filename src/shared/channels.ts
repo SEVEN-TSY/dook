@@ -1,4 +1,10 @@
 export const IPC_CHANNELS = {
+  getWindowState: 'desktop:state',
+  updateSettings: 'desktop:settings',
+  toggleNotePin: 'desktop:toggle-pin',
+  hideWindow: 'desktop:hide',
+  setInteraction: 'desktop:interaction',
+  saveReply: 'desktop:save-reply',
   listToday: 'tasks:list-today',
   createTask: 'tasks:create',
   updateTask: 'tasks:update',
@@ -10,3 +16,5 @@ export const IPC_CHANNELS = {
 } as const
 
 export const TASKS_CHANGED = 'tasks:changed'
+export const WINDOW_STATE = 'desktop:changed'
+export const SAVE_REQUEST = 'desktop:save-request'

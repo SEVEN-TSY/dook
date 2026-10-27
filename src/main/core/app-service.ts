@@ -24,10 +24,13 @@ export class AppService {
     return { date, tasks: this.taskStore().list(date) }
   }
 
-  createTask(description: string): Task {
+  createTask(description: string, expectedDate?: string): Task {
     if (typeof description !== 'string' || !description.trim())
       throw new Error('任务描述不能为空。')
-    return this.taskStore().create(description.trim(), localDate(this.now()))
+    const date = localDate(this.now())
+    if (expectedDate !== undefined && expectedDate !== date)
+      throw new Error('日期已切换，请重新记录今天任务。未保存的输入仍保留。')
+    return this.taskStore().create(description.trim(), date)
   }
 
   updateTask(id: string, description: string): Task {

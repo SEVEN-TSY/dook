@@ -1,13 +1,12 @@
 import { app, dialog } from 'electron'
-import type { BrowserWindow } from 'electron'
 import { resolve } from 'node:path'
-import type { McpStatus, WindowKind } from '../shared/contracts'
+import type { McpStatus } from '../shared/contracts'
 import { TASKS_CHANGED } from '../shared/channels'
 import { TaskRepository } from './storage/repositories/tasks'
 import { localDate } from './core/tasks'
 import { AppDatabase } from './storage/database'
 import { AppService } from './core/app-service'
-import { createWindow, loadWindow } from './desktop/window'
+import { Desktop } from './desktop/desktop'
 import { registerIpc } from './desktop/ipc'
 import { runDiagnostics } from './desktop/diagnostics'
 import { startMcpEndpoint } from './mcp/server'
@@ -30,24 +29,12 @@ if (!app.requestSingleInstanceLock()) {
     .then(async () => {
       const database = new AppDatabase(resolve(dataDirectory, 'mytodo.sqlite'))
       const service = new AppService(database, new TaskRepository(database.connection))
-      const windows = new Map<WindowKind, BrowserWindow>()
+      const desktop = new Desktop(dataDirectory, () => app.quit())
+      const windows = desktop.windows
       const changed = () => {
         for (const window of windows.values()) {
           if (!window.isDestroyed()) window.webContents.send(TASKS_CHANGED)
         }
-      }
-      const openWindow = async (kind: WindowKind) => {
-        const existing = windows.get(kind)
-        if (existing && !existing.isDestroyed()) {
-          if (existing.isMinimized()) existing.restore()
-          existing.show()
-          existing.focus()
-          return
-        }
-        const window = createWindow(kind, dataDirectory)
-        windows.set(kind, window)
-        window.on('closed', () => windows.delete(kind))
-        await loadWindow(window, kind)
       }
       let date = localDate(new Date())
       const dateTimer = setInterval(() => {
@@ -64,16 +51,24 @@ if (!app.requestSingleInstanceLock()) {
       let mcp: McpStatus = { state: 'unavailable', endpoint: null, error: null }
       let disposeIpc = () => {}
       let quitting = false
+      let quitAllowed = false
       app.on('before-quit', (event) => {
+        if (quitAllowed) return
+        event.preventDefault()
         if (quitting) return
         quitting = true
-        event.preventDefault()
-        disposeIpc()
         void (async () => {
+          if (!(await desktop.prepareQuit())) {
+            quitting = false
+            return
+          }
+          desktop.dispose()
+          disposeIpc()
           try {
             await endpoint?.close()
           } finally {
             database.close()
+            quitAllowed = true
             app.quit()
           }
         })().catch((error) => {
@@ -98,10 +93,11 @@ if (!app.requestSingleInstanceLock()) {
       }
 
       disposeIpc = registerIpc({
+        desktop,
         windows: () => [...windows.values()],
         service,
         changed,
-        openWindow,
+        openWindow: (kind) => desktop.openWindow(kind),
         getBootstrap: () => ({
           runtime: {
             appVersion: app.getVersion(),
@@ -117,13 +113,16 @@ if (!app.requestSingleInstanceLock()) {
         runDiagnostics: () => runDiagnostics(service, mcp, token)
       })
       app.on('second-instance', () => {
-        void openWindow('main')
+        void desktop.openWindow('note')
       })
-      await Promise.all([openWindow('main'), openWindow('note')])
+      await desktop.openWindow('note')
+      desktop.startTray()
     })
     .catch((error) => {
       dialog.showErrorBox('myTodo启动失败', error instanceof Error ? error.message : String(error))
       app.quit()
     })
-  app.on('window-all-closed', () => app.quit())
+  app.on('window-all-closed', () => {
+    /* 唯一托盘入口维持常驻，由显式退出结束应用。 */
+  })
 }

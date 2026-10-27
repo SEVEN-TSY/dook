@@ -61,10 +61,7 @@ export function useTasks() {
     error,
     busy,
     setError,
-    create: (description: string) =>
-      run(async () => unwrap(await getDesktopApi().createTask(description))),
-    update: (id: string, description: string) =>
-      run(async () => unwrap(await getDesktopApi().updateTask(id, description))),
+    refresh,
     complete: (task: Task) =>
       run(async () => unwrap(await getDesktopApi().setTaskCompleted(task.id, !task.completed))),
     remove: (id: string) => run(async () => unwrap(await getDesktopApi().deleteTask(id)))
