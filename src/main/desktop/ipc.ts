@@ -119,6 +119,19 @@ export function registerIpc(handlers: Handlers): () => void {
     if (typeof completed !== 'boolean') throw new Error('完成状态无效。')
     return mutate(() => handlers.service.setTaskCompleted(text(id), completed))
   })
+  register(IPC_CHANNELS.addSubitem, (_, id, description) =>
+    mutate(() => handlers.service.addSubitem(text(id), text(description)))
+  )
+  register(IPC_CHANNELS.updateSubitem, (_, id, subitemId, description) =>
+    mutate(() => handlers.service.updateSubitem(text(id), text(subitemId), text(description)))
+  )
+  register(IPC_CHANNELS.setSubitemCompleted, (_, id, subitemId, completed) => {
+    if (typeof completed !== 'boolean') throw new Error('完成状态无效。')
+    return mutate(() => handlers.service.setSubitemCompleted(text(id), text(subitemId), completed))
+  })
+  register(IPC_CHANNELS.deleteSubitem, (_, id, subitemId) =>
+    mutate(() => handlers.service.deleteSubitem(text(id), text(subitemId)))
+  )
   register(IPC_CHANNELS.deleteTask, async (window, id) => {
     const taskId = text(id)
     const task = handlers.service.listToday().tasks.find((item) => item.id === taskId)
