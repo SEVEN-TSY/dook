@@ -24,5 +24,23 @@ export const migrations = [
       ) STRICT;
       CREATE INDEX tasks_date_sequence ON tasks(date, sequence);
     `
+  },
+  {
+    version: 4,
+    name: 'habits_and_daily_generations',
+    sql: `
+      CREATE TABLE habits (
+        sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+        id TEXT NOT NULL UNIQUE,
+        description TEXT NOT NULL CHECK(length(trim(description)) > 0)
+      ) STRICT;
+      ALTER TABLE tasks ADD COLUMN habit_id TEXT;
+      CREATE TABLE habit_generations (
+        habit_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        task_id TEXT NOT NULL,
+        PRIMARY KEY (habit_id, date)
+      ) STRICT;
+    `
   }
 ] as const

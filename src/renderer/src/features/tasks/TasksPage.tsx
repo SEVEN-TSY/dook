@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { DesktopState, WindowKind } from '../../../../shared/contracts'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
 import { useTasks } from './useTasks'
 import { useTaskInput } from './useTaskInput'
+import { HabitsPanel } from '../habits/HabitsPanel'
 
 export function TasksPage({
   kind,
@@ -23,6 +24,13 @@ export function TasksPage({
   const edited = useTaskInput(today?.date, refresh, setError, () => {
     setEditing(null)
   })
+  const habitSave = useRef(async () => true)
+  const onHabitSaveReady = useCallback((save: () => Promise<boolean>) => {
+    habitSave.current = save
+    return () => {
+      habitSave.current = async () => true
+    }
+  }, [])
   const flush = useRef(async () => true)
   const clickOutside = useRef((_target: EventTarget | null) => {})
   clickOutside.current = (target) => {
@@ -31,7 +39,7 @@ export function TasksPage({
     if (!element?.closest('[data-testid="task-edit"]')) void edited.save()
   }
   flush.current = async () => {
-    const results = await Promise.all([added.save(), edited.save()])
+    const results = await Promise.all([added.save(), edited.save(), habitSave.current()])
     return results.every(Boolean)
   }
   useEffect(() => {
@@ -241,6 +249,11 @@ export function TasksPage({
                 {task.description}
               </button>
             )}
+            {task.habitId && (
+              <span className="habit-source" data-testid="habit-source">
+                ↻ 来自习惯
+              </span>
+            )}
             <button
               className="task-delete"
               data-testid="task-delete"
@@ -284,6 +297,7 @@ export function TasksPage({
           }}
         />
       </form>
+      {kind === 'main' && <HabitsPanel onSaveReady={onHabitSaveReady} />}
       <footer className="task-footer">
         {added.saving || edited.saving ? '正在保存…' : '自动保存 · 回车记下一项'}
       </footer>

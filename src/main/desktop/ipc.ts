@@ -83,6 +83,10 @@ export function registerIpc(handlers: Handlers): () => void {
     handlers.desktop.saves.reply(window, id, success)
   })
   register(IPC_CHANNELS.runDiagnostics, handlers.runDiagnostics)
+  register(IPC_CHANNELS.listHabits, () => handlers.service.listHabits())
+  register(IPC_CHANNELS.createHabit, (_, description) =>
+    mutate(() => handlers.service.createHabit(text(description)))
+  )
   register(IPC_CHANNELS.listToday, () => handlers.service.listToday())
   register(IPC_CHANNELS.createTask, (_, description, expectedDate) =>
     mutate(() =>

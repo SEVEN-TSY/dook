@@ -457,3 +457,56 @@ h1 {
   color: #526fc4;
   font-size: 13px;
 }
+
+.habits-panel {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e5eaf1;
+}
+.habits-panel h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.habits-panel h2 span,
+.habit-hint {
+  color: #6a7588;
+  font-size: 12px;
+  font-weight: 400;
+}
+.habit-list {
+  padding: 0;
+  margin: 12px 0;
+  list-style: none;
+}
+.habit-list li {
+  padding: 8px 0;
+  color: #303744;
+  font-size: 14px;
+}
+.habit-add {
+  display: flex;
+  gap: 8px;
+}
+.habit-add input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #e5eaf1;
+  border-radius: 6px;
+  background: #fafbfe;
+  color: #303744;
+}
+.habit-add button {
+  border: 0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: #526fc4;
+  background: #eef2fb;
+  cursor: pointer;
+}
+.habit-source {
+  color: #6a7588;
+  font-size: 11px;
+  white-space: nowrap;
+}

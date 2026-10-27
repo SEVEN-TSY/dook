@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import type { McpStatus } from '../shared/contracts'
 import { TASKS_CHANGED } from '../shared/channels'
 import { TaskRepository } from './storage/repositories/tasks'
+import { HabitRepository } from './storage/repositories/habits'
 import { localDate } from './core/tasks'
 import { AppDatabase } from './storage/database'
 import { AppService } from './core/app-service'
@@ -28,7 +29,10 @@ if (!app.requestSingleInstanceLock()) {
     .whenReady()
     .then(async () => {
       const database = new AppDatabase(resolve(dataDirectory, 'mytodo.sqlite'))
-      const service = new AppService(database, new TaskRepository(database.connection))
+      const service = new AppService(database, new TaskRepository(database.connection), undefined, {
+        habits: new HabitRepository(database.connection)
+      })
+      service.ensureDailyTasks()
       const desktop = new Desktop(dataDirectory, () => app.quit())
       const windows = desktop.windows
       const changed = () => {
@@ -40,8 +44,13 @@ if (!app.requestSingleInstanceLock()) {
       const dateTimer = setInterval(() => {
         const next = localDate(new Date())
         if (date !== next) {
-          date = next
-          changed()
+          try {
+            service.ensureDailyTasks()
+            date = next
+            changed()
+          } catch (error) {
+            console.error('习惯每日任务生成失败，稍后重试：', error)
+          }
         }
       }, 1000)
       app.on('browser-window-focus', () => changed())

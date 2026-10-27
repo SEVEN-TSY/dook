@@ -9,14 +9,15 @@ export class TaskRepository implements TaskStore {
   list(date: string): Task[] {
     return this.database
       .prepare(
-        'SELECT id, description, date, completed FROM tasks WHERE date = ? ORDER BY sequence'
+        'SELECT id, description, date, completed, habit_id FROM tasks WHERE date = ? ORDER BY sequence'
       )
       .all(date)
       .map((row) => ({
         id: String(row.id),
         description: String(row.description),
         date: String(row.date),
-        completed: row.completed === 1
+        completed: row.completed === 1,
+        ...(row.habit_id == null ? {} : { habitId: String(row.habit_id) })
       }))
   }
 
@@ -32,7 +33,7 @@ export class TaskRepository implements TaskStore {
     const row = this.database
       .prepare(
         `UPDATE tasks SET description = COALESCE(?, description), completed = COALESCE(?, completed)
-      WHERE id = ? AND date = ? RETURNING id, description, date, completed`
+      WHERE id = ? AND date = ? RETURNING id, description, date, completed, habit_id`
       )
       .get(
         change.description ?? null,
@@ -45,7 +46,8 @@ export class TaskRepository implements TaskStore {
       id: String(row.id),
       description: String(row.description),
       date: String(row.date),
-      completed: row.completed === 1
+      completed: row.completed === 1,
+      ...(row.habit_id == null ? {} : { habitId: String(row.habit_id) })
     }
   }
 
