@@ -401,14 +401,13 @@ h1 {
   transform: translateX(-50%);
 }
 .tasks-page.note.docked-left {
-  margin-left: 1px;
+  transform: translateX(-5px);
 }
 .tasks-page.note.docked-right {
-  margin-right: 1px;
+  transform: translateX(5px);
 }
 .tasks-page.note.docked-top {
-  margin-top: 1px;
-  height: calc(100vh - 7px);
+  transform: translateY(-5px);
 }
 .settings-page {
   min-height: 100vh;

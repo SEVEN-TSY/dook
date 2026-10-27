@@ -192,6 +192,64 @@ async function draggingSmoke(note) {
   }
 }
 
+async function dockingSizeSmoke(note) {
+  const cursor = screen.getCursorScreenPoint
+  const area = screen.getPrimaryDisplay().workArea
+  const size = note.getContentSize()
+  const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+  const surface = () =>
+    js(
+      note,
+      `(() => { const rect = document.querySelector('.tasks-page.note').getBoundingClientRect(); return [rect.width, rect.height] })()`
+    )
+  let pointer = { x: area.x + 100, y: area.y + 100 }
+  screen.getCursorScreenPoint = () => pointer
+  try {
+    for (const edge of ['left', 'right', 'top']) {
+      note.setBounds({ x: area.x + 80, y: area.y + 90, width: size[0], height: size[1] })
+      note.emit('moved')
+      await pause(100)
+      assert.equal((await state(note)).edge, null)
+      const before = await surface()
+      const origin = note.getBounds()
+      pointer = { x: origin.x + 80, y: origin.y + 25 }
+      await js(note, 'window.myTodo.setNoteDragging(true)')
+      const x =
+        edge === 'left'
+          ? area.x + 10
+          : edge === 'right'
+            ? area.x + area.width - size[0] - 10
+            : area.x + 101
+      const y = edge === 'top' ? area.y + 10 : area.y + 101
+      pointer = { x: pointer.x + x - origin.x, y: pointer.y + y - origin.y }
+      await waitFor(() => note.getBounds().x === x, '拖向吸附边缘')
+      assert.deepEqual(note.getContentSize(), size, '吸附前内容尺寸不变')
+      await js(note, 'window.myTodo.setNoteDragging(false)')
+      await waitFor(async () => (await state(note)).edge === edge, '松手吸附')
+      await pause(100)
+      assert.deepEqual(note.getContentSize(), size, `${edge}吸附后内容尺寸不变`)
+      assert.deepEqual(await surface(), before, `${edge}吸附后便签表面宽高不变`)
+      const expanded = note.getBounds()
+      pointer = { x: expanded.x + 40, y: expanded.y + 40 }
+      await pause(100)
+      pointer = { x: area.x + area.width / 2, y: area.y + area.height - 10 }
+      await waitFor(async () => (await state(note)).collapsed, '吸附收起')
+      const strip = note.getBounds()
+      pointer =
+        edge === 'top'
+          ? { x: strip.x + 20, y: area.y + 2 }
+          : { x: edge === 'left' ? area.x + 2 : area.x + area.width - 2, y: strip.y + 20 }
+      await waitFor(async () => !(await state(note)).collapsed, '吸附重新展开')
+      await pause(100)
+      assert.deepEqual(note.getContentSize(), size, `${edge}收起展开后内容尺寸不变`)
+      assert.deepEqual(await surface(), before, `${edge}收起展开后便签表面宽高不变`)
+    }
+  } finally {
+    await js(note, 'window.myTodo.setNoteDragging(false)')
+    screen.getCursorScreenPoint = cursor
+  }
+}
+
 async function dockingSmoke(main, note) {
   const display = screen.getPrimaryDisplay()
   const area = display.workArea
@@ -211,6 +269,8 @@ async function dockingSmoke(main, note) {
   }
   try {
     await js(note, 'document.activeElement?.blur()')
+    await dockingSizeSmoke(note)
+    await move(area.x + 80, area.y + 90)
     await draggingSmoke(note)
     const beforeDrag = note.getBounds()
     pointer = { x: beforeDrag.x + 80, y: beforeDrag.y + 25 }
@@ -367,6 +427,12 @@ async function runSmoke() {
     assert.equal(BrowserWindow.getAllWindows().length, 1, '启动只创建便签')
     await waitFor(() => trays.size === 1, '唯一托盘')
     await waitFor(() => note.isVisible(), '便签可见')
+    if (phase === 'dock') {
+      await dockingSizeSmoke(note)
+      console.log('Electron dock size passed')
+      app.exit(0)
+      return
+    }
     if (phase === 'drag') {
       await draggingSmoke(note)
       const size = note.getContentSize()
