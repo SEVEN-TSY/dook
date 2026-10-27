@@ -3,6 +3,7 @@ import type { Task } from '../../../../shared/contracts'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
 
 interface InputSession {
+  creating: boolean
   id?: string
   date?: string
   text: string
@@ -11,13 +12,14 @@ interface InputSession {
   cancelled?: boolean
 }
 
-/** 一轮输入绑定一个真实任务；串行保存并追赶保存过程中产生的新输入。 */
+/** 串行追赶保存期间的新输入，全部成功后结束输入，失败时保留内容。 */
 export function useTaskInput(
   date: string | undefined,
   changed: () => Promise<void>,
-  report: (message: string) => void
+  report: (message: string) => void,
+  finished?: () => void
 ) {
-  const session = useRef<InputSession>({ text: '', saved: '' })
+  const session = useRef<InputSession>({ creating: true, text: '', saved: '' })
   const pending = useRef<Promise<boolean> | null>(null)
   const composing = useRef(false)
   const compositionSave = useRef(false)
@@ -25,6 +27,7 @@ export function useTaskInput(
   const redraw = () => render((value) => value + 1)
   const start = (task?: Task) => {
     session.current = {
+      creating: !task,
       id: task?.id,
       date,
       text: task?.description ?? '',
@@ -53,7 +56,15 @@ export function useTaskInput(
             return false
           }
           const text = current.text.trim()
-          if (!text || text === current.saved) return true
+          if (!text) {
+            if (current.creating && current.id) start()
+            return true
+          }
+          if (text === current.saved) {
+            start()
+            finished?.()
+            return true
+          }
           if (current.date !== date)
             throw new Error('日期已切换，请重新记录今天任务。未保存的输入仍保留。')
           const api = getDesktopApi()
@@ -81,15 +92,11 @@ export function useTaskInput(
     return pending.current
   }
   const submit = async () => {
-    if (await save()) {
-      if (!session.current.text.trim()) {
-        report('任务描述不能为空。')
-        return false
-      }
-      start()
-      return true
+    if (!session.current.text.trim()) {
+      report('任务描述不能为空。')
+      return false
     }
-    return false
+    return save()
   }
   const cancel = async () => {
     const current = session.current
@@ -113,11 +120,6 @@ export function useTaskInput(
   }
   return {
     value: session.current.text,
-    id: session.current.id,
-    saved:
-      !pending.current &&
-      Boolean(session.current.id) &&
-      session.current.text.trim() === session.current.saved,
     saving: Boolean(pending.current),
     start,
     setValue,

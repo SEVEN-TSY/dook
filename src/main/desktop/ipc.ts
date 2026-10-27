@@ -74,6 +74,10 @@ export function registerIpc(handlers: Handlers): () => void {
     if (typeof active !== 'boolean') throw new Error('交互状态无效。')
     handlers.desktop.setInteraction(window, active)
   })
+  register(IPC_CHANNELS.setNoteDragging, (window, active) => {
+    if (typeof active !== 'boolean') throw new Error('拖动状态无效。')
+    handlers.desktop.setNoteDragging(window, active)
+  })
   register(IPC_CHANNELS.saveReply, (window, id, success) => {
     if (typeof id !== 'string' || typeof success !== 'boolean') throw new Error('保存回复无效。')
     handlers.desktop.saves.reply(window, id, success)

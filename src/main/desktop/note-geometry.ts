@@ -64,7 +64,7 @@ export function nearbyEdge(
     distances
       .sort((a, b) => a[1] - b[1])
       .find(
-        ([edge, distance]) => distance <= 16 && isOuterEdge(display, edge, bounds, displays)
+        ([edge, distance]) => distance <= 32 && isOuterEdge(display, edge, bounds, displays)
       )?.[0] ?? null
   )
 }

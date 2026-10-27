@@ -4,6 +4,7 @@ export const IPC_CHANNELS = {
   toggleNotePin: 'desktop:toggle-pin',
   hideWindow: 'desktop:hide',
   setInteraction: 'desktop:interaction',
+  setNoteDragging: 'desktop:dragging',
   saveReply: 'desktop:save-reply',
   listToday: 'tasks:list-today',
   createTask: 'tasks:create',

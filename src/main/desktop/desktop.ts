@@ -130,6 +130,10 @@ export class Desktop {
   setInteraction(window: BrowserWindow, active: boolean) {
     if (window === this.windows.get('note')) this.note?.setInteraction(active)
   }
+  setNoteDragging(window: BrowserWindow, active: boolean) {
+    if (!this.preparingQuit && !this.exiting && window === this.windows.get('note'))
+      this.note?.setDragging(active)
+  }
 
   async protect<T>(action: () => Promise<T>): Promise<T> {
     return this.note ? this.note.protect(action) : action()
@@ -169,6 +173,7 @@ export class Desktop {
   }
 
   async prepareQuit(): Promise<boolean> {
+    this.note?.setDragging(false)
     this.preparingQuit = true
     this.broadcast()
     await Promise.all(this.loading.values())

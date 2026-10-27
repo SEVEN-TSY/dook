@@ -55,6 +55,7 @@ export interface DesktopApi {
   toggleNotePin: () => Promise<ApiResult<void>>
   hideWindow: () => Promise<ApiResult<void>>
   setInteraction: (active: boolean) => Promise<ApiResult<void>>
+  setNoteDragging: (active: boolean) => Promise<ApiResult<void>>
   onWindowState: (listener: (state: DesktopState) => void) => () => void
   onSaveRequested: (listener: () => Promise<boolean>) => () => void
   listToday: () => Promise<ApiResult<TodayTasks>>

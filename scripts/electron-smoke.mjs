@@ -123,21 +123,66 @@ async function dockingSmoke(main, note) {
   }
   try {
     await js(note, 'document.activeElement?.blur()')
+    const beforeDrag = note.getBounds()
+    pointer = { x: beforeDrag.x + 80, y: beforeDrag.y + 25 }
+    note.webContents.sendInputEvent({
+      type: 'mouseDown',
+      x: 80,
+      y: 25,
+      button: 'left',
+      clickCount: 1
+    })
+    await pause(100)
+    pointer = { x: pointer.x + 40, y: pointer.y + 30 }
+    await waitFor(() => note.getBounds().x === beforeDrag.x + 40, '头部拖动跟随鼠标')
+    note.webContents.sendInputEvent({
+      type: 'mouseUp',
+      x: 80,
+      y: 25,
+      button: 'left',
+      clickCount: 1
+    })
+    await pause(100)
+    assert.equal(
+      await js(note, `getComputedStyle(document.querySelector('.task-heading')).cursor`),
+      'move',
+      '四向移动光标'
+    )
     if ((await state(note)).pinned) await click(note, '[data-testid=note-pin]')
-    await move(area.x + 5, area.y + 100)
+    await move(area.x + 28, area.y + 100)
     assert.equal((await state(note)).edge, 'left')
     assert.equal(note.isAlwaysOnTop(), true, '贴边强制置顶')
+    assert.equal(
+      await js(
+        note,
+        `document.querySelector('[data-testid=note-pin]').getAttribute('aria-pressed')`
+      ),
+      'true'
+    )
+    assert.equal(
+      await js(note, `getComputedStyle(document.querySelector('[data-testid=note-pin]')).opacity`),
+      '1',
+      '吸附图钉保持亮起'
+    )
     const full = note.getBounds()
     pointer = { x: full.x + 30, y: full.y + 40 }
     await pause(150)
     pointer = { x: area.x + area.width - 40, y: area.y + area.height - 50 }
     await waitFor(async () => (await state(note)).collapsed, '离开后贴边收起')
-    assert.ok(note.getSize()[0] <= 40, `可见边缘入口：${JSON.stringify(note.getBounds())}`)
+    assert.equal(note.getBounds().x + note.getBounds().width - area.x, 6, '边缘仅保留6px入口')
+    await waitFor(
+      () => js(note, 'Boolean(document.querySelector(".edge-handle"))'),
+      '细条入口完成渲染'
+    )
+    await js(
+      note,
+      'new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))'
+    )
     writeFileSync(resolve(output, 'note-edge.png'), (await note.webContents.capturePage()).toPNG())
     main.focus()
     await waitFor(() => main.isFocused(), '主界面获得焦点')
     const strip = note.getBounds()
-    pointer = { x: strip.x + 2, y: strip.y + 20 }
+    pointer = { x: area.x + 2, y: strip.y + 20 }
     await pause(100)
     assert.equal((await state(note)).collapsed, true, '短暂悬停不会立即展开')
     await waitFor(async () => !(await state(note)).collapsed, '悬停展开')
@@ -146,8 +191,8 @@ async function dockingSmoke(main, note) {
     pointer = { x: area.x + area.width - 40, y: area.y + area.height - 50 }
     await pause(750)
     assert.equal((await state(note)).collapsed, false, '行内编辑保护')
-    note.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' })
-    note.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' })
+    note.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' })
+    note.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' })
     await waitFor(
       () => js(note, '!document.querySelector("[data-testid=task-edit]")'),
       '结束行内编辑'
@@ -195,11 +240,18 @@ async function dockingSmoke(main, note) {
     assert.equal((await state(note)).edge, 'right')
     screen.getAllDisplays = () => [left]
     screen.getDisplayMatching = () => left
+    await js(note, 'window.myTodo.setNoteDragging(true)')
+    pointer = { x: pointer.x + area.width, y: pointer.y }
     screen.emit('display-removed', {}, right)
     await waitFor(
       () =>
         note.getBounds().x + note.getBounds().width <= left.workArea.x + left.workArea.width + 1,
       '拔屏后恢复可见位置'
+    )
+    await pause(150)
+    assert.ok(
+      note.getBounds().x + note.getBounds().width <= left.workArea.x + left.workArea.width + 1,
+      '屏幕恢复停止旧拖动，位置保持可见'
     )
     menuClick('隐藏桌面便签')
     await waitFor(() => !note.isVisible(), '屏幕变化前主动隐藏')
@@ -228,6 +280,7 @@ async function runSmoke() {
     await waitFor(() => note.isVisible(), '便签可见')
     assert.equal(note.isMenuBarVisible(), false)
     assert.equal(await js(note, 'Boolean(document.querySelector(".task-toolbar"))'), false)
+    assert.equal(await js(note, 'document.querySelectorAll("[title]").length'), 0, '无多余悬停提示')
     menuClick('打开主界面')
     let main = await waitFor(() => findWindow('main'), '托盘打开主界面')
     assert.ok(main && note)
@@ -256,7 +309,41 @@ async function runSmoke() {
         `document.querySelector('[data-testid=task-new]').dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: '中文组合输入' }))`
       )
       await count(note, 1)
+      await waitFor(
+        () => js(main, `document.querySelector('[data-testid=task-new]').value === ''`),
+        '自动保存后清空新增栏'
+      )
       await input(main, '[data-testid=task-new]', ' 检查构建 ', 'mouseleave')
+      await count(note, 2)
+      await waitFor(
+        () => js(main, `document.querySelector('[data-testid=task-new]').value === ''`),
+        '下一项保存后清空'
+      )
+      dialog.showMessageBox = async () => ({ response: 1, checkboxChecked: false })
+      await js(main, `window.myTodo.deleteTask(${JSON.stringify((await rows(note)).at(-1).id)})`)
+      await count(note, 1)
+      await js(
+        main,
+        `(() => {
+        const field = document.querySelector('[data-testid=task-new]');
+        const set = value => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(field, value); field.dispatchEvent(new Event('input', { bubbles: true })); };
+        set('保存期间清空的任务'); field.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body })); set('');
+      })()`
+      )
+      await count(note, 2)
+      await waitFor(
+        () => js(main, `!document.querySelector('.task-footer').textContent.includes('正在保存')`),
+        '清空期间的保存完成'
+      )
+      await input(main, '[data-testid=task-new]', '清空后独立的新任务')
+      await count(note, 3)
+      assert.equal(
+        (await rows(note))[1].description,
+        '保存期间清空的任务',
+        '下一项不覆盖已保存任务'
+      )
+      for (const task of (await rows(note)).slice(1))
+        await js(main, `window.myTodo.deleteTask(${JSON.stringify(task.id)})`)
       await count(note, 1)
       await js(
         main,
@@ -268,48 +355,60 @@ async function runSmoke() {
       })()`
       )
       await waitFor(
-        async () => (await rows(note))[0].description === '保存期间继续输入',
+        async () => (await rows(note)).at(-1).description === '保存期间继续输入',
         '保存期间继续输入不丢字'
       )
+      await count(note, 2)
+      await waitFor(
+        () => js(main, `document.querySelector('[data-testid=task-new]').value === ''`),
+        '追赶输入保存后清空'
+      )
+      await js(main, `window.myTodo.deleteTask(${JSON.stringify((await rows(note))[0].id)})`)
       await count(note, 1)
-      await input(main, '[data-testid=task-new]', ' 检查构建并更新 ', 'mouseleave')
+      await edit(main, ' 检查构建并更新 ', 'mouseleave')
       await waitFor(
         async () => (await rows(note))[0].description === '检查构建并更新',
-        '同一轮输入更新已保存任务'
+        '行内编辑移出后同步保存'
       )
       await count(note, 1)
-      await input(note, '[data-testid=task-new]', '更新进展')
-      await count(main, 2)
-      await click(main, '[data-testid=task-description]')
-      await js(
-        main,
-        `(() => {
-        const field = document.querySelector('[data-testid=task-edit]');
-        const set = value => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(field, value); field.dispatchEvent(new Event('input', { bubbles: true })); };
-        set('已提交的版本'); field.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }));
-        set('Esc应取消的排队版本'); field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-      })()`
-      )
-      await waitFor(
-        async () => (await rows(note))[0].description === '已提交的版本',
-        'Esc保留已提交版本'
-      )
       await waitFor(
         () => js(main, '!document.querySelector("[data-testid=task-edit]")'),
-        'Esc取消后续排队修改'
+        '行内自动保存后结束编辑'
       )
+      await input(note, '[data-testid=task-new]', '更新进展')
+      await count(main, 2)
       for (const window of [main, note]) {
         const other = window === main ? note : main
-        const original = (await rows(window))[0].description
-        await edit(window, '取消的修改', 'Escape')
-        assert.equal((await rows(window))[0].description, original)
-        await edit(window, '   ')
+        await edit(window, 'Esc不取消的修改', 'Escape')
+        assert.equal(
+          await js(window, `document.querySelector('[data-testid=task-edit]').value`),
+          'Esc不取消的修改',
+          'Esc保留行内编辑'
+        )
+        assert.equal(
+          await js(
+            window,
+            `getComputedStyle(document.querySelector('[data-testid=task-edit]')).outlineStyle`
+          ),
+          'none',
+          '编辑输入只有单层边框'
+        )
+        if (window === note)
+          writeFileSync(
+            resolve(output, 'note-editing.png'),
+            (await note.webContents.capturePage()).toPNG()
+          )
+        await input(window, '[data-testid=task-edit]', '   ')
         await waitFor(
           () => js(window, 'Boolean(document.querySelector("[role=alert]"))'),
           '空白描述校验'
         )
-        await input(window, '[data-testid=task-edit]', '取消', 'Escape')
-        await edit(window, window === main ? ' 主界面已编辑 ' : ' 便签已编辑 ')
+        await input(
+          window,
+          '[data-testid=task-edit]',
+          window === main ? ' 主界面已编辑 ' : ' 便签已编辑 ',
+          'mouseleave'
+        )
         const expected = window === main ? '主界面已编辑' : '便签已编辑'
         await waitFor(async () => (await rows(other))[0].description === expected, '编辑同步')
         await click(window, 'input[type=checkbox]')
@@ -422,6 +521,12 @@ async function runSmoke() {
       await count(note, 2)
       await input(note, '[data-testid=task-new]', '先成功保存', 'mouseleave')
       await count(main, 3)
+      await waitFor(
+        () => js(note, `document.querySelector('[data-testid=task-new]').value === ''`),
+        '成功保存后准备下一项'
+      )
+      await js(note, `window.myTodo.deleteTask(${JSON.stringify((await rows(main)).at(-1).id)})`)
+      await count(main, 2)
       const lock = new DatabaseSync(resolve(process.env.MYTODO_SMOKE_DATA, 'mytodo.sqlite'))
       let saveFailures = 0
       dialog.showMessageBox = async (_window, options) => {
@@ -464,6 +569,11 @@ async function runSmoke() {
         async () => !(await state(main)).settings.defaultAlwaysOnTop,
         '默认置顶设置持久化'
       )
+      assert.equal(note.isAlwaysOnTop(), false, '关闭默认置顶立即影响便签')
+      await click(main, '[data-testid=default-pin]')
+      await waitFor(() => note.isAlwaysOnTop(), '开启默认置顶立即影响便签')
+      await click(main, '[data-testid=default-pin]')
+      await waitFor(() => !note.isAlwaysOnTop(), '再次关闭默认置顶')
       await click(note, '[data-testid=note-pin]')
       await waitFor(() => note.isAlwaysOnTop(), '图钉临时开启')
       assert.equal((await state(main)).settings.defaultAlwaysOnTop, false, '图钉不改变启动默认值')

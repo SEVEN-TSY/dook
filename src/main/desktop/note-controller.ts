@@ -18,6 +18,7 @@ export class NoteController {
   private outsideSince = 0
   private applying = false
   private dragging = false
+  private dragTimer?: ReturnType<typeof setInterval>
   private readonly timer: ReturnType<typeof setInterval>
 
   constructor(
@@ -37,13 +38,10 @@ export class NoteController {
       ...this.preferences.position
     }
     this.recover()
-    window.on('will-move', () => {
-      this.dragging = true
-    })
     window.on('moved', this.moved)
     window.on('resized', this.moved)
     window.on('blur', () => {
-      this.dragging = false
+      this.setDragging(false)
     })
     screen.on('display-added', this.recover)
     screen.on('display-removed', this.recover)
@@ -81,12 +79,12 @@ export class NoteController {
       if (this.collapsed && this.edge) {
         bounds =
           this.edge === 'top'
-            ? { ...bounds, width: 100, height: 32 }
+            ? { ...bounds, width: 72, height: 32, y: bounds.y - 26 }
             : {
                 ...bounds,
                 width: 32,
-                height: 100,
-                x: this.edge === 'right' ? bounds.x + bounds.width - 32 : bounds.x
+                height: 72,
+                x: this.edge === 'right' ? bounds.x + bounds.width - 6 : bounds.x - 26
               }
       }
       this.window.setMinimumSize(
@@ -103,7 +101,7 @@ export class NoteController {
   }
 
   private readonly moved = () => {
-    if (this.applying || this.collapsed || this.window.isDestroyed()) return
+    if (this.applying || this.dragging || this.collapsed || this.window.isDestroyed()) return
     const bounds = this.window.getBounds()
     if (JSON.stringify(bounds) === JSON.stringify(this.expanded)) {
       this.dragging = false
@@ -124,6 +122,7 @@ export class NoteController {
 
   readonly recover = () => {
     if (this.window.isDestroyed()) return
+    this.setDragging(false)
     const display = screen.getDisplayMatching(this.expanded)
     this.expanded = visibleBounds(this.expanded, display)
     if (this.edge && !isOuterEdge(display, this.edge, this.expanded, screen.getAllDisplays()))
@@ -162,13 +161,32 @@ export class NoteController {
 
   updateSettings(settings: WindowSettings) {
     writePreferences(this.directory, { ...this.preferences, settings })
+    if (settings.defaultAlwaysOnTop !== this.preferences.settings.defaultAlwaysOnTop)
+      this.freePinned = settings.defaultAlwaysOnTop
     this.preferences.settings = { ...settings }
     if (!settings.edgeAutoHide) {
       this.edge = null
       this.collapsed = false
-      this.apply()
       this.persist()
-    } else this.notify()
+    }
+    this.apply()
+  }
+
+  setDragging(active: boolean) {
+    if (active === this.dragging || this.collapsed || this.window.isDestroyed()) return
+    this.dragging = active
+    if (active) {
+      const origin = screen.getCursorScreenPoint()
+      const bounds = this.window.getBounds()
+      this.dragTimer = setInterval(() => {
+        const point = screen.getCursorScreenPoint()
+        this.window.setPosition(bounds.x + point.x - origin.x, bounds.y + point.y - origin.y)
+      }, 16)
+    } else {
+      clearInterval(this.dragTimer)
+      this.dragTimer = undefined
+      this.moved()
+    }
   }
 
   setInteraction(active: boolean) {
@@ -232,6 +250,7 @@ export class NoteController {
 
   dispose() {
     clearInterval(this.timer)
+    clearInterval(this.dragTimer)
     screen.removeListener('display-added', this.recover)
     screen.removeListener('display-removed', this.recover)
     screen.removeListener('display-metrics-changed', this.recover)

@@ -9,6 +9,7 @@ const api: DesktopApi = {
   toggleNotePin: () => ipcRenderer.invoke(IPC_CHANNELS.toggleNotePin),
   hideWindow: () => ipcRenderer.invoke(IPC_CHANNELS.hideWindow),
   setInteraction: (active) => ipcRenderer.invoke(IPC_CHANNELS.setInteraction, active),
+  setNoteDragging: (active) => ipcRenderer.invoke(IPC_CHANNELS.setNoteDragging, active),
   onWindowState: (listener) => {
     const callback = (_event: Electron.IpcRendererEvent, state: DesktopState) => listener(state)
     ipcRenderer.on(WINDOW_STATE, callback)

@@ -34,7 +34,7 @@ export function SettingsPage({
       <label className="setting-row">
         <span>
           <strong>默认是否置顶</strong>
-          <small>每次启动时使用。图钉只调整本次运行。</small>
+          <small>立即应用到便签并记住。贴边时保持置顶。</small>
         </span>
         <input
           data-testid="default-pin"

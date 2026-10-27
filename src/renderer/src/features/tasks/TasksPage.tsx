@@ -18,9 +18,11 @@ export function TasksPage({
 }) {
   const { today, error, busy, setError, refresh, complete, remove } = useTasks()
   const added = useTaskInput(today?.date, refresh, setError)
-  const edited = useTaskInput(today?.date, refresh, setError)
   const [editing, setEditing] = useState<string | null>(null)
   const [inputFocused, setInputFocused] = useState(false)
+  const edited = useTaskInput(today?.date, refresh, setError, () => {
+    setEditing(null)
+  })
   const flush = useRef(async () => true)
   flush.current = async () => {
     const results = await Promise.all([added.save(), edited.save()])
@@ -39,13 +41,15 @@ export function TasksPage({
     }
   }, [])
   useEffect(() => {
-    if (kind === 'note') void getDesktopApi().setInteraction(inputFocused || editing !== null)
-  }, [kind, inputFocused, editing])
+    if (kind === 'note')
+      void getDesktopApi().setInteraction(
+        (inputFocused && Boolean(added.value.trim())) || editing !== null
+      )
+  }, [kind, inputFocused, added.value, editing])
   useEffect(() => {
     if (today) added.reconcile(today.tasks)
     if (editing && today && !today.tasks.some((task) => task.id === editing)) {
       setEditing(null)
-      setInputFocused(false)
       void edited.cancel()
     }
   }, [today, editing])
@@ -55,10 +59,7 @@ export function TasksPage({
   }
   const save = async (event: FormEvent) => {
     event.preventDefault()
-    if (editing && (await edited.submit())) {
-      setEditing(null)
-      setInputFocused(false)
-    }
+    if (editing) await edited.submit()
   }
   const openOther = async () => {
     try {
@@ -76,7 +77,11 @@ export function TasksPage({
     }
   }
   return (
-    <section className={`tasks-page ${kind}`} hidden={hidden}>
+    <section
+      className={`tasks-page ${kind} ${desktop?.edge ? `docked-${desktop.edge}` : ''}`}
+      hidden={hidden}
+      onMouseLeave={() => void flush.current()}
+    >
       {kind === 'main' && (
         <div className="task-toolbar">
           <span className="task-brand">
@@ -95,7 +100,24 @@ export function TasksPage({
           </button>
         </div>
       )}
-      <header className="task-heading">
+      <header
+        className="task-heading"
+        onPointerDown={(event) => {
+          if (kind !== 'note' || event.button !== 0 || (event.target as Element).closest('button'))
+            return
+          event.preventDefault()
+          event.currentTarget.setPointerCapture(event.pointerId)
+          void windowAction(async () => unwrap(await getDesktopApi().setNoteDragging(true)))
+        }}
+        onPointerUp={(event) => {
+          if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
+          event.currentTarget.releasePointerCapture(event.pointerId)
+        }}
+        onLostPointerCapture={() => {
+          if (kind === 'note')
+            void windowAction(async () => unwrap(await getDesktopApi().setNoteDragging(false)))
+        }}
+      >
         <div>
           <p className="task-eyebrow">TODAY</p>
           <h1>今天</h1>
@@ -112,7 +134,6 @@ export function TasksPage({
               aria-label="窗口置顶"
               aria-pressed={desktop?.pinned ?? true}
               disabled={Boolean(desktop?.edge)}
-              title={desktop?.edge ? '贴边时始终置顶' : '切换本次置顶'}
               onClick={() =>
                 void windowAction(async () => unwrap(await getDesktopApi().toggleNotePin()))
               }
@@ -132,12 +153,21 @@ export function TasksPage({
             <button
               data-testid="note-close"
               aria-label="隐藏桌面便签"
-              title="隐藏桌面便签"
               onClick={() =>
                 void windowAction(async () => unwrap(await getDesktopApi().hideWindow()))
               }
             >
-              ×
+              <svg
+                viewBox="0 0 20 20"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                aria-hidden="true"
+              >
+                <path d="m5 5 10 10M15 5 5 15" />
+              </svg>
             </button>
           </div>
         )}
@@ -156,6 +186,9 @@ export function TasksPage({
             className={`task-row ${task.completed ? 'completed' : ''}`}
             key={task.id}
             data-task-id={task.id}
+            onMouseLeave={() => {
+              if (editing === task.id) void edited.save()
+            }}
           >
             <input
               type="checkbox"
@@ -173,9 +206,7 @@ export function TasksPage({
                   autoFocus
                   onChange={(event) => edited.setValue(event.target.value)}
                   onMouseLeave={() => void edited.save()}
-                  onFocus={() => setInputFocused(true)}
                   onBlur={() => {
-                    setInputFocused(false)
                     void edited.save()
                   }}
                   onCompositionStart={() => {
@@ -184,12 +215,6 @@ export function TasksPage({
                   onCompositionEnd={edited.endComposition}
                   onKeyDown={(event) => {
                     if (event.nativeEvent.isComposing || event.keyCode === 229) return
-                    if (event.key === 'Escape') {
-                      void edited.cancel().then(() => {
-                        setEditing(null)
-                        setInputFocused(false)
-                      })
-                    }
                     if (event.key === 'Enter') {
                       event.preventDefault()
                       void save(event)
@@ -217,7 +242,6 @@ export function TasksPage({
               data-testid="task-delete"
               disabled={busy}
               aria-label={`删除：${task.description}`}
-              title="删除任务"
               onClick={() => void remove(task.id)}
             >
               ×
@@ -250,7 +274,6 @@ export function TasksPage({
           }}
           onCompositionEnd={added.endComposition}
           onKeyDown={(event) => {
-            if (event.key === 'Escape' && !event.nativeEvent.isComposing) void added.cancel()
             if (event.key === 'Enter') {
               event.preventDefault()
               if (!event.nativeEvent.isComposing && event.keyCode !== 229) void add(event)
@@ -259,11 +282,7 @@ export function TasksPage({
         />
       </form>
       <footer className="task-footer">
-        {added.saving
-          ? '正在保存…'
-          : added.saved
-            ? '已保存 · 继续修改，回车记下一项'
-            : '自动保存 · 回车记下一项 · Esc结束编辑'}
+        {added.saving || edited.saving ? '正在保存…' : '自动保存 · 回车记下一项'}
       </footer>
     </section>
   )
