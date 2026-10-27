@@ -22,7 +22,16 @@ export class TaskRepository implements TaskStore {
 
   private taskWithSubitems(row: Record<string, SQLOutputValue>): Task {
     const task = taskFromRow(row)
-    const subitems = this.database.prepare('SELECT id, description, completed FROM task_subitems WHERE task_id = ? ORDER BY sequence').all(task.id).map((item) => ({ id: String(item.id), description: String(item.description), completed: item.completed === 1 }))
+    const subitems = this.database
+      .prepare(
+        'SELECT id, description, completed FROM task_subitems WHERE task_id = ? ORDER BY sequence'
+      )
+      .all(task.id)
+      .map((item) => ({
+        id: String(item.id),
+        description: String(item.description),
+        completed: item.completed === 1
+      }))
     return subitems.length ? { ...task, subitems } : task
   }
 
@@ -40,22 +49,41 @@ export class TaskRepository implements TaskStore {
 
   addSubitem(taskId: string, description: string): Subitem {
     const item = { id: randomUUID(), description, completed: false }
-    this.database.prepare('INSERT INTO task_subitems (id, task_id, description) VALUES (?, ?, ?)').run(item.id, taskId, description)
+    this.database
+      .prepare('INSERT INTO task_subitems (id, task_id, description) VALUES (?, ?, ?)')
+      .run(item.id, taskId, description)
     return item
   }
 
-  updateSubitem(taskId: string, id: string, change: { description?: string; completed?: boolean }): void {
-    const result = this.database.prepare('UPDATE task_subitems SET description = COALESCE(?, description), completed = COALESCE(?, completed) WHERE task_id = ? AND id = ?').run(change.description ?? null, change.completed === undefined ? null : Number(change.completed), taskId, id)
+  updateSubitem(
+    taskId: string,
+    id: string,
+    change: { description?: string; completed?: boolean }
+  ): void {
+    const result = this.database
+      .prepare(
+        'UPDATE task_subitems SET description = COALESCE(?, description), completed = COALESCE(?, completed) WHERE task_id = ? AND id = ?'
+      )
+      .run(
+        change.description ?? null,
+        change.completed === undefined ? null : Number(change.completed),
+        taskId,
+        id
+      )
     if (!result.changes) throw new Error('子事项不存在，可能已删除。')
   }
 
   deleteSubitem(taskId: string, id: string): void {
-    const result = this.database.prepare('DELETE FROM task_subitems WHERE task_id = ? AND id = ?').run(taskId, id)
+    const result = this.database
+      .prepare('DELETE FROM task_subitems WHERE task_id = ? AND id = ?')
+      .run(taskId, id)
     if (!result.changes) throw new Error('子事项不存在，可能已删除。')
   }
 
   setSubitemsCompleted(taskId: string, completed: boolean): void {
-    this.database.prepare('UPDATE task_subitems SET completed = ? WHERE task_id = ?').run(Number(completed), taskId)
+    this.database
+      .prepare('UPDATE task_subitems SET completed = ? WHERE task_id = ?')
+      .run(Number(completed), taskId)
   }
 
   list(date: string): Task[] {

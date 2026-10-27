@@ -50,6 +50,7 @@ test('SQLite迁移可重复启动，诊断不留下业务数据', (t) => {
         'inspirations',
         'schema_migrations',
         'sqlite_sequence',
+        'task_subitems',
         'tasks'
       ]
     )

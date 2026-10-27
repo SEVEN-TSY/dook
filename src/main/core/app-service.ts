@@ -128,7 +128,8 @@ export class AppService {
   }
 
   addSubitem(id: string, description: string): Task {
-    if (typeof description !== 'string' || !description.trim()) throw new Error('子事项内容不能为空。')
+    if (typeof description !== 'string' || !description.trim())
+      throw new Error('子事项内容不能为空。')
     const date = localDate(this.now())
     const store = this.taskStore()
     return store.transaction(() => {
@@ -140,13 +141,20 @@ export class AppService {
   }
 
   updateSubitem(id: string, subitemId: string, description: string): Task {
-    if (typeof description !== 'string' || !description.trim()) throw new Error('子事项内容不能为空。')
-    return this.mutateSubitem(id, () => this.taskStore().updateSubitem(id, this.taskId(subitemId), { description: description.trim() }))
+    if (typeof description !== 'string' || !description.trim())
+      throw new Error('子事项内容不能为空。')
+    return this.mutateSubitem(id, () =>
+      this.taskStore().updateSubitem(id, this.taskId(subitemId), {
+        description: description.trim()
+      })
+    )
   }
 
   setSubitemCompleted(id: string, subitemId: string, completed: boolean): Task {
     if (typeof completed !== 'boolean') throw new Error('完成状态无效。')
-    return this.mutateSubitem(id, () => this.taskStore().updateSubitem(id, this.taskId(subitemId), { completed }))
+    return this.mutateSubitem(id, () =>
+      this.taskStore().updateSubitem(id, this.taskId(subitemId), { completed })
+    )
   }
 
   deleteSubitem(id: string, subitemId: string): Task {
@@ -168,8 +176,12 @@ export class AppService {
     const subitems = task.subitems ?? []
     if (!subitems.length) return task
     const completedCount = subitems.filter((item) => item.completed).length
-    const progress = Math.floor(completedCount * 100 / subitems.length)
-    return store.update(id, date, { progress, completed: completedCount === subitems.length, completedOn: completedCount === subitems.length ? (task.completedOn ?? date) : null })
+    const progress = Math.floor((completedCount * 100) / subitems.length)
+    return store.update(id, date, {
+      progress,
+      completed: completedCount === subitems.length,
+      completedOn: completedCount === subitems.length ? (task.completedOn ?? date) : null
+    })
   }
 
   setTaskProgress(id: string, progress: number): Task {

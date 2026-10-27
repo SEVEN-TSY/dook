@@ -7,7 +7,11 @@ export interface TaskStore {
   update(id: string, date: string, change: TaskChange): Task
   transaction<T>(action: () => T): T
   addSubitem(taskId: string, description: string): Subitem
-  updateSubitem(taskId: string, id: string, change: { description?: string; completed?: boolean }): void
+  updateSubitem(
+    taskId: string,
+    id: string,
+    change: { description?: string; completed?: boolean }
+  ): void
   deleteSubitem(taskId: string, id: string): void
   setSubitemsCompleted(taskId: string, completed: boolean): void
   delete(id: string, date: string): void

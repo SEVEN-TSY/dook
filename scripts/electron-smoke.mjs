@@ -1,3 +1,4 @@
+import { subitemsSmoke } from './subitems-smoke.mjs'
 import { habitsSmoke } from './smoke-habits.mjs'
 import { app, BrowserWindow, dialog, Tray, screen } from 'electron'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -406,6 +407,29 @@ async function runSmoke() {
     let main = await waitFor(() => findWindow('main'), '托盘打开主界面')
     assert.ok(main && note)
     await Promise.all([ready(main), ready(note)])
+    if (phase.startsWith('subitems-')) {
+      await subitemsSmoke({
+        phase: phase.replace('subitems-', ''),
+        main,
+        note,
+        input,
+        click,
+        js,
+        waitFor
+      })
+      for (const [name, window] of [
+        ['main', main],
+        ['note', note]
+      ]) {
+        writeFileSync(
+          resolve(output, `${name}-${phase}.png`),
+          (await window.webContents.capturePage()).toPNG()
+        )
+      }
+      console.log(`Electron subitems smoke passed: ${phase}`)
+      menuClick('退出')
+      return
+    }
     if (phase.startsWith('multiday-')) {
       await multidaySmoke(main, note)
       return

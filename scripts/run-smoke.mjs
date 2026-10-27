@@ -24,7 +24,9 @@ const phases =
     ? ['drag']
     : process.argv[2] === 'multiday'
       ? ['multiday-create', 'multiday-restart']
-      : ['create', 'restart']
+      : process.argv[2] === 'subitems'
+        ? ['subitems-create', 'subitems-restart']
+        : ['create', 'restart']
 for (const phase of phases) {
   const code = await new Promise((resolveExit, reject) => {
     const child = spawn(electron, [runner], {
