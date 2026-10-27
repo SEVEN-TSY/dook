@@ -119,6 +119,13 @@ export function registerIpc(handlers: Handlers): () => void {
     mutate(() => handlers.service.deleteTask(taskId))
     return true
   })
+  register(IPC_CHANNELS.convertToMultiDay, (_, id) =>
+    mutate(() => handlers.service.convertToMultiDay(text(id)))
+  )
+  register(IPC_CHANNELS.setTaskProgress, (_, id, progress) => {
+    if (typeof progress !== 'number') throw new Error('进度必须为数字。')
+    return mutate(() => handlers.service.setTaskProgress(text(id), progress))
+  })
   register(IPC_CHANNELS.openWindow, (_, kind) => {
     if (kind !== 'main' && kind !== 'note') throw new Error('窗口类型无效。')
     return handlers.openWindow(kind)

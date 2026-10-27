@@ -62,6 +62,8 @@ export interface DesktopApi {
   createTask: (description: string, expectedDate?: string) => Promise<ApiResult<Task>>
   updateTask: (id: string, description: string) => Promise<ApiResult<Task>>
   setTaskCompleted: (id: string, completed: boolean) => Promise<ApiResult<Task>>
+  convertToMultiDay: (id: string) => Promise<ApiResult<Task>>
+  setTaskProgress: (id: string, progress: number) => Promise<ApiResult<Task>>
   deleteTask: (id: string) => Promise<ApiResult<boolean>>
   openWindow: (kind: WindowKind) => Promise<ApiResult<void>>
   onTasksChanged: (listener: () => void) => () => void
@@ -89,6 +91,9 @@ export interface Task {
   description: string
   date: string
   completed: boolean
+  kind: 'today' | 'multi-day'
+  progress: number
+  completedOn: string | null
 }
 
 export interface TodayTasks {

@@ -64,6 +64,17 @@ export function useTasks() {
     refresh,
     complete: (task: Task) =>
       run(async () => unwrap(await getDesktopApi().setTaskCompleted(task.id, !task.completed))),
+    convert: (id: string) => run(async () => unwrap(await getDesktopApi().convertToMultiDay(id))),
+    progress: async (id: string, value: number) => {
+      try {
+        unwrap(await getDesktopApi().setTaskProgress(id, value))
+        setError('')
+        await refresh()
+      } catch (error) {
+        setError(error instanceof Error ? error.message : '更新进度失败。')
+        await refresh()
+      }
+    },
     remove: (id: string) => run(async () => unwrap(await getDesktopApi().deleteTask(id)))
   }
 }
