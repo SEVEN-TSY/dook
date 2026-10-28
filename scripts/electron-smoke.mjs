@@ -284,13 +284,16 @@ async function dockingSizeSmoke(note) {
       assert.deepEqual(note.getContentSize(), size, '收回动画结束前保留便签绘制空间')
       await waitFor(async () => (await state(note)).collapsed, '吸附收起')
       const strip = note.getBounds()
-      const preparingStrip = await js(note, `(() => {
+      const preparingStrip = await js(
+        note,
+        `(() => {
         const handle = document.querySelector('.edge-handle');
         handle.classList.add('capsule-visible', 'capsule-preparing');
         const visibility = getComputedStyle(handle.querySelector('.edge-strip')).visibility;
         handle.classList.remove('capsule-visible', 'capsule-preparing');
         return visibility;
-      })()`)
+      })()`
+      )
       assert.equal(preparingStrip, 'hidden', '胶囊准备阶段细条直接隐藏，不能在窗口调整时重绘闪动')
       pointer =
         edge === 'top'
@@ -842,6 +845,27 @@ async function runSmoke() {
       await click(main, '.primary-button')
       await input(main, '[data-testid=task-new]', '新的灵感')
       await click(main, '[data-testid=inspiration-summary]')
+      await input(main, '[data-testid=inspiration-edit]', '编辑后的灵感')
+      await click(main, '[data-testid=inspiration-supplement]')
+      await waitFor(
+        () =>
+          js(
+            main,
+            'document.querySelector(".inspiration-original")?.textContent === "编辑后的灵感"'
+          ),
+        '原地编辑保存并打开详情'
+      )
+      assert.equal(
+        await js(main, 'document.querySelector(".inspiration-original").textContent'),
+        '编辑后的灵感'
+      )
+      assert.equal(
+        await js(
+          main,
+          '!!document.querySelector(".inspiration-detail [data-testid=inspiration-edit-original]")'
+        ),
+        false
+      )
       await input(main, '[data-testid=inspiration-addition]', '补充内容')
       await waitFor(
         () =>
@@ -923,19 +947,39 @@ async function runSmoke() {
         await drag(result[4].id, result[3].id)
         await waitFor(async () => (await rows(note))[3].id === result[4].id, '多天任务拖动排序')
         const pointerAt = async (selector) => {
-          const point = await js(note, `(() => {
+          const point = await js(
+            note,
+            `(() => {
             const bounds = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();
             return { x: Math.round(bounds.x + bounds.width / 2), y: Math.round(bounds.y + bounds.height / 2) };
-          })()`)
+          })()`
+          )
           note.webContents.sendInputEvent({ type: 'mouseMove', ...point })
           return point
         }
         note.focus()
         await pointerAt(`[data-task-id="${result[1].id}"] [data-testid=task-delete]`)
-        await waitFor(() => js(note, `getComputedStyle(document.querySelector('[data-task-id="${result[1].id}"] .note-task-secondary')).visibility === 'visible'`), '悬停叉号展开置顶')
+        await waitFor(
+          () =>
+            js(
+              note,
+              `getComputedStyle(document.querySelector('[data-task-id="${result[1].id}"] .note-task-secondary')).visibility === 'visible'`
+            ),
+          '悬停叉号展开置顶'
+        )
         const point = await pointerAt(`[data-task-id="${result[1].id}"] [data-testid=task-pin]`)
-        note.webContents.sendInputEvent({ type: 'mouseDown', ...point, button: 'left', clickCount: 1 })
-        note.webContents.sendInputEvent({ type: 'mouseUp', ...point, button: 'left', clickCount: 1 })
+        note.webContents.sendInputEvent({
+          type: 'mouseDown',
+          ...point,
+          button: 'left',
+          clickCount: 1
+        })
+        note.webContents.sendInputEvent({
+          type: 'mouseUp',
+          ...point,
+          button: 'left',
+          clickCount: 1
+        })
         await waitFor(async () => (await rows(main))[0].id === result[1].id, '置顶同步主界面')
         assert.equal(
           await js(
@@ -961,18 +1005,44 @@ async function runSmoke() {
         'true'
       )
       if (phase === 'order-create') {
-        assert.equal(await js(note, `document.querySelector('[data-testid=note-inspiration-count]').textContent.trim()`), '0')
+        assert.equal(
+          await js(
+            note,
+            `document.querySelector('[data-testid=note-inspiration-count]').textContent.trim()`
+          ),
+          '0'
+        )
         await js(main, `window.myTodo.createInspiration('底部圆环验证')`)
-        await waitFor(() => js(note, `document.querySelector('[data-testid=note-inspiration-count]').textContent.trim() === '1'`), '灵感数量跨窗口同步')
+        await waitFor(
+          () =>
+            js(
+              note,
+              `document.querySelector('[data-testid=note-inspiration-count]').textContent.trim() === '1'`
+            ),
+          '灵感数量跨窗口同步'
+        )
         await click(note, '[data-testid=new-kind-inspiration]')
         await click(note, '.note-add-button')
-        assert.equal(await js(note, `document.querySelector('.note-add-controls').classList.contains('is-inspiration')`), true)
-        assert.equal(await js(note, `(() => {
+        assert.equal(
+          await js(
+            note,
+            `document.querySelector('.note-add-controls').classList.contains('is-inspiration')`
+          ),
+          true
+        )
+        assert.equal(
+          await js(
+            note,
+            `(() => {
           const input = document.querySelector('[data-testid=task-new]').getBoundingClientRect();
           const task = document.querySelector('.note-summary').getBoundingClientRect();
           const idea = document.querySelector('[data-testid=note-inspiration-count]').getBoundingClientRect();
           return input.width > 50 && input.right <= task.left && task.right < idea.left && Math.abs(task.y - idea.y) < 1;
-        })()`), true, '输入与两个圆环同排且不重叠')
+        })()`
+          ),
+          true,
+          '输入与两个圆环同排且不重叠'
+        )
       }
       writeFileSync(
         resolve(output, `note-${phase}.png`),

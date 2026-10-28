@@ -1559,6 +1559,41 @@ h1 {
 .inspiration-workbench .inspiration-item {
   border-color: #e9edf2;
 }
+.inspiration-workbench .inspiration-row {
+  display: flex;
+  align-items: flex-start;
+}
+.inspiration-workbench .inspiration-summary,
+.inspiration-workbench .inspiration-inline-edit {
+  flex: 1;
+  min-width: 0;
+}
+.inspiration-workbench .inspiration-summary span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  white-space: pre-wrap;
+}
+.inspiration-inline-edit {
+  field-sizing: content;
+  resize: vertical;
+  margin: 10px 0;
+  padding: 6px 9px;
+  border: 1px solid #cbd7ec;
+  border-radius: 5px;
+  font: inherit;
+  line-height: 1.5;
+}
+.inspiration-supplement {
+  flex: none;
+  margin: 12px 0 0 8px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 4px;
+  color: #526fc4;
+  background: #eef2fb;
+}
 .inspiration-workbench .inspiration-summary {
   padding: 16px 9px;
   font-size: 14px;
