@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { DatabaseSync } from 'node:sqlite'
-import type { Inspiration, InspirationAddition } from '../../../shared/contracts'
+import type { Inspiration, InspirationAddition, InspirationPage } from '../../../shared/contracts'
 import type { InspirationStore } from '../../core/inspirations'
 
 export class InspirationRepository implements InspirationStore {
@@ -17,20 +17,41 @@ export class InspirationRepository implements InspirationStore {
       additions.set(id, items)
     }
     return this.database
-      .prepare('SELECT id, description FROM inspirations ORDER BY sequence')
+      .prepare('SELECT id, description, created_at FROM inspirations ORDER BY sequence')
       .all()
       .map((row) => ({
         id: String(row.id),
         description: String(row.description),
+        createdAt: row.created_at === null ? null : String(row.created_at),
         additions: additions.get(String(row.id)) ?? []
       }))
   }
 
-  create(description: string): Inspiration {
-    const inspiration = { id: randomUUID(), description, additions: [] }
+  page(offset: number, limit: number): InspirationPage {
+    const rows = this.database
+      .prepare(
+        `SELECT id, description, created_at FROM inspirations ORDER BY created_at IS NULL, created_at DESC, sequence DESC LIMIT ? OFFSET ?`
+      )
+      .all(limit + 1, offset)
+    const items = rows.slice(0, limit).map((row) => ({
+      id: String(row.id),
+      description: String(row.description),
+      createdAt: row.created_at === null ? null : String(row.created_at),
+      additions: this.database
+        .prepare(
+          'SELECT id, content FROM inspiration_additions WHERE inspiration_id = ? ORDER BY sequence'
+        )
+        .all(String(row.id))
+        .map((addition) => ({ id: String(addition.id), content: String(addition.content) }))
+    }))
+    return { items, hasMore: rows.length > limit }
+  }
+
+  create(description: string, createdAt: string): Inspiration {
+    const inspiration = { id: randomUUID(), description, additions: [], createdAt }
     this.database
-      .prepare('INSERT INTO inspirations (id, description) VALUES (?, ?)')
-      .run(inspiration.id, description)
+      .prepare('INSERT INTO inspirations (id, description, created_at) VALUES (?, ?, ?)')
+      .run(inspiration.id, description, createdAt)
     return inspiration
   }
 

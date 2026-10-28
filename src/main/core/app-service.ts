@@ -73,9 +73,21 @@ export class AppService {
     return this.inspirationStore().list()
   }
 
+  listInspirationPage(offset: number, limit: number) {
+    if (
+      !Number.isSafeInteger(offset) ||
+      offset < 0 ||
+      !Number.isSafeInteger(limit) ||
+      limit < 1 ||
+      limit > 100
+    )
+      throw new Error('分页参数无效。')
+    return this.inspirationStore().page(offset, limit)
+  }
+
   createInspiration(description: string): Inspiration {
     if (typeof description !== 'string' || !description.trim()) throw new Error('灵感不能为空。')
-    return this.inspirationStore().create(description.trim())
+    return this.inspirationStore().create(description.trim(), this.now().toISOString())
   }
 
   updateInspiration(id: string, description: string): Inspiration {

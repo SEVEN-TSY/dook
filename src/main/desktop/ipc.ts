@@ -126,6 +126,10 @@ export function registerIpc(handlers: Handlers): () => void {
   })
   register(IPC_CHANNELS.listToday, () => handlers.service.listToday())
   register(IPC_CHANNELS.listInspirations, () => handlers.service.listInspirations())
+  register(IPC_CHANNELS.listInspirationPage, (_, offset, limit) => {
+    if (typeof offset !== 'number' || typeof limit !== 'number') throw new Error('分页参数无效。')
+    return handlers.service.listInspirationPage(offset, limit)
+  })
   register(IPC_CHANNELS.createInspiration, (_, description) =>
     mutate(() => handlers.service.createInspiration(text(description)))
   )

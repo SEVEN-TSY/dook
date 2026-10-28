@@ -4,6 +4,8 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { AppDatabase } from '../src/main/storage/database'
+import { DatabaseSync } from 'node:sqlite'
+import { migrations } from '../src/main/storage/migrations'
 import { TaskRepository } from '../src/main/storage/repositories/tasks'
 import { InspirationRepository } from '../src/main/storage/repositories/inspirations'
 import { AppService } from '../src/main/core/app-service'
@@ -86,5 +88,67 @@ test('同一轮补充保存追赶新输入时复用补充标识，不重复追�
     )
   } finally {
     database.close()
+  }
+})
+
+test('灵感分页按原始记录时间倒序且跨日编辑保持时间', () => {
+  const database = new AppDatabase(':memory:')
+  let now = new Date(2026, 9, 28, 12)
+  const service = new AppService(database, undefined, () => now, {
+    inspirations: new InspirationRepository(database.connection)
+  })
+  try {
+    const first = service.createInspiration('第一条')
+    const second = service.createInspiration('第二条')
+    now = new Date(2026, 9, 29, 12)
+    service.updateInspiration(first.id, '编辑')
+    const page = service.listInspirationPage(0, 1)
+    assert.equal(page.items[0]?.id, second.id)
+    assert.equal(page.hasMore, true)
+    assert.equal(service.listInspirationPage(1, 1).items[0]?.createdAt, first.createdAt)
+  } finally {
+    database.close()
+  }
+})
+
+test('旧灵感迁移保留原文补充并在分页中排在新灵感之后', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'mytodo-old-inspirations-'))
+  const path = join(directory, 'app.sqlite')
+  const old = new DatabaseSync(path)
+  old.exec(
+    'CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL) STRICT'
+  )
+  for (const migration of migrations.filter((item) => item.version <= 8)) {
+    old.exec(migration.sql)
+    old
+      .prepare('INSERT INTO schema_migrations VALUES (?, ?, ?)')
+      .run(migration.version, migration.name, 'old')
+  }
+  old.prepare('INSERT INTO inspirations (id, description) VALUES (?, ?)').run('old', '旧灵感')
+  old
+    .prepare('INSERT INTO inspiration_additions (id, inspiration_id, content) VALUES (?, ?, ?)')
+    .run('addition', 'old', '旧补充')
+  old.close()
+  const database = new AppDatabase(path)
+  const service = new AppService(database, undefined, () => new Date(2026, 9, 28), {
+    inspirations: new InspirationRepository(database.connection)
+  })
+  try {
+    for (let i = 0; i < 25; i++) service.createInspiration(`灵感${i}`)
+    const first = service.listInspirationPage(0, 20)
+    const second = service.listInspirationPage(20, 20)
+    const all = [...first.items, ...second.items]
+    assert.equal(first.hasMore, true)
+    assert.equal(second.hasMore, false)
+    assert.equal(new Set(all.map((item) => item.id)).size, 26)
+    assert.deepEqual(all.at(-1), {
+      id: 'old',
+      description: '旧灵感',
+      createdAt: null,
+      additions: [{ id: 'addition', content: '旧补充' }]
+    })
+  } finally {
+    database.close()
+    rmSync(directory, { recursive: true, force: true })
   }
 })
