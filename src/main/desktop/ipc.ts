@@ -83,7 +83,53 @@ export function registerIpc(handlers: Handlers): () => void {
     handlers.desktop.saves.reply(window, id, success)
   })
   register(IPC_CHANNELS.runDiagnostics, handlers.runDiagnostics)
+  register(IPC_CHANNELS.listHabits, () => handlers.service.listHabits())
+  register(IPC_CHANNELS.createHabit, (_, description) =>
+    mutate(() => handlers.service.createHabit(text(description)))
+  )
+  register(IPC_CHANNELS.createHabitFromTask, (_, taskId) =>
+    mutate(() => handlers.service.createHabitFromTask(text(taskId)))
+  )
+  register(IPC_CHANNELS.updateHabit, (_, id, description) =>
+    mutate(() => handlers.service.updateHabit(text(id), text(description)))
+  )
+  register(IPC_CHANNELS.deleteHabit, async (window, id) => {
+    const habitId = text(id)
+    const habit = handlers.service.listHabits().find((item) => item.id === habitId)
+    if (!habit) throw new Error('习惯不存在，可能已删除。')
+    const result = await handlers.desktop.protect(() =>
+      dialog.showMessageBox(window, {
+        type: 'question',
+        title: '删除习惯',
+        message: '停止这个习惯？',
+        detail: `${habit.description}\n已生成的任务会保留。`,
+        buttons: ['取消', '删除'],
+        defaultId: 0,
+        cancelId: 0,
+        noLink: true
+      })
+    )
+    if (result.response !== 1) return false
+    mutate(() => handlers.service.deleteHabit(habitId))
+    return true
+  })
   register(IPC_CHANNELS.listToday, () => handlers.service.listToday())
+  register(IPC_CHANNELS.listInspirations, () => handlers.service.listInspirations())
+  register(IPC_CHANNELS.createInspiration, (_, description) =>
+    mutate(() => handlers.service.createInspiration(text(description)))
+  )
+  register(IPC_CHANNELS.updateInspiration, (_, id, description) =>
+    mutate(() => handlers.service.updateInspiration(text(id), text(description)))
+  )
+  register(IPC_CHANNELS.appendInspiration, (_, id, content, additionId) =>
+    mutate(() =>
+      handlers.service.appendInspiration(
+        text(id),
+        text(content),
+        additionId === undefined ? undefined : text(additionId)
+      )
+    )
+  )
   register(IPC_CHANNELS.createTask, (_, description, expectedDate) =>
     mutate(() =>
       handlers.service.createTask(
@@ -99,6 +145,19 @@ export function registerIpc(handlers: Handlers): () => void {
     if (typeof completed !== 'boolean') throw new Error('完成状态无效。')
     return mutate(() => handlers.service.setTaskCompleted(text(id), completed))
   })
+  register(IPC_CHANNELS.addSubitem, (_, id, description) =>
+    mutate(() => handlers.service.addSubitem(text(id), text(description)))
+  )
+  register(IPC_CHANNELS.updateSubitem, (_, id, subitemId, description) =>
+    mutate(() => handlers.service.updateSubitem(text(id), text(subitemId), text(description)))
+  )
+  register(IPC_CHANNELS.setSubitemCompleted, (_, id, subitemId, completed) => {
+    if (typeof completed !== 'boolean') throw new Error('完成状态无效。')
+    return mutate(() => handlers.service.setSubitemCompleted(text(id), text(subitemId), completed))
+  })
+  register(IPC_CHANNELS.deleteSubitem, (_, id, subitemId) =>
+    mutate(() => handlers.service.deleteSubitem(text(id), text(subitemId)))
+  )
   register(IPC_CHANNELS.deleteTask, async (window, id) => {
     const taskId = text(id)
     const task = handlers.service.listToday().tasks.find((item) => item.id === taskId)
@@ -118,6 +177,13 @@ export function registerIpc(handlers: Handlers): () => void {
     if (result.response !== 1) return false
     mutate(() => handlers.service.deleteTask(taskId))
     return true
+  })
+  register(IPC_CHANNELS.convertToMultiDay, (_, id) =>
+    mutate(() => handlers.service.convertToMultiDay(text(id)))
+  )
+  register(IPC_CHANNELS.setTaskProgress, (_, id, progress) => {
+    if (typeof progress !== 'number') throw new Error('进度必须为数字。')
+    return mutate(() => handlers.service.setTaskProgress(text(id), progress))
   })
   register(IPC_CHANNELS.openWindow, (_, kind) => {
     if (kind !== 'main' && kind !== 'note') throw new Error('窗口类型无效。')

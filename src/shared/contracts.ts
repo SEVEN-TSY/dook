@@ -58,10 +58,33 @@ export interface DesktopApi {
   setNoteDragging: (active: boolean) => Promise<ApiResult<void>>
   onWindowState: (listener: (state: DesktopState) => void) => () => void
   onSaveRequested: (listener: () => Promise<boolean>) => () => void
+  listHabits: () => Promise<ApiResult<Habit[]>>
+  createHabit: (description: string) => Promise<ApiResult<Habit>>
+  createHabitFromTask: (taskId: string) => Promise<ApiResult<Habit>>
+  updateHabit: (id: string, description: string) => Promise<ApiResult<Habit>>
+  deleteHabit: (id: string) => Promise<ApiResult<boolean>>
   listToday: () => Promise<ApiResult<TodayTasks>>
+  listInspirations: () => Promise<ApiResult<Inspiration[]>>
+  createInspiration: (description: string) => Promise<ApiResult<Inspiration>>
+  updateInspiration: (id: string, description: string) => Promise<ApiResult<Inspiration>>
+  appendInspiration: (
+    id: string,
+    content: string,
+    additionId?: string
+  ) => Promise<ApiResult<Inspiration>>
   createTask: (description: string, expectedDate?: string) => Promise<ApiResult<Task>>
   updateTask: (id: string, description: string) => Promise<ApiResult<Task>>
   setTaskCompleted: (id: string, completed: boolean) => Promise<ApiResult<Task>>
+  convertToMultiDay: (id: string) => Promise<ApiResult<Task>>
+  setTaskProgress: (id: string, progress: number) => Promise<ApiResult<Task>>
+  addSubitem: (id: string, description: string) => Promise<ApiResult<Task>>
+  updateSubitem: (id: string, subitemId: string, description: string) => Promise<ApiResult<Task>>
+  setSubitemCompleted: (
+    id: string,
+    subitemId: string,
+    completed: boolean
+  ) => Promise<ApiResult<Task>>
+  deleteSubitem: (id: string, subitemId: string) => Promise<ApiResult<Task>>
   deleteTask: (id: string) => Promise<ApiResult<boolean>>
   openWindow: (kind: WindowKind) => Promise<ApiResult<void>>
   onTasksChanged: (listener: () => void) => () => void
@@ -84,14 +107,41 @@ export interface DesktopState {
 
 export type WindowKind = 'main' | 'note'
 
+export interface Habit {
+  id: string
+  description: string
+}
+
+export interface Subitem {
+  id: string
+  description: string
+  completed: boolean
+}
+
 export interface Task {
   id: string
   description: string
   date: string
+  habitId?: string
   completed: boolean
+  kind: 'today' | 'multi-day'
+  progress: number
+  completedOn: string | null
+  subitems?: Subitem[]
 }
 
 export interface TodayTasks {
   date: string
   tasks: Task[]
+}
+
+export interface InspirationAddition {
+  id: string
+  content: string
+}
+
+export interface Inspiration {
+  id: string
+  description: string
+  additions: InspirationAddition[]
 }

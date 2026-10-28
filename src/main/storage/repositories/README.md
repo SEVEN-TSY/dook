@@ -1,3 +1,3 @@
 # 任务仓储
 
-`TaskRepository`接收AppDatabase的SQLite连接，实现核心层TaskStore。SQL限制在本层，创建顺序由持久化自增序号保证，修改与删除均限定id和所属日期。
+`TaskRepository`接收AppDatabase的SQLite连接，实现核心层TaskStore。SQL限制在本层，创建顺序由持久化自增序号保证。查询、修改和删除使用相同可见范围：当天今天任务，以及未完成或当天完成的多天任务。列表先返回今天任务，再返回多天任务，各组按创建序号排序；迁移v3保留已有今天任务并增加任务形态、手动进度和完成日期。

@@ -93,7 +93,19 @@ export class NoteController {
         this.collapsed ? 1 : Math.min(260, this.expanded.height)
       )
       this.window.setResizable(!this.collapsed)
+      if (!this.collapsed) {
+        // Windows分数缩放下，展开时也锁定内容尺寸，避免外框取整多出1px。
+        this.window.setMinimumSize(bounds.width, bounds.height)
+        this.window.setMaximumSize(bounds.width, bounds.height)
+      }
       this.window.setBounds(bounds)
+      if (!this.collapsed && !this.dragging) {
+        this.window.setMaximumSize(0, 0)
+        this.window.setMinimumSize(
+          Math.min(334, this.expanded.width),
+          Math.min(260, this.expanded.height)
+        )
+      }
       this.window.setAlwaysOnTop(this.edge !== null || this.freePinned)
     } finally {
       this.applying = false

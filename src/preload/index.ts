@@ -28,12 +28,32 @@ const api: DesktopApi = {
     ipcRenderer.on(SAVE_REQUEST, callback)
     return () => ipcRenderer.removeListener(SAVE_REQUEST, callback)
   },
+  listHabits: () => ipcRenderer.invoke(IPC_CHANNELS.listHabits),
+  createHabit: (description) => ipcRenderer.invoke(IPC_CHANNELS.createHabit, description),
+  createHabitFromTask: (taskId) => ipcRenderer.invoke(IPC_CHANNELS.createHabitFromTask, taskId),
+  updateHabit: (id, description) => ipcRenderer.invoke(IPC_CHANNELS.updateHabit, id, description),
+  deleteHabit: (id) => ipcRenderer.invoke(IPC_CHANNELS.deleteHabit, id),
   listToday: () => ipcRenderer.invoke(IPC_CHANNELS.listToday),
+  listInspirations: () => ipcRenderer.invoke(IPC_CHANNELS.listInspirations),
+  createInspiration: (description) =>
+    ipcRenderer.invoke(IPC_CHANNELS.createInspiration, description),
+  updateInspiration: (id, description) =>
+    ipcRenderer.invoke(IPC_CHANNELS.updateInspiration, id, description),
+  appendInspiration: (id, content, additionId) =>
+    ipcRenderer.invoke(IPC_CHANNELS.appendInspiration, id, content, additionId),
   createTask: (description, expectedDate) =>
     ipcRenderer.invoke(IPC_CHANNELS.createTask, description, expectedDate),
   updateTask: (id, description) => ipcRenderer.invoke(IPC_CHANNELS.updateTask, id, description),
   setTaskCompleted: (id, completed) =>
     ipcRenderer.invoke(IPC_CHANNELS.setTaskCompleted, id, completed),
+  convertToMultiDay: (id) => ipcRenderer.invoke(IPC_CHANNELS.convertToMultiDay, id),
+  setTaskProgress: (id, progress) => ipcRenderer.invoke(IPC_CHANNELS.setTaskProgress, id, progress),
+  addSubitem: (id, description) => ipcRenderer.invoke(IPC_CHANNELS.addSubitem, id, description),
+  updateSubitem: (id, subitemId, description) =>
+    ipcRenderer.invoke(IPC_CHANNELS.updateSubitem, id, subitemId, description),
+  setSubitemCompleted: (id, subitemId, completed) =>
+    ipcRenderer.invoke(IPC_CHANNELS.setSubitemCompleted, id, subitemId, completed),
+  deleteSubitem: (id, subitemId) => ipcRenderer.invoke(IPC_CHANNELS.deleteSubitem, id, subitemId),
   deleteTask: (id) => ipcRenderer.invoke(IPC_CHANNELS.deleteTask, id),
   openWindow: (kind) => ipcRenderer.invoke(IPC_CHANNELS.openWindow, kind),
   onTasksChanged: (listener) => {
