@@ -521,6 +521,103 @@ async function runSmoke() {
     menuClick('打开主界面')
     let main = await waitFor(() => findWindow('main'), '托盘打开主界面')
     assert.ok(main && note)
+    if (phase === 'workbench') {
+      await waitFor(
+        () => js(main, 'Boolean(document.querySelector(".workbench-header h1"))'),
+        '工作台就绪'
+      )
+      assert.equal(
+        await js(main, 'document.querySelector(".workbench-header h1").textContent'),
+        '任务'
+      )
+      await click(main, '.primary-button')
+      await input(main, '[data-testid=task-new]', '取消的任务', null)
+      await js(
+        main,
+        `(() => { const button = Array.from(document.querySelectorAll('.workbench-add button')).find(x => x.textContent === '取消'); button.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); button.click() })()`
+      )
+      await count(note, 0)
+      await click(main, '.primary-button')
+      const lock = new DatabaseSync(resolve(process.env.MYTODO_SMOKE_DATA, 'mytodo.sqlite'))
+      try {
+        lock.exec('BEGIN IMMEDIATE')
+        await input(main, '[data-testid=task-new]', '失败后保留草稿')
+        await waitFor(
+          () => js(main, 'Boolean(document.querySelector("[role=alert]"))'),
+          '保存失败反馈'
+        )
+        assert.equal(
+          await js(main, 'document.querySelector("[data-testid=task-new]").value'),
+          '失败后保留草稿'
+        )
+      } finally {
+        lock.exec('ROLLBACK')
+        lock.close()
+      }
+      await input(main, '[data-testid=task-new]', '工作台任务')
+      await count(note, 1)
+      await click(main, '[data-testid=task-description]')
+      await input(main, '[data-testid=task-edit]', '更新工作台任务', null)
+      await click(main, '.detail-back')
+      await waitFor(
+        async () => (await rows(note))[0].description === '更新工作台任务',
+        '任务详情同步'
+      )
+      await click(main, '[data-task-id] input[type=checkbox]')
+      await waitFor(async () => (await rows(note))[0].completed, '完成状态同步')
+      await js(
+        main,
+        `Array.from(document.querySelectorAll('.workbench-nav button')).find(x => x.textContent === '习惯').click()`
+      )
+      await click(main, '.primary-button')
+      await input(main, '[data-testid=habit-new]', '每天检查')
+      await waitFor(
+        () =>
+          js(
+            main,
+            'document.querySelector("[data-testid=habit-description]")?.textContent === "每天检查"'
+          ),
+        '习惯保存'
+      )
+      await js(
+        main,
+        `Array.from(document.querySelectorAll('.workbench-nav button')).find(x => x.textContent === '灵感').click()`
+      )
+      await click(main, '.primary-button')
+      await input(main, '[data-testid=task-new]', '新的灵感')
+      await click(main, '[data-testid=inspiration-summary]')
+      await input(main, '[data-testid=inspiration-addition]', '补充内容')
+      await waitFor(
+        () =>
+          js(
+            main,
+            'document.querySelector(".inspiration-additions")?.textContent.includes("补充内容")'
+          ),
+        '灵感补充'
+      )
+      main.setContentSize(600, 700)
+      await waitFor(
+        () =>
+          js(
+            main,
+            'getComputedStyle(document.querySelector(".inspiration-detail")).position === "static"'
+          ),
+        '窄窗口详情'
+      )
+      writeFileSync(
+        resolve(output, 'workbench-narrow.png'),
+        (await main.webContents.capturePage()).toPNG()
+      )
+      await click(main, '.inspiration-detail .detail-back')
+      await click(main, '[data-testid=open-settings]')
+      assert.equal(
+        await js(main, 'document.querySelector(".workbench-header h1").textContent'),
+        '设置'
+      )
+      console.log('Electron workbench smoke passed')
+      menuClick('退出')
+      return
+    }
     await Promise.all([ready(main), ready(note)])
     if (phase.startsWith('subitems-')) {
       await subitemsSmoke({

@@ -1,12 +1,10 @@
 import { TasksPage } from './features/tasks/TasksPage'
-import { SettingsPage } from './features/settings/SettingsPage'
 import { useEffect, useState } from 'react'
 import type { DesktopState } from '../../shared/contracts'
 import { getDesktopApi, unwrap } from './platform/desktop'
 
 export function App() {
   const [desktop, setDesktop] = useState<DesktopState | null>(null)
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const [error, setError] = useState('')
   useEffect(() => {
     const api = getDesktopApi()
@@ -42,15 +40,7 @@ export function App() {
     <>
       {error && <p role="alert">{error}</p>}
       {desktop?.exitPending && <div className="exit-pending">正在保存并退出…</div>}
-      <TasksPage
-        kind={kind}
-        desktop={desktop}
-        hidden={collapsed || settingsOpen}
-        openSettings={() => setSettingsOpen(true)}
-      />
-      {kind === 'main' && (
-        <SettingsPage state={desktop} close={() => setSettingsOpen(false)} hidden={!settingsOpen} />
-      )}
+      <TasksPage kind={kind} desktop={desktop} hidden={collapsed} />
       {collapsed && (
         <button
           className={`edge-handle ${desktop?.edge}`}

@@ -739,3 +739,355 @@ h1 {
 .subitem-new {
   margin-top: 4px;
 }
+
+/* 主界面工作台；桌面便签继续使用原有样式。 */
+.workbench {
+  display: flex;
+  min-height: 100vh;
+  background: #f5f7fa;
+  color: #263142;
+}
+.workbench[hidden],
+.workbench [hidden] {
+  display: none;
+}
+.workbench-nav {
+  width: 190px;
+  flex: 0 0 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 28px 16px;
+  background: #f1f4f8;
+  border-right: 1px solid #e2e8f0;
+}
+.workbench-brand {
+  padding: 0 12px 32px;
+  color: #526fc4;
+  font-size: 18px;
+}
+.workbench-nav button {
+  border: 0;
+  border-radius: 8px;
+  padding: 11px 12px;
+  background: transparent;
+  color: #647184;
+  text-align: left;
+}
+.workbench-nav button:hover,
+.workbench-nav button[aria-current='page'] {
+  background: #edf2fc;
+  color: #526fc4;
+}
+.workbench-nav button[aria-current='page'] {
+  font-weight: 600;
+  box-shadow: inset 3px 0 #526fc4;
+}
+.workbench-nav .nav-settings {
+  margin-top: auto;
+}
+.workbench-main {
+  flex: 1;
+  min-width: 0;
+  padding: 32px;
+}
+.workbench-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.workbench-header h1 {
+  font-size: 24px;
+}
+.workbench-header p {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #647184;
+}
+.primary-button {
+  flex-shrink: 0;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: #526fc4;
+  color: white;
+}
+.primary-button:hover {
+  background: #405eaf;
+}
+.workbench-add {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+}
+.workbench-add input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px;
+}
+.workbench-add button {
+  border: 0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: #526fc4;
+  background: #edf2fc;
+}
+.workbench-split {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+.workbench-list {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 20px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+.workbench .task-row {
+  position: relative;
+  padding: 12px 4px;
+}
+.workbench .task-row.selected {
+  background: #edf2fc;
+  box-shadow: inset 3px 0 #526fc4;
+}
+.workbench .task-meta {
+  font-size: 12px;
+  color: #647184;
+  padding: 2px 0;
+}
+.workbench-empty {
+  padding: 56px 16px;
+  text-align: center;
+  color: #647184;
+  font-size: 14px;
+}
+.task-more {
+  position: relative;
+  flex: none;
+}
+.task-more summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  color: #647184;
+}
+.task-more summary::-webkit-details-marker {
+  display: none;
+}
+.task-more summary:hover,
+.task-more[open] summary {
+  background: #edf2fc;
+}
+.task-menu {
+  position: absolute;
+  right: 0;
+  z-index: 2;
+  width: 150px;
+  padding: 5px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 8px 20px #26314220;
+}
+.task-menu button {
+  display: block;
+  width: 100%;
+  padding: 9px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  text-align: left;
+  color: #263142;
+}
+.task-menu button:hover,
+.task-menu button:focus-visible {
+  background: #edf2fc;
+}
+.workbench-detail {
+  width: min(42%, 420px);
+  flex: 0 0 min(42%, 420px);
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+}
+.workbench-detail h2,
+.inspiration-workbench h2 {
+  font-size: 16px;
+  margin: 0 0 24px;
+}
+.detail-back {
+  border: 0;
+  background: transparent;
+  color: #526fc4;
+  padding: 0;
+  margin-bottom: 20px;
+}
+.detail-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #647184;
+  font-size: 12px;
+}
+.workbench-detail textarea {
+  width: 100%;
+  min-height: 88px;
+  resize: vertical;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+.detail-description {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.detail-progress {
+  display: block;
+  margin: 24px 0;
+  color: #647184;
+  font-size: 13px;
+}
+.detail-progress input {
+  display: block;
+  width: 100%;
+  margin: 12px 0;
+  accent-color: #526fc4;
+}
+.workbench .subitems-toggle {
+  font-size: 13px;
+}
+.workbench .habits-panel {
+  margin: 0;
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+}
+.workbench .habit-list li {
+  padding: 14px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+.workbench .settings-page {
+  min-height: 0;
+  max-width: none;
+  margin: 0;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+}
+.workbench .settings-page h1,
+.workbench .settings-page .back-button {
+  display: none;
+}
+.inspiration-workbench {
+  position: relative;
+  margin: 0;
+  border: 0;
+}
+.inspiration-workbench .inspiration-list {
+  position: relative;
+  min-height: 140px;
+  width: 100%;
+  padding: 8px 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+}
+.inspiration-workbench.has-detail .inspiration-list {
+  width: calc(58% - 10px);
+}
+.inspiration-workbench .inspiration-summary {
+  padding: 16px 2px;
+  font-size: 14px;
+}
+.inspiration-workbench .inspiration-detail {
+  position: absolute;
+  top: -1px;
+  left: calc(100% + 20px);
+  width: calc(72.4% - 14px);
+  min-height: 240px;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+}
+.inspiration-workbench .inspiration-detail textarea {
+  min-height: 120px;
+}
+.workbench :focus-visible {
+  outline: 2px solid #526fc4;
+  outline-offset: 2px;
+}
+@media (hover: hover) {
+  .workbench .task-more:not([open]) {
+    opacity: 0;
+  }
+  .workbench .task-row:hover .task-more,
+  .workbench .task-row:focus-within .task-more {
+    opacity: 1;
+  }
+}
+@media (max-width: 760px) {
+  .workbench-nav {
+    width: 76px;
+    flex-basis: 76px;
+    padding: 20px 6px;
+  }
+  .workbench-brand {
+    font-size: 12px;
+    padding: 0 4px 24px;
+  }
+  .workbench-nav button {
+    padding: 10px 6px;
+    font-size: 12px;
+  }
+  .workbench-main {
+    padding: 20px 16px;
+  }
+  .workbench-split.has-detail .workbench-list {
+    display: none;
+  }
+  .workbench-detail {
+    width: 100%;
+    flex-basis: 100%;
+  }
+  .inspiration-workbench.has-detail .inspiration-list {
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  .inspiration-workbench.has-detail .inspiration-summary {
+    display: none;
+  }
+  .inspiration-workbench .inspiration-detail {
+    position: static;
+    width: 100%;
+  }
+}
+
+.inspiration-original {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}

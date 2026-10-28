@@ -46,6 +46,10 @@ export function useTaskInput(
       if (current.cancelled) return 'done'
       const text = current.text.trim()
       if (!text) {
+        if (!current.creating) {
+          report('任务描述不能为空。')
+          return 'blocked'
+        }
         if (current.creating && current.id) start()
         return 'done'
       }

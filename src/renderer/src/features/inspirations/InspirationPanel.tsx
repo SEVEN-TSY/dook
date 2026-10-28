@@ -11,11 +11,13 @@ export interface InspirationPanelHandle {
 export function InspirationPanel({
   ref,
   report,
-  onEditingChange
+  onEditingChange,
+  workbench = false
 }: {
   ref: Ref<InspirationPanelHandle>
   report: (message: string) => void
   onEditingChange: (active: boolean) => void
+  workbench?: boolean
 }) {
   const [ideas, setIdeas] = useState<Inspiration[]>([])
   const [expanded, setExpanded] = useState(false)
@@ -68,23 +70,32 @@ export function InspirationPanel({
     setOpened(opened === id ? null : id)
   }
   return (
-    <section className="inspiration-panel" aria-label="灵感">
-      <button
-        className="inspiration-heading"
-        data-testid="inspirations-toggle"
-        aria-expanded={expanded}
-        onClick={async () => {
-          if (!(await save())) return
-          setExpanded(!expanded)
-        }}
-      >
-        <span>{expanded ? '⌄' : '›'} 灵感</span>
-        <span data-testid="inspiration-count">{ideas.length}</span>
-      </button>
-      {expanded && (
+    <section
+      className={`inspiration-panel ${workbench ? 'inspiration-workbench' : ''} ${opened ? 'has-detail' : ''}`}
+      aria-label="灵感"
+    >
+      {!workbench && (
+        <button
+          className="inspiration-heading"
+          data-testid="inspirations-toggle"
+          aria-expanded={expanded}
+          onClick={async () => {
+            if (!(await save())) return
+            setExpanded(!expanded)
+          }}
+        >
+          <span>{expanded ? '⌄' : '›'} 灵感</span>
+          <span data-testid="inspiration-count">{ideas.length}</span>
+        </button>
+      )}
+      {(expanded || workbench) && (
         <div className="inspiration-list">
           {ideas.length === 0 && (
-            <p className="inspiration-empty">在下方切换为灵感，记下新的想法。</p>
+            <p className="inspiration-empty">
+              {workbench
+                ? '还没有灵感，点击“新增灵感”记录想法。'
+                : '在下方切换为灵感，记下新的想法。'}
+            </p>
           )}
           {ideas.map((idea) => (
             <article key={idea.id} data-inspiration-id={idea.id} className="inspiration-item">
@@ -98,6 +109,17 @@ export function InspirationPanel({
               </button>
               {opened === idea.id && (
                 <div className="inspiration-detail">
+                  {workbench && (
+                    <button className="detail-back" onClick={() => void toggleIdea(idea.id)}>
+                      ← 返回列表
+                    </button>
+                  )}
+                  {workbench && (
+                    <>
+                      <h2>灵感详情</h2>
+                      <p className="inspiration-original">{idea.description}</p>
+                    </>
+                  )}
                   {editing === idea.id ? (
                     <input
                       aria-label="编辑原始想法"

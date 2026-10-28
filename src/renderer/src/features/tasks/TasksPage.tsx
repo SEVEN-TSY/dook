@@ -9,6 +9,7 @@ import { HabitsPanel } from '../habits/HabitsPanel'
 import { InspirationPanel } from '../inspirations/InspirationPanel'
 import type { InspirationPanelHandle } from '../inspirations/InspirationPanel'
 import { useInspirationInput } from '../inspirations/useInspirationInput'
+import { SettingsPage } from '../settings/SettingsPage'
 
 function focusTaskEditor(element: HTMLTextAreaElement | null) {
   if (!element) return
@@ -19,16 +20,17 @@ function focusTaskEditor(element: HTMLTextAreaElement | null) {
 export function TasksPage({
   kind,
   desktop,
-  hidden,
-  openSettings
+  hidden
 }: {
   kind: WindowKind
   desktop: DesktopState | null
   hidden: boolean
-  openSettings: () => void
 }) {
   const { today, error, busy, setError, refresh, complete, remove, convert, progress, addHabit } =
     useTasks()
+  const [page, setPage] = useState<'task' | 'habit' | 'inspiration' | 'settings'>('task')
+  const [adding, setAdding] = useState(false)
+  const [selectedTask, setSelectedTask] = useState<string | null>(null)
   const [newKind, setNewKind] = useState<'task' | 'inspiration'>('task')
   const taskAdded = useTaskInput(today?.date, refresh, setError)
   const inspirationAdded = useInspirationInput(
@@ -75,7 +77,7 @@ export function TasksPage({
   const clickOutside = useRef((_target: EventTarget | null) => {})
   clickOutside.current = (target) => {
     const element = target instanceof Element ? target : null
-    if (!element?.closest('[data-testid="task-new"]')) void added.save()
+    if (!element?.closest('[data-testid="task-new"], .workbench-add')) void added.save()
     if (!element?.closest('[data-testid="task-edit"]')) void edited.save()
   }
   flush.current = async () => {
@@ -152,29 +154,306 @@ export function TasksPage({
       setError(error instanceof Error ? error.message : '窗口操作失败。')
     }
   }
+  if (kind === 'main') {
+    const selected = today?.tasks.find((task) => task.id === selectedTask)
+    const navigate = async (next: typeof page) => {
+      if (!(await flush.current())) return
+      setPage(next)
+      setAdding(false)
+      setSelectedTask(null)
+      setError('')
+    }
+    return (
+      <section className="workbench" hidden={hidden}>
+        <nav className="workbench-nav" aria-label="主导航">
+          <div className="workbench-brand">
+            ✓ <strong>myTodo</strong>
+          </div>
+          {(
+            [
+              ['task', '任务'],
+              ['habit', '习惯'],
+              ['inspiration', '灵感']
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              aria-current={page === id ? 'page' : undefined}
+              onClick={() => void navigate(id)}
+            >
+              {label}
+            </button>
+          ))}
+          <button
+            className="nav-settings"
+            data-testid="open-settings"
+            aria-current={page === 'settings' ? 'page' : undefined}
+            onClick={() => void navigate('settings')}
+          >
+            设置
+          </button>
+          <button data-testid="open-other" onClick={() => void openOther()}>
+            打开桌面便签 ↗
+          </button>
+        </nav>
+        <main className="workbench-main">
+          <header className="workbench-header">
+            <div>
+              <h1>
+                {{ task: '任务', habit: '习惯', inspiration: '灵感', settings: '设置' }[page]}
+              </h1>
+              {page === 'task' && (
+                <p>
+                  {today?.date} · 已完成 {completed} / {today?.tasks.length ?? 0}
+                </p>
+              )}
+            </div>
+            {page !== 'settings' && (
+              <button
+                className="primary-button"
+                onClick={() => {
+                  setAdding(true)
+                  setNewKind(page === 'inspiration' ? 'inspiration' : 'task')
+                }}
+              >
+                ＋ 新增{{ task: '任务', habit: '习惯', inspiration: '灵感' }[page]}
+              </button>
+            )}
+          </header>
+          {page !== 'settings' && page !== 'habit' && adding && (
+            <form
+              className="workbench-add"
+              onSubmit={async (event) => {
+                event.preventDefault()
+                if (await added.submit()) setAdding(false)
+              }}
+            >
+              <input
+                autoFocus
+                data-testid="task-new"
+                aria-label={page === 'task' ? '新增任务描述' : '新增灵感'}
+                placeholder={page === 'task' ? '记下一项任务' : '记下一个想法'}
+                value={added.value}
+                onChange={(event) => added.setValue(event.target.value)}
+                onCompositionStart={() => {
+                  added.composing.current = true
+                }}
+                onCompositionEnd={added.endComposition}
+                onKeyDown={(event) => {
+                  if (
+                    event.key === 'Enter' &&
+                    (event.nativeEvent.isComposing || event.keyCode === 229)
+                  )
+                    event.preventDefault()
+                }}
+              />
+              <button type="submit">保存</button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (newKind === 'task') await taskAdded.cancel()
+                  else inspirationAdded.start()
+                  setAdding(false)
+                  setError('')
+                }}
+              >
+                取消
+              </button>
+            </form>
+          )}
+          {error && (
+            <p className="task-error" role="alert">
+              {error}
+            </p>
+          )}
+          <div
+            className={`workbench-split ${selected ? 'has-detail' : ''}`}
+            hidden={page !== 'task'}
+          >
+            <div className="workbench-list" aria-label="任务">
+              {today?.tasks.length === 0 && (
+                <div className="workbench-empty">还没有任务，点击“新增任务”开始记录。</div>
+              )}
+              {today?.tasks.map((task, index) => (
+                <div
+                  key={task.id}
+                  data-task-id={task.id}
+                  data-task-kind={task.kind}
+                  className={`task-row ${task.completed ? 'completed' : ''} ${task.kind === 'multi-day' && today.tasks[index - 1]?.kind !== 'multi-day' ? 'multi-day-start' : ''} ${selectedTask === task.id ? 'selected' : ''}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={task.completed}
+                    disabled={busy}
+                    aria-label={`完成：${task.description}`}
+                    onChange={() => void complete(task)}
+                  />
+                  <div className="task-content">
+                    <button
+                      className="task-description"
+                      data-testid="task-description"
+                      onClick={async () => {
+                        if (!(await flush.current())) return
+                        setSelectedTask(task.id)
+                        setEditing(task.id)
+                        edited.start(task)
+                      }}
+                    >
+                      {task.description}
+                    </button>
+                    {task.habitId && (
+                      <span className="habit-source" data-testid="habit-source">
+                        ↻ 来自习惯
+                      </span>
+                    )}
+                    {task.kind === 'multi-day' && (
+                      <p className="task-meta">
+                        进度 {task.progress}%
+                        {task.subitems?.length
+                          ? ` · 子事项 ${task.subitems.filter((item) => item.completed).length}／${task.subitems.length}`
+                          : ''}
+                      </p>
+                    )}
+                  </div>
+                  <details
+                    className="task-more"
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') {
+                        event.currentTarget.open = false
+                        event.currentTarget.querySelector('summary')?.focus()
+                      }
+                    }}
+                    onClick={(event) => {
+                      if ((event.target as Element).closest('.task-menu button'))
+                        event.currentTarget.open = false
+                    }}
+                  >
+                    <summary aria-label={`更多操作：${task.description}`} title="更多操作">
+                      •••
+                    </summary>
+                    <div className="task-menu">
+                      {task.kind === 'today' && (
+                        <button
+                          data-testid="task-convert"
+                          onClick={async () => {
+                            if (await flush.current()) await convert(task.id)
+                          }}
+                        >
+                          转为多天任务
+                        </button>
+                      )}
+                      {task.kind === 'today' && !task.habitId && (
+                        <button
+                          data-testid="task-to-habit"
+                          onClick={async () => {
+                            if (await flush.current()) await addHabit(task.id)
+                          }}
+                        >
+                          添加为习惯
+                        </button>
+                      )}
+                      <button
+                        data-testid="task-delete"
+                        onClick={async () => {
+                          if (await flush.current()) await remove(task.id)
+                        }}
+                      >
+                        删除任务
+                      </button>
+                    </div>
+                  </details>
+                </div>
+              ))}
+            </div>
+            {selected && (
+              <aside className="workbench-detail" aria-label="任务详情">
+                <button
+                  className="detail-back"
+                  onClick={async () => {
+                    if (await flush.current()) setSelectedTask(null)
+                  }}
+                >
+                  ← 返回列表
+                </button>
+                <h2>任务详情</h2>
+                <label className="detail-label">任务描述</label>
+                {editing === selected.id ? (
+                  <textarea
+                    data-testid="task-edit"
+                    aria-label="编辑任务描述"
+                    value={edited.value}
+                    onChange={(event) => edited.setValue(event.target.value)}
+                    onBlur={() => void edited.save()}
+                    onCompositionStart={() => {
+                      edited.composing.current = true
+                    }}
+                    onCompositionEnd={edited.endComposition}
+                  />
+                ) : (
+                  <button
+                    className="detail-description"
+                    onClick={() => {
+                      setEditing(selected.id)
+                      edited.start(selected)
+                    }}
+                  >
+                    {selected.description}
+                  </button>
+                )}
+                {selected.kind === 'multi-day' && (
+                  <label className="detail-progress">
+                    进度 {selected.progress}%
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      data-testid="task-progress"
+                      aria-label={`进度：${selected.description}`}
+                      value={selected.progress}
+                      disabled={busy || Boolean(selected.subitems?.length)}
+                      onChange={(event) => void progress(selected.id, Number(event.target.value))}
+                    />
+                  </label>
+                )}
+                <SubitemsPanel
+                  task={selected}
+                  changed={refresh}
+                  report={setError}
+                  onSaveReady={onSubitemSaveReady}
+                  onInteraction={onSubitemInteraction}
+                />
+              </aside>
+            )}
+          </div>
+          <div hidden={page !== 'habit'}>
+            <HabitsPanel
+              onSaveReady={onHabitSaveReady}
+              showAdd={adding}
+              onAddDone={() => setAdding(false)}
+            />
+          </div>
+          <div hidden={page !== 'inspiration'}>
+            <InspirationPanel
+              ref={inspirationPanel}
+              report={setError}
+              onEditingChange={setInspirationEditing}
+              workbench
+            />
+          </div>
+          <SettingsPage
+            state={desktop}
+            close={() => void navigate('task')}
+            hidden={page !== 'settings'}
+          />
+        </main>
+      </section>
+    )
+  }
   return (
     <section
       className={`tasks-page ${kind} ${desktop?.edge ? `docked-${desktop.edge}` : ''}`}
       hidden={hidden}
     >
-      {kind === 'main' && (
-        <div className="task-toolbar">
-          <span className="task-brand">
-            ✓ <strong>myTodo</strong>
-          </span>
-          <button
-            data-testid="open-settings"
-            onClick={async () => {
-              if (await flush.current()) openSettings()
-            }}
-          >
-            设置
-          </button>
-          <button data-testid="open-other" onClick={() => void openOther()}>
-            {kind === 'main' ? '打开桌面便签' : '打开主界面'} <span aria-hidden="true">↗</span>
-          </button>
-        </div>
-      )}
       <header
         className="task-heading"
         onPointerDown={(event) => {
@@ -247,7 +526,7 @@ export function TasksPage({
           </div>
         )}
       </header>
-      {kind === 'main' && <p className="task-intro">把今天要做的事，简单记下来。</p>}
+
       <div className="task-list" aria-label="任务">
         {today?.tasks.length === 0 && (
           <div className="task-empty">
@@ -442,7 +721,7 @@ export function TasksPage({
           }}
         />
       </form>
-      {kind === 'main' && <HabitsPanel onSaveReady={onHabitSaveReady} />}
+
       <footer className="task-footer">
         {added.saving || edited.saving ? '正在保存…' : '自动保存 · 回车记下一项'}
       </footer>

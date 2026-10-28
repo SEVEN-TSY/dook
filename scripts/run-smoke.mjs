@@ -19,7 +19,7 @@ writeFileSync(
 )
 const env = { ...process.env, MYTODO_SMOKE_DATA: mkdtempSync(resolve(root, '.local/smoke/data-')) }
 delete env.ELECTRON_RUN_AS_NODE
-const phases = ['drag', 'dock'].includes(process.argv[2])
+const phases = ['drag', 'dock', 'workbench'].includes(process.argv[2])
   ? [process.argv[2]]
   : process.argv[2] === 'multiday'
     ? ['multiday-create', 'multiday-restart']

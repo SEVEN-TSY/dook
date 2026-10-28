@@ -4,9 +4,11 @@ import { getDesktopApi, unwrap } from '../../platform/desktop'
 
 interface Props {
   onSaveReady: (save: () => Promise<boolean>) => () => void
+  showAdd?: boolean
+  onAddDone?: () => void
 }
 
-export function HabitsPanel({ onSaveReady }: Props) {
+export function HabitsPanel({ onSaveReady, showAdd = true, onAddDone }: Props) {
   const [habits, setHabits] = useState<Habit[]>([])
   const [value, setValue] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -46,6 +48,7 @@ export function HabitsPanel({ onSaveReady }: Props) {
         const api = getDesktopApi()
         unwrap(await (id ? api.updateHabit(id, description) : api.createHabit(description)))
         clear()
+        onAddDone?.()
         setError('')
         return true
       } catch (error) {
@@ -58,6 +61,9 @@ export function HabitsPanel({ onSaveReady }: Props) {
     })()
     return pending.current
   }
+  useEffect(() => {
+    if (showAdd) field.current?.focus()
+  }, [showAdd])
   useEffect(() => onSaveReady(() => save.current()), [onSaveReady])
   useEffect(() => {
     let active = true
@@ -141,6 +147,7 @@ export function HabitsPanel({ onSaveReady }: Props) {
       </ul>
       <form
         className="habit-add"
+        hidden={!showAdd && !editingId}
         onSubmit={(event) => {
           event.preventDefault()
           if (!text.current.trim()) {
@@ -152,6 +159,7 @@ export function HabitsPanel({ onSaveReady }: Props) {
       >
         <input
           ref={field}
+          autoFocus={showAdd}
           data-testid={editingId ? 'habit-edit-input' : 'habit-new'}
           aria-label={editingId ? '编辑习惯描述' : '新增习惯描述'}
           placeholder={editingId ? '修改固定工作' : '记下一项固定工作'}
@@ -182,7 +190,7 @@ export function HabitsPanel({ onSaveReady }: Props) {
         <button type="submit" disabled={busy}>
           {editingId ? '保存修改' : '添加习惯'}
         </button>
-        {editingId && (
+        {(editingId || (showAdd && onAddDone)) && (
           <button
             type="button"
             disabled={busy}
@@ -190,6 +198,7 @@ export function HabitsPanel({ onSaveReady }: Props) {
             onClick={() => {
               clear()
               setError('')
+              onAddDone?.()
             }}
           >
             取消
