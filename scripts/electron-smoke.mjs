@@ -776,6 +776,116 @@ async function runSmoke() {
     menuClick('打开主界面')
     let main = await waitFor(() => findWindow('main'), '托盘打开主界面')
     assert.ok(main && note)
+    if (phase.startsWith('topics-')) {
+      await waitFor(
+        () => js(main, 'Boolean(document.querySelector(".workbench-header h1"))'),
+        '工作台就绪'
+      )
+      await js(
+        main,
+        `Array.from(document.querySelectorAll('.workbench-nav button')).find(x => x.textContent === '灵感').click()`
+      )
+      if (phase === 'topics-create') {
+        await click(main, '.primary-button')
+        await input(main, '[data-testid=task-new]', '跨窗口主题灵感')
+        await waitFor(
+          () =>
+            js(
+              main,
+              `document.querySelector('[data-testid=inspiration-summary]')?.textContent.includes('跨窗口主题灵感')`
+            ),
+          '灵感创建'
+        )
+        await click(main, '[aria-label="归集主题"]')
+        await input(main, '[aria-label="新主题名称"]', '持久主题')
+        await waitFor(
+          () =>
+            js(
+              main,
+              `document.querySelector('.inspiration-topic-picker')?.textContent.includes('持久主题')`
+            ),
+          '创建主题'
+        )
+        await click(main, '[data-testid=inspiration-supplement]')
+        await input(main, '[data-testid=inspiration-addition]', '持久补充')
+        await waitFor(
+          () =>
+            js(
+              main,
+              `document.querySelector('.inspiration-additions')?.textContent.includes('持久补充')`
+            ),
+          '补充保存'
+        )
+        await waitFor(
+          () =>
+            js(
+              note,
+              `document.querySelector('[data-testid=note-inspiration-count]')?.textContent.trim() === '1'`
+            ),
+          '便签灵感数量同步'
+        )
+        await js(
+          note,
+          `(async () => { const idea = (await window.myTodo.listInspirations()).data[0]; await window.myTodo.updateInspiration(idea.id, '双窗口更新') })()`
+        )
+        await waitFor(
+          () =>
+            js(
+              main,
+              `document.querySelector('.inspiration-original')?.textContent === '双窗口更新'`
+            ),
+          '正文跨窗口同步'
+        )
+      } else {
+        await js(
+          main,
+          `Array.from(document.querySelectorAll('.inspiration-views button')).find(x => x.textContent === '主题').click()`
+        )
+        await waitFor(
+          () =>
+            js(
+              main,
+              `Array.from(document.querySelectorAll('.inspiration-date-group .inspiration-heading')).some(x => x.textContent.includes('持久主题'))`
+            ),
+          '重启后主题保留'
+        )
+        await js(
+          main,
+          `Array.from(document.querySelectorAll('.inspiration-date-group .inspiration-heading')).find(x => x.textContent.includes('持久主题')).click()`
+        )
+        await waitFor(
+          () =>
+            js(
+              main,
+              `document.querySelector('[data-testid=inspiration-summary]')?.textContent === '双窗口更新'`
+            ),
+          '重启后关联和正文保留'
+        )
+        await click(main, '[data-testid=inspiration-supplement]')
+        await waitFor(
+          () =>
+            js(
+              main,
+              `document.querySelector('.inspiration-additions')?.textContent.includes('持久补充')`
+            ),
+          '重启后补充保留'
+        )
+        assert.equal(
+          (await js(note, 'window.myTodo.listInspirations()')).data[0].description,
+          '双窗口更新'
+        )
+        assert.equal(
+          await js(
+            note,
+            `document.querySelector('[data-testid=note-inspiration-count]').textContent.trim()`
+          ),
+          '1'
+        )
+      }
+      console.log(`Electron topics smoke passed: ${phase}`)
+      menuClick('退出')
+      return
+    }
     if (phase === 'workbench') {
       await waitFor(
         () => js(main, 'Boolean(document.querySelector(".workbench-header h1"))'),
