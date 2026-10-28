@@ -97,5 +97,10 @@ export const migrations = [
     version: 8,
     name: 'skip_habit_task_once',
     sql: `ALTER TABLE tasks ADD COLUMN skipped_on TEXT;`
+  },
+  {
+    version: 9,
+    name: 'inspiration_recorded_time',
+    sql: `ALTER TABLE inspirations ADD COLUMN created_at TEXT;`
   }
 ] as const

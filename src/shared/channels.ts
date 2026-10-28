@@ -14,6 +14,7 @@ export const IPC_CHANNELS = {
   deleteHabit: 'habits:delete',
   listToday: 'tasks:list-today',
   listInspirations: 'inspirations:list',
+  listInspirationPage: 'inspirations:page',
   createInspiration: 'inspirations:create',
   updateInspiration: 'inspirations:update',
   appendInspiration: 'inspirations:append',

@@ -66,6 +66,7 @@ export interface DesktopApi {
   deleteHabit: (id: string) => Promise<ApiResult<boolean>>
   listToday: () => Promise<ApiResult<TodayTasks>>
   listInspirations: () => Promise<ApiResult<Inspiration[]>>
+  listInspirationPage: (offset: number, limit: number) => Promise<ApiResult<InspirationPage>>
   createInspiration: (description: string) => Promise<ApiResult<Inspiration>>
   updateInspiration: (id: string, description: string) => Promise<ApiResult<Inspiration>>
   appendInspiration: (
@@ -154,8 +155,14 @@ export interface InspirationAddition {
   content: string
 }
 
+export interface InspirationPage {
+  items: Inspiration[]
+  hasMore: boolean
+}
+
 export interface Inspiration {
   id: string
   description: string
   additions: InspirationAddition[]
+  createdAt: string | null
 }

@@ -36,6 +36,8 @@ const api: DesktopApi = {
   deleteHabit: (id) => ipcRenderer.invoke(IPC_CHANNELS.deleteHabit, id),
   listToday: () => ipcRenderer.invoke(IPC_CHANNELS.listToday),
   listInspirations: () => ipcRenderer.invoke(IPC_CHANNELS.listInspirations),
+  listInspirationPage: (offset, limit) =>
+    ipcRenderer.invoke(IPC_CHANNELS.listInspirationPage, offset, limit),
   createInspiration: (description) =>
     ipcRenderer.invoke(IPC_CHANNELS.createInspiration, description),
   updateInspiration: (id, description) =>
