@@ -7,8 +7,6 @@
 - 修改界面前，阅读`doc/ui-style-guide.md`。
 - 开发MCP工具、修改协议或排查连接问题前，阅读`doc/mcp.md`。
 
-GitHub Issue记录具体任务与验收条件，并引用相关文档章节；项目约定在对应文档中维护。
-
 ## Agent skills
 
 ### Issue tracker
