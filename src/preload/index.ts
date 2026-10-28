@@ -10,6 +10,7 @@ const api: DesktopApi = {
   hideWindow: () => ipcRenderer.invoke(IPC_CHANNELS.hideWindow),
   setInteraction: (active) => ipcRenderer.invoke(IPC_CHANNELS.setInteraction, active),
   setNoteDragging: (active) => ipcRenderer.invoke(IPC_CHANNELS.setNoteDragging, active),
+  finishNoteMotion: (revision) => ipcRenderer.invoke(IPC_CHANNELS.finishNoteMotion, revision),
   onWindowState: (listener) => {
     const callback = (_event: Electron.IpcRendererEvent, state: DesktopState) => listener(state)
     ipcRenderer.on(WINDOW_STATE, callback)
@@ -44,6 +45,9 @@ const api: DesktopApi = {
   createTask: (description, expectedDate) =>
     ipcRenderer.invoke(IPC_CHANNELS.createTask, description, expectedDate),
   updateTask: (id, description) => ipcRenderer.invoke(IPC_CHANNELS.updateTask, id, description),
+  setTaskPinned: (id, pinned) => ipcRenderer.invoke(IPC_CHANNELS.setTaskPinned, id, pinned),
+  moveTask: (id, targetId, before) =>
+    ipcRenderer.invoke(IPC_CHANNELS.moveTask, id, targetId, before),
   setTaskCompleted: (id, completed) =>
     ipcRenderer.invoke(IPC_CHANNELS.setTaskCompleted, id, completed),
   convertToMultiDay: (id) => ipcRenderer.invoke(IPC_CHANNELS.convertToMultiDay, id),
@@ -54,8 +58,9 @@ const api: DesktopApi = {
   setSubitemCompleted: (id, subitemId, completed) =>
     ipcRenderer.invoke(IPC_CHANNELS.setSubitemCompleted, id, subitemId, completed),
   deleteSubitem: (id, subitemId) => ipcRenderer.invoke(IPC_CHANNELS.deleteSubitem, id, subitemId),
+  skipHabitTask: (id) => ipcRenderer.invoke(IPC_CHANNELS.skipHabitTask, id),
   deleteTask: (id) => ipcRenderer.invoke(IPC_CHANNELS.deleteTask, id),
-  openWindow: (kind) => ipcRenderer.invoke(IPC_CHANNELS.openWindow, kind),
+  openWindow: (kind, page) => ipcRenderer.invoke(IPC_CHANNELS.openWindow, kind, page),
   onTasksChanged: (listener) => {
     const callback = () => listener()
     ipcRenderer.on(TASKS_CHANGED, callback)

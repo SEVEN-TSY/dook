@@ -84,5 +84,18 @@ export const migrations = [
       ) STRICT;
       CREATE INDEX task_subitems_task_sequence ON task_subitems(task_id, sequence);
     `
+  },
+  {
+    version: 7,
+    name: 'task_order_and_pin',
+    sql: `
+      ALTER TABLE tasks ADD COLUMN sort_order INTEGER;
+      ALTER TABLE tasks ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0 CHECK(pinned IN (0, 1));
+    `
+  },
+  {
+    version: 8,
+    name: 'skip_habit_task_once',
+    sql: `ALTER TABLE tasks ADD COLUMN skipped_on TEXT;`
   }
 ] as const

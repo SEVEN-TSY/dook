@@ -5,6 +5,8 @@ export interface TaskStore {
   get(id: string, date: string): Task
   create(description: string, date: string): Task
   update(id: string, date: string, change: TaskChange): Task
+  skip(id: string, date: string): void
+  setOrder(ids: string[]): void
   transaction<T>(action: () => T): T
   addSubitem(taskId: string, description: string): Subitem
   updateSubitem(
@@ -18,6 +20,7 @@ export interface TaskStore {
 }
 
 export interface TaskChange {
+  pinned?: boolean
   description?: string
   completed?: boolean
   kind?: Task['kind']

@@ -49,7 +49,7 @@ export function SettingsPage({
       <label className="setting-row">
         <span>
           <strong>贴边自动隐藏</strong>
-          <small>拖近左、右、上外侧边缘后吸附，移入展开。</small>
+          <small>拖近左、右、上外侧边缘后吸附，悬停查看统计，点击展开。</small>
         </span>
         <input
           data-testid="edge-auto-hide"

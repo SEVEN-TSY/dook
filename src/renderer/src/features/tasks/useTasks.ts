@@ -62,6 +62,10 @@ export function useTasks() {
     busy,
     setError,
     refresh,
+    pin: (task: Task) =>
+      run(async () => unwrap(await getDesktopApi().setTaskPinned(task.id, !task.pinned))),
+    move: (id: string, targetId: string, before: boolean) =>
+      run(async () => unwrap(await getDesktopApi().moveTask(id, targetId, before))),
     complete: (task: Task) =>
       run(async () => unwrap(await getDesktopApi().setTaskCompleted(task.id, !task.completed))),
     convert: (id: string) => run(async () => unwrap(await getDesktopApi().convertToMultiDay(id))),
@@ -77,6 +81,7 @@ export function useTasks() {
         await refresh()
       }
     },
+    skipHabit: (id: string) => run(async () => unwrap(await getDesktopApi().skipHabitTask(id))),
     remove: (id: string) => run(async () => unwrap(await getDesktopApi().deleteTask(id)))
   }
 }

@@ -12,12 +12,14 @@ export function InspirationPanel({
   ref,
   report,
   onEditingChange,
-  workbench = false
+  workbench = false,
+  collapsible = false
 }: {
   ref: Ref<InspirationPanelHandle>
   report: (message: string) => void
   onEditingChange: (active: boolean) => void
   workbench?: boolean
+  collapsible?: boolean
 }) {
   const [ideas, setIdeas] = useState<Inspiration[]>([])
   const [expanded, setExpanded] = useState(false)
@@ -74,7 +76,7 @@ export function InspirationPanel({
       className={`inspiration-panel ${workbench ? 'inspiration-workbench' : ''} ${opened ? 'has-detail' : ''}`}
       aria-label="灵感"
     >
-      {!workbench && (
+      {(!workbench || collapsible) && (
         <button
           className="inspiration-heading"
           data-testid="inspirations-toggle"
@@ -88,7 +90,7 @@ export function InspirationPanel({
           <span data-testid="inspiration-count">{ideas.length}</span>
         </button>
       )}
-      {(expanded || workbench) && (
+      {(expanded || (workbench && !collapsible)) && (
         <div className="inspiration-list">
           {ideas.length === 0 && (
             <p className="inspiration-empty">

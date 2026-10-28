@@ -1,6 +1,12 @@
 import { dialog, ipcMain } from 'electron'
 import type { BrowserWindow, IpcMainInvokeEvent } from 'electron'
-import type { ApiResult, BootstrapInfo, DiagnosticReport, WindowKind } from '../../shared/contracts'
+import type {
+  ApiResult,
+  BootstrapInfo,
+  DiagnosticReport,
+  MainPage,
+  WindowKind
+} from '../../shared/contracts'
 import { IPC_CHANNELS } from '../../shared/channels'
 import type { AppService } from '../core/app-service'
 import type { Desktop } from './desktop'
@@ -10,7 +16,7 @@ interface Handlers {
   windows: () => BrowserWindow[]
   service: AppService
   changed: () => void
-  openWindow: (kind: WindowKind) => Promise<void>
+  openWindow: (kind: WindowKind, page?: MainPage) => Promise<void>
   getBootstrap: () => BootstrapInfo
   runDiagnostics: () => Promise<DiagnosticReport>
 }
@@ -76,7 +82,12 @@ export function registerIpc(handlers: Handlers): () => void {
   })
   register(IPC_CHANNELS.setNoteDragging, (window, active) => {
     if (typeof active !== 'boolean') throw new Error('拖动状态无效。')
-    handlers.desktop.setNoteDragging(window, active)
+    return handlers.desktop.setNoteDragging(window, active)
+  })
+  register(IPC_CHANNELS.finishNoteMotion, (window, revision) => {
+    if (typeof revision !== 'number' || !Number.isSafeInteger(revision))
+      throw new Error('动画标识无效。')
+    handlers.desktop.finishNoteMotion(window, revision)
   })
   register(IPC_CHANNELS.saveReply, (window, id, success) => {
     if (typeof id !== 'string' || typeof success !== 'boolean') throw new Error('保存回复无效。')
@@ -141,6 +152,14 @@ export function registerIpc(handlers: Handlers): () => void {
   register(IPC_CHANNELS.updateTask, (_, id, description) =>
     mutate(() => handlers.service.updateTask(text(id), text(description)))
   )
+  register(IPC_CHANNELS.setTaskPinned, (_, id, pinned) => {
+    if (typeof pinned !== 'boolean') throw new Error('置顶状态无效。')
+    return mutate(() => handlers.service.setTaskPinned(text(id), pinned))
+  })
+  register(IPC_CHANNELS.moveTask, (_, id, targetId, before) => {
+    if (typeof before !== 'boolean') throw new Error('排序位置无效。')
+    return mutate(() => handlers.service.moveTask(text(id), text(targetId), before))
+  })
   register(IPC_CHANNELS.setTaskCompleted, (_, id, completed) => {
     if (typeof completed !== 'boolean') throw new Error('完成状态无效。')
     return mutate(() => handlers.service.setTaskCompleted(text(id), completed))
@@ -157,6 +176,9 @@ export function registerIpc(handlers: Handlers): () => void {
   })
   register(IPC_CHANNELS.deleteSubitem, (_, id, subitemId) =>
     mutate(() => handlers.service.deleteSubitem(text(id), text(subitemId)))
+  )
+  register(IPC_CHANNELS.skipHabitTask, (_, id) =>
+    mutate(() => handlers.service.skipHabitTask(text(id)))
   )
   register(IPC_CHANNELS.deleteTask, async (window, id) => {
     const taskId = text(id)
@@ -185,9 +207,16 @@ export function registerIpc(handlers: Handlers): () => void {
     if (typeof progress !== 'number') throw new Error('进度必须为数字。')
     return mutate(() => handlers.service.setTaskProgress(text(id), progress))
   })
-  register(IPC_CHANNELS.openWindow, (_, kind) => {
+  register(IPC_CHANNELS.openWindow, (_, kind, page) => {
     if (kind !== 'main' && kind !== 'note') throw new Error('窗口类型无效。')
-    return handlers.openWindow(kind)
+    if (
+      page !== undefined &&
+      (kind !== 'main' ||
+        typeof page !== 'string' ||
+        !['task', 'habit', 'inspiration', 'settings'].includes(page))
+    )
+      throw new Error('主界面页面无效。')
+    return handlers.openWindow(kind, page as MainPage | undefined)
   })
   return () => Object.values(IPC_CHANNELS).forEach((channel) => ipcMain.removeHandler(channel))
 }

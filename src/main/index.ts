@@ -108,7 +108,7 @@ if (!app.requestSingleInstanceLock()) {
         windows: () => [...windows.values()],
         service,
         changed,
-        openWindow: (kind) => desktop.openWindow(kind),
+        openWindow: (kind, page) => desktop.openWindow(kind, page),
         getBootstrap: () => ({
           runtime: {
             appVersion: app.getVersion(),

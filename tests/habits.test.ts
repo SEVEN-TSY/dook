@@ -129,3 +129,62 @@ test('习惯创建失败不留下半条结果，解除数据库写锁后可重�
     rmSync(directory, { recursive: true, force: true })
   }
 })
+
+test('习惯任务不允许直接编辑描述或转换为多天任务，仍可完成和置顶', () => {
+  const database = new AppDatabase(':memory:')
+  const service = new AppService(database, new TaskRepository(database.connection), undefined, {
+    habits: new HabitRepository(database.connection)
+  })
+  try {
+    service.createHabit('检查构建')
+    const task = service.listToday().tasks[0]
+    assert.throws(() => service.updateTask(task.id, '修改'), /习惯中修改描述/)
+    assert.throws(() => service.convertToMultiDay(task.id), /不能转为多天任务/)
+    assert.throws(() => service.addSubitem(task.id, '子事项'), /不能转为多天任务/)
+    assert.deepEqual(service.listToday().tasks, [task])
+    assert.equal(service.setTaskCompleted(task.id, true).completed, true)
+    assert.equal(service.setTaskPinned(task.id, true).pinned, true)
+  } finally {
+    database.close()
+  }
+})
+
+test('暂停一次保留习惯和任务记录，当天重启不重建，次日继续生成', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'mytodo-skip-habit-'))
+  const path = join(directory, 'tasks.sqlite')
+  let database = new AppDatabase(path)
+  let now = new Date(2026, 9, 28, 12)
+  const open = () =>
+    new AppService(database, new TaskRepository(database.connection), () => now, {
+      habits: new HabitRepository(database.connection)
+    })
+  let service = open()
+  try {
+    const habit = service.createHabit('检查构建')
+    const task = service.listToday().tasks[0]
+    const ordinary = service.createTask('普通任务')
+    assert.throws(() => service.skipHabitTask(ordinary.id), /只能暂停今天的习惯任务/)
+    service.skipHabitTask(task.id)
+    assert.deepEqual(service.listToday().tasks, [ordinary])
+    assert.deepEqual(service.listHabits(), [habit])
+    assert.equal(
+      database.connection.prepare('SELECT skipped_on FROM tasks WHERE id = ?').get(task.id)
+        ?.skipped_on,
+      '2026-10-28'
+    )
+    database.close()
+    database = new AppDatabase(path)
+    service = open()
+    service.ensureDailyTasks()
+    assert.deepEqual(service.listToday().tasks, [ordinary])
+    now = new Date(2026, 9, 29, 12)
+    service.ensureDailyTasks()
+    const next = service.listToday().tasks
+    assert.equal(next.length, 1)
+    assert.equal(next[0].habitId, habit.id)
+    assert.notEqual(next[0].id, task.id)
+  } finally {
+    database.close()
+    rmSync(directory, { recursive: true, force: true })
+  }
+})

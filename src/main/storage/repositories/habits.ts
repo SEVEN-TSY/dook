@@ -51,12 +51,19 @@ export class HabitRepository implements HabitStore {
     })
   }
 
-  update(id: string, description: string): Habit {
-    const row = this.database
-      .prepare('UPDATE habits SET description = ? WHERE id = ? RETURNING id, description')
-      .get(description, id)
-    if (!row) throw new Error('习惯不存在，可能已删除。')
-    return { id: String(row.id), description: String(row.description) }
+  update(id: string, description: string, date: string): Habit {
+    return this.transaction(() => {
+      const row = this.database
+        .prepare('UPDATE habits SET description = ? WHERE id = ? RETURNING id, description')
+        .get(description, id)
+      if (!row) throw new Error('习惯不存在，可能已删除。')
+      this.database
+        .prepare(
+          "UPDATE tasks SET description = ? WHERE habit_id = ? AND date = ? AND kind = 'today'"
+        )
+        .run(description, id, date)
+      return { id: String(row.id), description: String(row.description) }
+    })
   }
 
   delete(id: string): void {

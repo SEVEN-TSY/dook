@@ -1,9 +1,17 @@
 import { TasksPage } from './features/tasks/TasksPage'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { DesktopState } from '../../shared/contracts'
 import { getDesktopApi, unwrap } from './platform/desktop'
+import { useTasks } from './features/tasks/useTasks'
+import { NoteTransition } from './features/tasks/NoteTransition'
 
 export function App() {
+  const tasks = useTasks()
+  const total = tasks.today?.tasks.length ?? 0
+  const completed = tasks.today?.tasks.filter((task) => task.completed).length ?? 0
+  const progress = total ? (completed / total) * 100 : 0
+  const edgePress = useRef<{ x: number; y: number; moved: boolean } | null>(null)
+  const summary = total ? `总进度${progress}%，已完成${completed}/${total}项任务` : '暂无任务'
   const [desktop, setDesktop] = useState<DesktopState | null>(null)
   const [error, setError] = useState('')
   useEffect(() => {
@@ -40,13 +48,81 @@ export function App() {
     <>
       {error && <p role="alert">{error}</p>}
       {desktop?.exitPending && <div className="exit-pending">正在保存并退出…</div>}
-      <TasksPage kind={kind} desktop={desktop} hidden={collapsed} />
+      <TasksPage
+        kind={kind}
+        desktop={desktop}
+        hidden={collapsed}
+        tasks={tasks}
+      />
+      {kind === 'note' && desktop?.noteMotion && (
+        <NoteTransition desktop={desktop} completed={completed} total={total} />
+      )}
       {collapsed && (
         <button
-          className={`edge-handle ${desktop?.edge}`}
-          aria-label="展开桌面便签"
-          onClick={() => void getDesktopApi().openWindow('note')}
-        />
+          className={`edge-handle ${desktop?.edge} ${desktop?.edgeCapsuleVisible ? 'capsule-visible' : ''} ${desktop?.edgeCapsulePreparing ? 'capsule-preparing' : ''} ${desktop?.edgeRevealed ? 'revealed' : ''}`}
+          aria-label={`展开桌面便签，${summary}`}
+          onPointerDown={(event) => {
+            if (event.button !== 0) return
+            event.currentTarget.setPointerCapture(event.pointerId)
+            edgePress.current = { x: event.screenX, y: event.screenY, moved: false }
+            void getDesktopApi().setNoteDragging(true)
+          }}
+          onPointerMove={(event) => {
+            const press = edgePress.current
+            if (press && Math.hypot(event.screenX - press.x, event.screenY - press.y) >= 4)
+              press.moved = true
+          }}
+          onPointerUp={(event) => {
+            const press = edgePress.current
+            if (press && Math.hypot(event.screenX - press.x, event.screenY - press.y) >= 4)
+              press.moved = true
+            if (event.currentTarget.hasPointerCapture(event.pointerId))
+              event.currentTarget.releasePointerCapture(event.pointerId)
+          }}
+          onLostPointerCapture={() => void getDesktopApi().setNoteDragging(false)}
+          onPointerCancel={() => {
+            if (edgePress.current) edgePress.current.moved = true
+            void getDesktopApi().setNoteDragging(false)
+          }}
+          onClick={async (event) => {
+            const dragged = edgePress.current?.moved
+            edgePress.current = null
+            const pointerClick = event.detail > 0
+            const result = await getDesktopApi().setNoteDragging(false)
+            if (!dragged && !(pointerClick && result.ok && result.data))
+              void getDesktopApi().openWindow('note')
+          }}
+        >
+          <span className="edge-strip" aria-hidden="true">
+            <span
+              className="edge-energy-fill"
+              style={
+                desktop?.edge === 'top'
+                  ? { width: `${progress}%`, height: '100%' }
+                  : { height: `${progress}%` }
+              }
+            />
+          </span>
+          <span className="edge-energy" aria-hidden="true">
+            <span
+              className="edge-energy-fill"
+              style={
+                desktop?.edge === 'top'
+                  ? { width: `${progress}%`, height: '100%' }
+                  : { height: `${progress}%` }
+              }
+            />
+            <span className="edge-capsule-summary">
+              <span className="edge-capsule-tasks">
+                <span className="edge-capsule-numbers">
+                  <strong>{completed}</strong>
+                  <span className="edge-capsule-slash">/</span>
+                  <span className="edge-capsule-total">{total}</span>
+                </span>
+              </span>
+            </span>
+          </span>
+        </button>
       )}
     </>
   )

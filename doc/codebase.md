@@ -26,13 +26,14 @@
 - `main/storage/repositories/tasks.ts`实现任务及子事项持久化；habits仓储以事务写入习惯、任务和每日生成记录，inspirations仓储保存原始想法及按序补充。
 - `main/desktop/window.ts`创建普通主界面与约334px宽、不占任务栏的无标题栏便签。
 - `main/desktop/desktop.ts`管理窗口唯一性、唯一托盘、恢复、隐藏及退出前的保存流程。
-- `main/desktop/note-controller.ts`管理自由置顶选择与贴边强制置顶、200/600毫秒悬停交互及操作保护。
+- `main/desktop/note-controller.ts`管理自由置顶选择与贴边强制置顶、即时悬停呼出、600毫秒离开收回交互及操作保护。
 - `main/desktop/note-geometry.ts`检查屏幕组合的外侧边缘并限制可见位置；屏幕变化由便签控制器恢复。
 - `main/desktop/preferences.ts`读写窗口偏好；`save-barrier.ts`按窗口身份关联保存请求与回复。
 - `main/desktop/ipc.ts`只接受注册窗口主Frame的请求，校验参数并包装结果；删除调用系统确认框一次，取消不修改数据。
 - `preload/index.ts`显式暴露DesktopApi；订阅返回清理函数。
-- `renderer/src/features/tasks/TasksPage.tsx`是两端共用的分类界面；SubitemsPanel、HabitsPanel和InspirationPanel分别承载子事项、主界面习惯管理及灵感编辑。
+- `renderer/src/features/tasks/TasksPage.tsx`是两端共用的分类界面；主界面采用左侧任务、习惯、灵感同级导航及底部设置入口，桌面便签以灯泡和数量提供灵感页快捷入口；SubitemsPanel、HabitsPanel和InspirationPanel分别承载子事项、主界面习惯管理及灵感编辑。
 - `renderer/src/features/tasks/useTasks.ts`读取列表、订阅通知、协调操作及错误，丢弃过时列表响应。
+- `renderer/src/features/tasks/NoteTransition.tsx`以独立共享表面完成胶囊与便签的FLIP投影、圆角校正及内容交接；动画完成后按版本向主进程握手，避免过早收缩原生窗口。
 - `renderer/src/features/tasks/useTaskInput.ts`串行协调同一轮输入的创建和更新，不阻塞继续输入；任务组件在设置页和收起状态保持挂载。
 - `renderer/src/features/shared/useSerialSave.ts`统一管理草稿串行保存、组合输入延后和失败保留；任务、灵感及子事项各自保留领域校验和持久化动作。
 - `renderer/src/features/settings/SettingsPage.tsx`提供默认置顶及贴边自动隐藏设置。
@@ -48,7 +49,7 @@
 4. 主界面最小化或关闭、便签关闭均先等待对应窗口保存，再隐藏自身；全部隐藏后继续常驻。
 5. 便签顶部空白区通过指针捕获及白名单拖动IPC移动窗口，显示四向移动光标；位置、吸附边缘和设置写入`desktop-settings.json`，兼容旧版位置。图钉只影响本次运行；修改默认置顶立即同步自由置顶选择，贴边仍强制置顶，重启采用设置默认值，恢复贴边时先展开。
    拖动开始时保存并临时固定内容尺寸，移动只更新位置；结束时按原尺寸吸附并恢复尺寸限制，避免Windows分数缩放对外接矩形反复取整导致窗口增长。
-6. 贴边仅吸附左、右、上外侧边缘，收起保留可见入口，悬停不抢焦点；托盘主动唤出等待鼠标先进入再离开。显示器或分辨率变化时修正位置，保持主动隐藏状态。
+6. 贴边仅吸附左、右、上外侧边缘，收起保留无文字完成比例能量条。悬停呼出仅包含任务完成数和总数的胶囊，不抢焦点；点击展开便签，按住拖动沿当前边缘移动并保存位置。主进程通过拖动结束返回值区分拖动和点击。托盘唤出后恢复自动收回，鼠标不在窗口内时无需先进入，展开动画完成后按离开计时收回；输入编辑保护继续生效。显示器或分辨率变化时修正位置，保持主动隐藏状态。
 7. 显式退出准备期间同步阻止新的人机输入和新开窗口，再请求两端提交有效输入并等待结果；失败解除输入锁并保留窗口供重试，成功后销毁托盘、移除IPC、关闭MCP和数据库。新唤出意图会使较早的隐藏请求失效。
 
 同一数据目录重复启动会打开或唤出便签。开发数据与安装版数据分开，集成验证使用独立目录。常驻托盘不包含开机自启动。
@@ -63,10 +64,12 @@
 - v4：习惯、任务来源及每日生成记录。生成记录独立于任务存活状态，不随任务删除而丢失。
 - v5：灵感及按稳定顺序保存的补充内容。
 - v6：子事项；首项创建、任务转换及进度更新在同一事务中完成。
+- v7：任务排序和置顶；旧任务默认保持创建顺序，分类内置顶优先、再按手动顺序展示。
+- v8：习惯任务单次暂停日期；保留任务和生成记录，只从当天列表排除。
 
-日常列表先返回当天的今天任务，再返回未完成或当天完成的多天任务，各组按创建顺序展示。多天任务完成次日起隐藏，历史数据不自动清理。无子事项时进度由用户调整；有子事项时进度由完成比例计算，整条勾选与子事项在事务中同步。
+日常列表先返回当天的今天任务，再返回未完成或当天完成的多天任务，各组置顶优先，再按手动顺序展示；尚未排序时保持创建顺序。多天任务完成次日起隐藏，历史数据不自动清理。无子事项时进度由用户调整；有子事项时进度由完成比例计算，整条勾选与子事项在事务中同步。
 
-习惯启动及跨日补齐当天，不补过去日期；习惯与本地日期的唯一生成记录防止重复。当天任务完成或删除后不重建。修改、删除习惯仅影响后续生成，已生成任务和来源保留。从今天任务添加习惯复用原任务，关联和当天记录原子保存。
+习惯启动及跨日补齐当天，不补过去日期；习惯与本地日期的唯一生成记录防止重复。当天任务完成、删除或暂停一次后不重建。`skipHabitTask`只允许忽略今天的习惯任务，以skipped_on标记保留原记录，次日照常生成。编辑习惯与当天任务描述在同一事务中更新，保留任务状态及历史记录；删除习惯保留已生成任务和来源。从今天任务添加习惯复用原任务，关联和当天记录原子保存。
 
 灵感独立于任务日期，原始想法和每次补充分开保存。补充输入的一轮保存使用稳定标识追赶连续输入，防止重试产生重复补充。诊断仍使用临时表并回滚，不写入持久业务数据。
 
@@ -81,19 +84,21 @@
 | `updateTask(id, description)`                  | 编辑可见任务，拒绝空白                                 |
 | `setTaskCompleted(id, completed)`              | 完成或取消完成                                         |
 | `deleteTask(id)`                               | 原生确认后删除，返回是否删除                           |
-| `openWindow(kind)`                             | 打开或唤出现有窗口                                     |
+| `openWindow(kind, page?)`                             | 打开或唤出现有窗口，可定位主界面页面                   |
 | `onTasksChanged(listener)`                     | 订阅失效通知，返回取消订阅函数                         |
 | `getBootstrap()` / `runDiagnostics()`          | 保留基础设施诊断接口                                   |
 | `getWindowState()` / `onWindowState(listener)` | 读取和订阅置顶、贴边及窗口设置                         |
 | `updateSettings(settings)` / `toggleNotePin()` | 更新持久偏好或临时置顶状态                             |
 | `hideWindow()` / `setInteraction(active)`      | 请求保存后隐藏，或保护输入期间不收起                   |
-| `setNoteDragging(active)`                      | 便签头部捕获指针期间由主进程跟随系统鼠标移动窗口       |
+| `setNoteDragging(active)`                      | 头部自由拖动或收起入口沿边拖动；返回是否发生沿边拖动       |
+| `finishNoteMotion(revision)`                  | 当前便签完成视觉交接后确认版本，再由主进程结束窗口过渡 |
 | `onSaveRequested(listener)`                    | 生命周期保存握手；preload按请求标识回复，不暴露任意IPC |
 
 成功写入后主进程向所有注册窗口发送`tasks:changed`，界面重新读取同一份数据。每秒检查本地日期变化，由主进程补齐当天习惯任务后广播；失败保留日期检查点供重试。窗口聚焦时也刷新，不把日期变更写回旧任务。窗口渲染关闭后台节流，跨日时保持列表更新。新增输入传入所属日期，由共享应用服务在写入前核对本地日期，避免跨日误创建。
 
 分类API同样通过白名单DesktopApi、IPC来源验证及ApiResult传递，不暴露任意频道或SQL：
 
+- `setTaskPinned`、`moveTask`处理分类内置顶与排序，同一事务校验当前可见任务，禁止跨分类或跨置顶分区拖动。
 - `convertToMultiDay`、`setTaskProgress`处理任务转换和手动进度。
 - `addSubitem`、`updateSubitem`、`setSubitemCompleted`、`deleteSubitem`维护子事项。
 - `listHabits`、`createHabit`、`createHabitFromTask`、`updateHabit`、`deleteHabit`管理习惯；`ensureDailyTasks`由主进程调度。
@@ -112,3 +117,5 @@ TasksPage为每个窗口维护唯一的生命周期保存回调，聚合任务�
 新增业务继续按shared契约→storage迁移/仓储→core用例→IPC/preload→renderer的边界推进。MCP业务工具、自定义类别、未来AI能力及自启动留待后续。构建输出在`out/`，安装产物在`release/`，验证产物在`.local/smoke/`，均不进入Git。
 
 Electron分类场景还可分别运行node scripts/run-smoke.mjs multiday和node scripts/run-smoke.mjs subitems，隔离首次操作及重启数据，避免与普通回归中的任务数量断言耦合。
+
+便签的设置和灵感快捷入口通过openWindow的可选MainPage参数定位主界面。DesktopState携带带版本号的mainNavigation，确保主界面首次加载和重复唤出均能接收导航；切页前统一保存已有草稿，失败保留原页。

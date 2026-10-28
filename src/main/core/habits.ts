@@ -5,7 +5,7 @@ export interface HabitStore {
   list(): Habit[]
   create(description: string, date: string): Habit
   createFromTask(taskId: string, date: string): Habit
-  update(id: string, description: string): Habit
+  update(id: string, description: string, date: string): Habit
   delete(id: string): void
   ensureToday(date: string): boolean
 }

@@ -1,6 +1,6 @@
 import { dialog, Menu, nativeImage, Tray } from 'electron'
 import type { BrowserWindow } from 'electron'
-import type { WindowKind } from '../../shared/contracts'
+import type { DesktopState, MainPage, WindowKind } from '../../shared/contracts'
 import { WINDOW_STATE } from '../../shared/channels'
 import { createWindow, loadWindow } from './window'
 import { NoteController } from './note-controller'
@@ -32,6 +32,7 @@ export class Desktop {
   private note?: NoteController
   private exiting = false
   private preparingQuit = false
+  private mainNavigation: DesktopState['mainNavigation']
 
   constructor(
     private readonly directory: string,
@@ -67,8 +68,10 @@ export class Desktop {
     this.tray.setContextMenu(menu)
   }
 
-  async openWindow(kind: WindowKind): Promise<void> {
+  async openWindow(kind: WindowKind, page?: MainPage): Promise<void> {
     if (this.exiting || this.preparingQuit) return
+    if (kind === 'main' && page)
+      this.mainNavigation = { page, revision: (this.mainNavigation?.revision ?? 0) + 1 }
     let window = this.windows.get(kind)
     if (!window || window.isDestroyed()) {
       window = createWindow(kind)
@@ -107,12 +110,17 @@ export class Desktop {
       if (window.isMinimized()) window.restore()
       window.show()
       window.focus()
+      if (page) this.broadcast()
     }
   }
 
   state() {
     if (!this.note) throw new Error('桌面便签尚未就绪。')
-    return { ...this.note.state(), exitPending: this.preparingQuit }
+    return {
+      ...this.note.state(),
+      exitPending: this.preparingQuit,
+      mainNavigation: this.mainNavigation
+    }
   }
 
   private broadcast() {
@@ -132,7 +140,11 @@ export class Desktop {
   }
   setNoteDragging(window: BrowserWindow, active: boolean) {
     if (!this.preparingQuit && !this.exiting && window === this.windows.get('note'))
-      this.note?.setDragging(active)
+      return this.note?.setDragging(active) ?? false
+    return false
+  }
+  finishNoteMotion(window: BrowserWindow, revision: number) {
+    if (window === this.windows.get('note')) this.note?.finishNoteMotion(revision)
   }
 
   async protect<T>(action: () => Promise<T>): Promise<T> {

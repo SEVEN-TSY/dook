@@ -196,6 +196,49 @@ async function draggingSmoke(note) {
   }
 }
 
+async function assertPushMotion(note, selector, edge, leaving = false) {
+  const motion = await js(
+    note,
+    `(() => {
+    const element = document.querySelector(${JSON.stringify(selector)});
+    const animation = element.getAnimations().find(item =>
+      item.effect.getKeyframes().some(frame => frame.transform && frame.transform !== 'none'));
+    if (!animation) return null;
+    animation.pause();
+    const duration = animation.effect.getTiming().duration;
+    const rect = () => { const r = element.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; };
+    animation.currentTime = 0;
+    const start = rect();
+    animation.currentTime = duration;
+    const end = rect();
+    element.getAnimations().forEach(item => item.finish());
+    return { start, end };
+  })()`
+  )
+  assert.ok(motion, `${selector}必须整体平移推出，不能通过裁切刷出`)
+  const { start, end } = motion
+  const direction = leaving ? -1 : 1
+  assert.ok(
+    Math.abs(start.width - end.width) < 0.1 && Math.abs(start.height - end.height) < 0.1,
+    '推出时整体尺寸保持不变'
+  )
+  if (edge === 'left')
+    assert.ok(
+      (end.x - start.x) * direction > 0 && Math.abs(start.y - end.y) < 0.1,
+      leaving ? '左侧胶囊向左推回边缘' : '左侧胶囊向右推出'
+    )
+  if (edge === 'right')
+    assert.ok(
+      (end.x - start.x) * direction < 0 && Math.abs(start.y - end.y) < 0.1,
+      leaving ? '右侧胶囊向右推回边缘' : '右侧胶囊向左推出'
+    )
+  if (edge === 'top')
+    assert.ok(
+      (end.y - start.y) * direction > 0 && Math.abs(start.x - end.x) < 0.1,
+      leaving ? '顶部胶囊向上推回边缘' : '顶部胶囊向下推出'
+    )
+}
+
 async function dockingSizeSmoke(note) {
   const cursor = screen.getCursorScreenPoint
   const area = screen.getPrimaryDisplay().workArea
@@ -237,14 +280,160 @@ async function dockingSizeSmoke(note) {
       pointer = { x: expanded.x + 40, y: expanded.y + 40 }
       await pause(100)
       pointer = { x: area.x + area.width / 2, y: area.y + area.height - 10 }
+      await waitFor(async () => (await state(note)).noteMotion === 'closing', '便签沿贴边方向收回')
+      assert.deepEqual(note.getContentSize(), size, '收回动画结束前保留便签绘制空间')
       await waitFor(async () => (await state(note)).collapsed, '吸附收起')
       const strip = note.getBounds()
+      const preparingStrip = await js(note, `(() => {
+        const handle = document.querySelector('.edge-handle');
+        handle.classList.add('capsule-visible', 'capsule-preparing');
+        const visibility = getComputedStyle(handle.querySelector('.edge-strip')).visibility;
+        handle.classList.remove('capsule-visible', 'capsule-preparing');
+        return visibility;
+      })()`)
+      assert.equal(preparingStrip, 'hidden', '胶囊准备阶段细条直接隐藏，不能在窗口调整时重绘闪动')
       pointer =
         edge === 'top'
           ? { x: strip.x + 20, y: area.y + 2 }
           : { x: edge === 'left' ? area.x + 2 : area.x + area.width - 2, y: strip.y + 20 }
-      await waitFor(async () => !(await state(note)).collapsed, '吸附重新展开')
+      await waitFor(async () => (await state(note)).edgeRevealed, '悬停呼出胶囊')
+      await assertPushMotion(note, '.edge-energy', edge)
+      assert.equal(
+        await js(note, `getComputedStyle(document.querySelector('.edge-strip')).visibility`),
+        'hidden',
+        '胶囊推出时独立细条直接隐藏'
+      )
+      assert.equal((await state(note)).collapsed, true, '悬停保持便签收起')
+      if (phase === 'dock') {
+        const summary = await js(note, `document.querySelector('.edge-capsule-tasks').textContent`)
+        assert.match(summary, /1\/2/, '胶囊显示完成数和任务总数')
+        assert.equal(
+          await js(note, `document.querySelectorAll('.edge-capsule-summary svg').length`),
+          0,
+          '胶囊仅展示任务完成数和总数'
+        )
+        assert.equal(
+          await js(
+            note,
+            `document.querySelector('.edge-energy-fill').style.${edge === 'top' ? 'width' : 'height'}`
+          ),
+          '50%',
+          '完成比例不计入多天任务的部分进度'
+        )
+        writeFileSync(
+          resolve(output, `note-capsule-${edge}.png`),
+          (await note.webContents.capturePage()).toPNG()
+        )
+      }
+      const beforeMove = note.getBounds()
+      const press = { x: edge === 'right' ? 40 : 24, y: 24 }
+      pointer = { x: beforeMove.x + press.x, y: beforeMove.y + press.y }
+      note.webContents.sendInputEvent({
+        type: 'mouseDown',
+        ...press,
+        button: 'left',
+        clickCount: 1
+      })
+      await pause(80)
+      pointer = {
+        x: pointer.x + (edge === 'top' ? 40 : 8),
+        y: pointer.y + (edge === 'top' ? 8 : 40)
+      }
+      await waitFor(
+        () =>
+          edge === 'top'
+            ? note.getBounds().x === beforeMove.x + 40
+            : note.getBounds().y === beforeMove.y + 40,
+        '按住胶囊沿边移动'
+      )
+      assert.equal(
+        edge === 'top' ? note.getBounds().y : note.getBounds().x,
+        edge === 'top' ? beforeMove.y : beforeMove.x,
+        '拖动保持贴边'
+      )
+      note.webContents.sendInputEvent({ type: 'mouseMove', ...press })
+      note.webContents.sendInputEvent({ type: 'mouseUp', ...press, button: 'left', clickCount: 1 })
       await pause(100)
+      assert.equal((await state(note)).collapsed, true, '拖动松手不展开便签')
+      pointer = { x: area.x + area.width / 2, y: area.y + area.height - 10 }
+      await waitFor(async () => !(await state(note)).edgeRevealed, '胶囊开始收回')
+      assert.equal((await state(note)).edgeCapsuleVisible, true, '胶囊收回动画保留绘制空间')
+      await assertPushMotion(note, '.edge-energy', edge, true)
+      assert.equal(
+        await js(note, `getComputedStyle(document.querySelector('.edge-energy')).opacity`),
+        '0',
+        '胶囊推回边缘后淡出'
+      )
+      assert.equal(
+        await js(note, `getComputedStyle(document.querySelector('.edge-strip')).visibility`),
+        'hidden',
+        '胶囊退出结束前细条保持隐藏'
+      )
+      await waitFor(async () => !(await state(note)).edgeCapsuleVisible, '胶囊沿边收回后恢复细条')
+      const movedStrip = note.getBounds()
+      pointer =
+        edge === 'top'
+          ? { x: movedStrip.x + 20, y: area.y + 2 }
+          : { x: edge === 'left' ? area.x + 2 : area.x + area.width - 2, y: movedStrip.y + 20 }
+      await waitFor(async () => (await state(note)).edgeRevealed, '再次呼出胶囊')
+      await click(note, '.edge-handle')
+      await waitFor(
+        async () => (await state(note)).noteMotion === 'opening',
+        '胶囊沿贴边方向扩展为便签'
+      )
+      const revision = (await state(note)).noteMotionRevision
+      await js(note, `window.myTodo.finishNoteMotion(${revision - 1})`)
+      assert.equal((await state(note)).noteMotion, 'opening', '过期动画回调不能结束当前过渡')
+      assert.equal(
+        await js(
+          note,
+          `document.querySelector('.note-morph-surface').getAnimations().some(animation => animation.effect.getKeyframes().some(frame => frame.transform && frame.borderRadius))`
+        ),
+        true,
+        '胶囊到便签使用独立共享表面的投影和圆角校正'
+      )
+      assert.equal(
+        await js(
+          note,
+          `document.querySelector('.tasks-page.note').getAnimations().some(animation => animation.effect.getKeyframes().some(frame => frame.transform))`
+        ),
+        false,
+        '任务文字不随表面非等比缩放'
+      )
+      if (phase === 'dock') {
+        await js(
+          note,
+          `document.querySelectorAll('.note-morph-surface, .tasks-page.note, .note-morph-source').forEach(element => element.getAnimations().forEach(animation => animation.pause()))`
+        )
+        for (const fraction of [0, 0.12, 0.25, 0.6, 1]) {
+          await js(
+            note,
+            `(() => { const duration = document.querySelector('.note-morph-surface').getAnimations()[0].effect.getTiming().duration; document.querySelectorAll('.note-morph-surface, .tasks-page.note, .note-morph-source').forEach(element => element.getAnimations().forEach(animation => animation.currentTime = ${fraction} * duration)); })()`
+          )
+          writeFileSync(
+            resolve(output, `note-morph-${edge}-${fraction}.png`),
+            (await note.webContents.capturePage()).toPNG()
+          )
+        }
+        await js(
+          note,
+          `document.querySelectorAll('.note-morph-surface, .tasks-page.note, .note-morph-source').forEach(element => element.getAnimations().forEach(animation => animation.finish()))`
+        )
+      }
+      await waitFor(async () => !(await state(note)).collapsed, '点击胶囊展开便签')
+      await waitFor(async () => !(await state(note)).noteMotion, '便签展开动画完成')
+      const footer = await js(
+        note,
+        `(() => {
+        const input = document.querySelector('.note-add-controls').getBoundingClientRect();
+        const summary = document.querySelector('.note-summary').getBoundingClientRect();
+        return { inputHeight: input.height, summaryHeight: summary.height, inputTop: input.top, summaryTop: summary.top, inputRight: input.right, summaryLeft: summary.left, progress: document.querySelector('.note-progress-value').getAttribute('stroke-dasharray') };
+      })()`
+      )
+      assert.equal(footer.summaryHeight, footer.inputHeight, '圆环进度与新增输入胶囊等高')
+      assert.equal(footer.summaryTop, footer.inputTop, '圆环与输入胶囊同排对齐')
+      assert.ok(footer.summaryLeft > footer.inputRight, '圆环位于输入胶囊右侧')
+      if (phase === 'dock') assert.equal(footer.progress, '50 100', '圆环按完成任务数显示进度')
       assert.deepEqual(note.getContentSize(), size, `${edge}收起展开后内容尺寸不变`)
       assert.deepEqual(await surface(), before, `${edge}收起展开后便签表面宽高不变`)
     }
@@ -302,7 +491,7 @@ async function dockingSmoke(main, note) {
       '四向移动光标'
     )
     if ((await state(note)).pinned) await click(note, '[data-testid=note-pin]')
-    await move(area.x + 28, area.y + 100)
+    await move(area.x + 18, area.y + 100)
     assert.equal((await state(note)).edge, 'left')
     assert.equal(note.isAlwaysOnTop(), true, '贴边强制置顶')
     assert.equal(
@@ -338,8 +527,11 @@ async function dockingSmoke(main, note) {
     pointer = { x: area.x + 2, y: strip.y + 20 }
     await pause(100)
     assert.equal((await state(note)).collapsed, true, '短暂悬停不会立即展开')
-    await waitFor(async () => !(await state(note)).collapsed, '悬停展开')
-    assert.equal(main.isFocused(), true, '悬停展开不抢焦点')
+    await waitFor(async () => (await state(note)).edgeRevealed, '悬停呼出胶囊')
+    assert.equal((await state(note)).collapsed, true, '悬停不展开便签')
+    assert.equal(main.isFocused(), true, '悬停胶囊不抢焦点')
+    await click(note, '.edge-handle')
+    await waitFor(async () => !(await state(note)).collapsed, '点击展开便签')
     await click(note, '[data-testid=task-description]')
     pointer = { x: area.x + area.width - 40, y: area.y + area.height - 50 }
     await pause(750)
@@ -354,8 +546,7 @@ async function dockingSmoke(main, note) {
     await waitFor(async () => (await state(note)).collapsed, '编辑结束恢复收起')
     trayClick()
     await waitFor(async () => !(await state(note)).collapsed && note.isFocused(), '托盘展开并聚焦')
-    await pause(750)
-    assert.equal((await state(note)).collapsed, false, '主动唤出等待进入再离开')
+    await waitFor(async () => (await state(note)).collapsed, '托盘唤出后鼠标未进入也能自动收回')
     await click(main, '[data-testid=open-settings]')
     await click(main, '[data-testid=edge-auto-hide]')
     await waitFor(async () => !(await state(note)).settings.edgeAutoHide, '关闭贴边开关')
@@ -495,8 +686,65 @@ async function runSmoke() {
     assert.equal(BrowserWindow.getAllWindows().length, 1, '启动只创建便签')
     await waitFor(() => trays.size === 1, '唯一托盘')
     await waitFor(() => note.isVisible(), '便签可见')
+    if (phase === 'lifecycle') {
+      const area = screen.getPrimaryDisplay().workArea
+      note.setPosition(area.x + 5, area.y + 80)
+      note.emit('moved')
+      await waitFor(async () => (await state(note)).edge === 'left', '销毁前吸附便签')
+      const failures = []
+      process.setUncaughtExceptionCaptureCallback((error) => failures.push(error.message))
+      note.destroy()
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      process.setUncaughtExceptionCaptureCallback(null)
+      assert.deepEqual(failures, [], '窗口销毁后不得继续轮询或执行动画回调')
+      console.log('Electron destroyed-window lifecycle passed')
+      app.exit(0)
+      return
+    }
     if (phase === 'dock') {
+      await js(
+        note,
+        `(async () => {
+        const first = (await window.myTodo.createTask('已完成任务')).data;
+        await window.myTodo.setTaskCompleted(first.id, true);
+        const second = (await window.myTodo.createTask('推进中的任务')).data;
+        await window.myTodo.convertToMultiDay(second.id);
+        await window.myTodo.setTaskProgress(second.id, 60);
+        await window.myTodo.createInspiration('胶囊灵感');
+      })()`
+      )
+      await count(note, 2)
       await dockingSizeSmoke(note)
+      const cursor = screen.getCursorScreenPoint
+      const area = screen.getPrimaryDisplay().workArea
+      screen.getCursorScreenPoint = () => ({
+        x: area.x + area.width - 10,
+        y: area.y + area.height - 10
+      })
+      try {
+        trayClick()
+        await waitFor(
+          async () => !(await state(note)).collapsed && note.isFocused(),
+          '托盘唤出贴边便签'
+        )
+        await waitFor(async () => (await state(note)).collapsed, '无需先进入便签即可自动收回')
+        trayClick()
+        await waitFor(
+          async () => !(await state(note)).collapsed && !(await state(note)).noteMotion,
+          '输入前完整展开便签'
+        )
+        await click(note, '.note-add-button')
+        await waitFor(
+          () => js(note, `document.activeElement?.dataset.testid === 'task-new'`),
+          '空输入框聚焦'
+        )
+        await new Promise((resolve) => setTimeout(resolve, 1100))
+        assert.equal((await state(note)).collapsed, false, '空输入框聚焦时鼠标移出也不自动收回')
+        await js(note, `document.querySelector('[data-testid=task-new]').blur()`)
+        await waitFor(async () => (await state(note)).collapsed, '输入框失焦后恢复自动收回')
+      } finally {
+        screen.getCursorScreenPoint = cursor
+      }
       console.log('Electron dock size passed')
       app.exit(0)
       return
@@ -517,7 +765,11 @@ async function runSmoke() {
     }
     assert.equal(note.isMenuBarVisible(), false)
     assert.equal(await js(note, 'Boolean(document.querySelector(".task-toolbar"))'), false)
-    assert.equal(await js(note, 'document.querySelectorAll("[title]").length'), 0, '无多余悬停提示')
+    assert.equal(
+      await js(note, 'document.querySelector("[data-testid=note-close]").title'),
+      '隐藏桌面便签',
+      '图标操作提供悬停说明'
+    )
     menuClick('打开主界面')
     let main = await waitFor(() => findWindow('main'), '托盘打开主界面')
     assert.ok(main && note)
@@ -528,7 +780,7 @@ async function runSmoke() {
       )
       assert.equal(
         await js(main, 'document.querySelector(".workbench-header h1").textContent'),
-        '任务'
+        '今天'
       )
       await click(main, '.primary-button')
       await input(main, '[data-testid=task-new]', '取消的任务', null)
@@ -622,7 +874,114 @@ async function runSmoke() {
       menuClick('退出')
       return
     }
-    await Promise.all([ready(main), ready(note)])
+    await Promise.all([
+      phase.startsWith('order-')
+        ? waitFor(
+            () => js(main, 'Boolean(document.querySelector(".workbench-header h1"))'),
+            '主界面就绪'
+          )
+        : ready(main),
+      ready(note)
+    ])
+    if (phase.startsWith('order-')) {
+      if (phase === 'order-create') {
+        const result = await js(
+          note,
+          `(async () => {
+          const tasks = [];
+          for (const text of ['任务甲', '任务乙', '任务丙', '推进甲', '推进乙']) {
+            const result = await window.myTodo.createTask(text);
+            if (!result.ok) throw new Error(result.error);
+            tasks.push(result.data);
+          }
+          for (const task of tasks.slice(3)) await window.myTodo.convertToMultiDay(task.id);
+          return tasks;
+        })()`
+        )
+        await count(note, 5)
+        const drag = async (source, target) => {
+          const selector = (id) => `[data-task-id="${id}"]`
+          await js(
+            note,
+            `document.querySelector(${JSON.stringify(selector(source))}).dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: new DataTransfer() }))`
+          )
+          await js(
+            note,
+            `(() => {
+            const target = document.querySelector(${JSON.stringify(selector(target))});
+            target.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, clientY: target.getBoundingClientRect().top + 1, dataTransfer: new DataTransfer() }));
+          })()`
+          )
+          await js(
+            note,
+            `document.querySelector(${JSON.stringify(selector(target))}).dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: new DataTransfer() }))`
+          )
+        }
+        await drag(result[2].id, result[0].id)
+        await waitFor(async () => (await rows(note))[0].id === result[2].id, '今天任务拖动排序')
+        await click(note, '.note-group-heading[aria-expanded=false]')
+        await drag(result[4].id, result[3].id)
+        await waitFor(async () => (await rows(note))[3].id === result[4].id, '多天任务拖动排序')
+        const pointerAt = async (selector) => {
+          const point = await js(note, `(() => {
+            const bounds = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();
+            return { x: Math.round(bounds.x + bounds.width / 2), y: Math.round(bounds.y + bounds.height / 2) };
+          })()`)
+          note.webContents.sendInputEvent({ type: 'mouseMove', ...point })
+          return point
+        }
+        note.focus()
+        await pointerAt(`[data-task-id="${result[1].id}"] [data-testid=task-delete]`)
+        await waitFor(() => js(note, `getComputedStyle(document.querySelector('[data-task-id="${result[1].id}"] .note-task-secondary')).visibility === 'visible'`), '悬停叉号展开置顶')
+        const point = await pointerAt(`[data-task-id="${result[1].id}"] [data-testid=task-pin]`)
+        note.webContents.sendInputEvent({ type: 'mouseDown', ...point, button: 'left', clickCount: 1 })
+        note.webContents.sendInputEvent({ type: 'mouseUp', ...point, button: 'left', clickCount: 1 })
+        await waitFor(async () => (await rows(main))[0].id === result[1].id, '置顶同步主界面')
+        assert.equal(
+          await js(
+            note,
+            `(() => {
+          const pin = document.querySelector('[data-testid=task-pin]');
+          return pin.parentElement.nextElementSibling.dataset.testid === 'task-delete' && pin === pin.parentElement.lastElementChild;
+        })()`
+          ),
+          true,
+          '置顶按钮紧邻叉号左边'
+        )
+      }
+      assert.deepEqual(
+        (await rows(note)).map((row) => row.description),
+        ['任务乙', '任务丙', '任务甲', '推进乙', '推进甲']
+      )
+      assert.equal(
+        await js(
+          note,
+          `document.querySelector('[data-testid=task-pin]').getAttribute('aria-pressed')`
+        ),
+        'true'
+      )
+      if (phase === 'order-create') {
+        assert.equal(await js(note, `document.querySelector('[data-testid=note-inspiration-count]').textContent.trim()`), '0')
+        await js(main, `window.myTodo.createInspiration('底部圆环验证')`)
+        await waitFor(() => js(note, `document.querySelector('[data-testid=note-inspiration-count]').textContent.trim() === '1'`), '灵感数量跨窗口同步')
+        await click(note, '[data-testid=new-kind-inspiration]')
+        await click(note, '.note-add-button')
+        assert.equal(await js(note, `document.querySelector('.note-add-controls').classList.contains('is-inspiration')`), true)
+        assert.equal(await js(note, `(() => {
+          const input = document.querySelector('[data-testid=task-new]').getBoundingClientRect();
+          const task = document.querySelector('.note-summary').getBoundingClientRect();
+          const idea = document.querySelector('[data-testid=note-inspiration-count]').getBoundingClientRect();
+          return input.width > 50 && input.right <= task.left && task.right < idea.left && Math.abs(task.y - idea.y) < 1;
+        })()`), true, '输入与两个圆环同排且不重叠')
+      }
+      writeFileSync(
+        resolve(output, `note-${phase}.png`),
+        (await note.webContents.capturePage()).toPNG()
+      )
+      console.log(`Electron order smoke passed: ${phase}`)
+      menuClick('退出')
+      return
+    }
     if (phase.startsWith('subitems-')) {
       await subitemsSmoke({
         phase: phase.replace('subitems-', ''),

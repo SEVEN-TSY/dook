@@ -3,10 +3,11 @@ import type { DatabaseSync, SQLOutputValue } from 'node:sqlite'
 import type { Task, Subitem } from '../../../shared/contracts'
 import type { TaskStore, TaskChange } from '../../core/tasks'
 
-const visible = `(kind = 'today' AND date = ?) OR
+const visible = `(kind = 'today' AND date = ? AND skipped_on IS NULL) OR
   (kind = 'multi-day' AND (completed = 0 OR completed_on = ?))`
-const fields = 'id, description, date, completed, kind, progress, completed_on, habit_id'
+const fields = 'id, description, date, completed, kind, progress, completed_on, habit_id, pinned'
 const taskFromRow = (row: Record<string, SQLOutputValue>): Task => ({
+  ...(row.pinned === 1 ? { pinned: true } : {}),
   id: String(row.id),
   description: String(row.description),
   date: String(row.date),
@@ -88,7 +89,9 @@ export class TaskRepository implements TaskStore {
 
   list(date: string): Task[] {
     return this.database
-      .prepare(`SELECT ${fields} FROM tasks WHERE ${visible} ORDER BY kind = 'multi-day', sequence`)
+      .prepare(
+        `SELECT ${fields} FROM tasks WHERE ${visible} ORDER BY kind = 'multi-day', pinned DESC, COALESCE(sort_order, sequence), sequence`
+      )
       .all(date, date)
       .map((row) => this.taskWithSubitems(row))
   }
@@ -99,6 +102,20 @@ export class TaskRepository implements TaskStore {
       .get(id, date, date)
     if (!row) throw new Error('任务不存在，可能已删除或日期已切换。')
     return this.taskWithSubitems(row)
+  }
+
+  skip(id: string, date: string): void {
+    const result = this.database
+      .prepare(
+        "UPDATE tasks SET skipped_on = ? WHERE id = ? AND date = ? AND kind = 'today' AND habit_id IS NOT NULL AND skipped_on IS NULL"
+      )
+      .run(date, id, date)
+    if (!result.changes) throw new Error('今天的习惯任务不存在或已暂停。')
+  }
+
+  setOrder(ids: string[]): void {
+    const update = this.database.prepare('UPDATE tasks SET sort_order = ? WHERE id = ?')
+    ids.forEach((id, index) => update.run(index + 1, id))
   }
 
   create(description: string, date: string): Task {
@@ -113,12 +130,13 @@ export class TaskRepository implements TaskStore {
     const row = this.database
       .prepare(
         `UPDATE tasks SET
-      description = COALESCE(?, description), completed = COALESCE(?, completed),
+      pinned = COALESCE(?, pinned), description = COALESCE(?, description), completed = COALESCE(?, completed),
       kind = COALESCE(?, kind), progress = COALESCE(?, progress),
       completed_on = CASE WHEN ? THEN ? ELSE completed_on END
       WHERE id = ? AND (${visible}) RETURNING ${fields}`
       )
       .get(
+        change.pinned === undefined ? null : Number(change.pinned),
         change.description ?? null,
         change.completed === undefined ? null : Number(change.completed),
         change.kind ?? null,

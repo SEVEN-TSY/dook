@@ -33,7 +33,7 @@ test('从今天任务添加习惯复用原任务且重复操作不生成新任�
   }
 })
 
-test('习惯编辑删除只改变后续生成且保留已有任务与来源', () => {
+test('编辑习惯同步当天描述，删除习惯保留已生成任务与来源', () => {
   const database = new AppDatabase(':memory:')
   let now = new Date(2026, 9, 27, 12)
   const service = new AppService(database, new TaskRepository(database.connection), () => now, {
@@ -45,7 +45,7 @@ test('习惯编辑删除只改变后续生成且保留已有任务与来源', ()
     assert.throws(() => service.updateHabit(habit.id, '  '), /习惯描述/)
     const updated = service.updateHabit(habit.id, '  更新进展  ')
     assert.deepEqual(updated, { id: habit.id, description: '更新进展' })
-    assert.deepEqual(service.listToday().tasks, [original])
+    assert.deepEqual(service.listToday().tasks, [{ ...original, description: '更新进展' }])
     now = new Date(2026, 9, 28, 12)
     service.ensureDailyTasks()
     const next = service.listToday().tasks[0]!
@@ -59,7 +59,7 @@ test('习惯编辑删除只改变后续生成且保留已有任务与来源', ()
     assert.equal(service.ensureDailyTasks(), false)
     assert.deepEqual(service.listToday().tasks, [])
     now = new Date(2026, 9, 27, 12)
-    assert.deepEqual(service.listToday().tasks, [original])
+    assert.deepEqual(service.listToday().tasks, [{ ...original, description: '更新进展' }])
   } finally {
     database.close()
   }
@@ -125,5 +125,50 @@ test('任务复用关系及删除习惯后的历史来源重启保留', () => {
     database.close()
     assert.equal(resolve(dirname(directory)), resolve(tmpdir()))
     rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('习惯描述同步只更新当天并保留完成置顶暂停状态，失败时整体回滚', () => {
+  const database = new AppDatabase(':memory:')
+  let now = new Date(2026, 9, 27, 12)
+  const service = new AppService(database, new TaskRepository(database.connection), () => now, {
+    habits: new HabitRepository(database.connection)
+  })
+  try {
+    const habit = service.createHabit('原描述')
+    const yesterday = service.listToday().tasks[0]
+    now = new Date(2026, 9, 28, 12)
+    service.ensureDailyTasks()
+    const today = service.listToday().tasks[0]
+    service.setTaskCompleted(today.id, true)
+    service.setTaskPinned(today.id, true)
+    service.updateHabit(habit.id, '当天新描述')
+    assert.deepEqual(service.listToday().tasks, [
+      { ...today, description: '当天新描述', completed: true, pinned: true }
+    ])
+    assert.equal(
+      database.connection.prepare('SELECT description FROM tasks WHERE id = ?').get(yesterday.id)
+        ?.description,
+      '原描述'
+    )
+    service.skipHabitTask(today.id)
+    service.updateHabit(habit.id, '暂停后新描述')
+    assert.equal(service.ensureDailyTasks(), false)
+    assert.deepEqual(service.listToday().tasks, [])
+    const paused = database.connection
+      .prepare('SELECT description, completed, pinned, skipped_on FROM tasks WHERE id = ?')
+      .get(today.id)!
+    assert.equal(paused.description, '暂停后新描述')
+    assert.equal(paused.completed, 1)
+    assert.equal(paused.pinned, 1)
+    assert.equal(paused.skipped_on, '2026-10-28')
+    database.connection.exec(
+      "CREATE TRIGGER fail_habit_sync BEFORE UPDATE OF description ON tasks BEGIN SELECT RAISE(ABORT, 'sync failed'); END"
+    )
+    assert.throws(() => service.updateHabit(habit.id, '失败的编辑'), /sync failed/)
+    assert.equal(service.listHabits()[0].description, '暂停后新描述')
+    database.connection.exec('DROP TRIGGER fail_habit_sync')
+  } finally {
+    database.close()
   }
 })

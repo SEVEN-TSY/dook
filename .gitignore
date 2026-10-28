@@ -12,3 +12,4 @@ coverage/
 *.sqlite-wal
 *.tsbuildinfo
 .DS_Store
+/doc/

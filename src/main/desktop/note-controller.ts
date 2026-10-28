@@ -10,6 +10,14 @@ export class NoteController {
   private edge: DockEdge | null
   private expanded: Rectangle
   private collapsed = false
+  private edgeRevealed = false
+  private edgeCapsuleVisible = false
+  private edgeRevealTarget = false
+  private revealTimer?: ReturnType<typeof setTimeout>
+  private noteMotion?: 'opening' | 'closing'
+  private noteMotionRevision = 0
+  private noteMotionSource: 'capsule' | 'strip' = 'strip'
+  private motionTimer?: ReturnType<typeof setTimeout>
   private interaction = false
   private protections = 0
   private menuOpen = false
@@ -18,9 +26,17 @@ export class NoteController {
   private outsideSince = 0
   private applying = false
   private dragging = false
+  private edgeDragMoved = false
   private dragTimer?: ReturnType<typeof setInterval>
   private dragBounds?: Rectangle
+  private edgeDrag?: {
+    origin: { x: number; y: number }
+    bounds: Rectangle
+    area: Rectangle
+    moved: boolean
+  }
   private readonly timer: ReturnType<typeof setInterval>
+  private disposed = false
 
   constructor(
     private readonly window: BrowserWindow,
@@ -48,6 +64,7 @@ export class NoteController {
     screen.on('display-removed', this.recover)
     screen.on('display-metrics-changed', this.recover)
     this.timer = setInterval(() => this.trackPointer(), 50)
+    window.once('closed', () => this.dispose())
   }
 
   state(): Omit<DesktopState, 'exitPending'> {
@@ -55,7 +72,13 @@ export class NoteController {
       settings: { ...this.preferences.settings },
       pinned: this.edge !== null || this.freePinned,
       edge: this.edge,
-      collapsed: this.collapsed
+      collapsed: this.collapsed,
+      edgeRevealed: this.edgeRevealed,
+      edgeCapsuleVisible: this.edgeCapsuleVisible,
+      edgeCapsulePreparing: this.edgeCapsuleVisible && this.edgeRevealTarget && !this.edgeRevealed,
+      noteMotion: this.noteMotion,
+      noteMotionRevision: this.noteMotionRevision,
+      noteMotionSource: this.noteMotionSource
     }
   }
 
@@ -74,17 +97,30 @@ export class NoteController {
   }
 
   private apply() {
+    if (this.disposed || this.window.isDestroyed()) return
     this.applying = true
     try {
       let bounds = this.expanded
       if (this.collapsed && this.edge) {
-        bounds =
-          this.edge === 'top'
-            ? { ...bounds, width: 72, height: 32, y: bounds.y - 26 }
+        bounds = this.edgeCapsuleVisible
+          ? {
+              ...bounds,
+              width: this.edge === 'top' ? 76 : 64,
+              height: this.edge === 'top' ? 64 : 76,
+              x:
+                this.edge === 'right'
+                  ? bounds.x + bounds.width - 56
+                  : this.edge === 'left'
+                    ? bounds.x - 8
+                    : bounds.x,
+              y: this.edge === 'top' ? bounds.y - 8 : bounds.y
+            }
+          : this.edge === 'top'
+            ? { ...bounds, width: 76, height: 32, y: bounds.y - 26 }
             : {
                 ...bounds,
                 width: 32,
-                height: 72,
+                height: 76,
                 x: this.edge === 'right' ? bounds.x + bounds.width - 6 : bounds.x - 26
               }
       }
@@ -140,6 +176,8 @@ export class NoteController {
   readonly recover = () => {
     if (this.window.isDestroyed()) return
     this.setDragging(false)
+    this.cancelMotion()
+    this.resetReveal()
     const display = screen.getDisplayMatching(this.expanded)
     this.expanded = visibleBounds(this.expanded, display)
     if (this.edge && !isOuterEdge(display, this.edge, this.expanded, screen.getAllDisplays()))
@@ -152,9 +190,17 @@ export class NoteController {
   }
 
   show(focus = true) {
+    const wasCollapsed = this.collapsed
+    const source = this.edgeCapsuleVisible ? 'capsule' : 'strip'
+    this.cancelMotion()
+    this.setDragging(false)
+    this.resetReveal()
     this.collapsed = false
-    this.awaitingEntry = true
+    this.awaitingEntry = false
     this.insideSince = this.outsideSince = 0
+    if (wasCollapsed && this.edge) {
+      this.startNoteMotion('opening', source)
+    }
     this.apply()
     if (this.window.isMinimized()) this.window.restore()
     if (focus) {
@@ -164,6 +210,9 @@ export class NoteController {
   }
 
   hide() {
+    this.cancelMotion()
+    this.setDragging(false)
+    this.resetReveal()
     if (!this.collapsed) this.moved()
     this.collapsed = false
     this.apply()
@@ -176,12 +225,84 @@ export class NoteController {
     this.apply()
   }
 
+  private cancelMotion() {
+    clearTimeout(this.motionTimer)
+    this.noteMotion = undefined
+  }
+
+  private startNoteMotion(phase: 'opening' | 'closing', source: 'capsule' | 'strip') {
+    this.noteMotion = phase
+    this.noteMotionSource = source
+    const revision = ++this.noteMotionRevision
+    // 渲染完成后握手收缩窗口；超时只作渲染异常时的恢复兜底。
+    this.motionTimer = setTimeout(() => this.finishNoteMotion(revision), 1000)
+  }
+
+  finishNoteMotion(revision: number) {
+    if (
+      this.disposed ||
+      this.window.isDestroyed() ||
+      !this.noteMotion ||
+      revision !== this.noteMotionRevision
+    )
+      return
+    const closing = this.noteMotion === 'closing'
+    this.cancelMotion()
+    if (closing) {
+      this.collapsed = true
+      this.resetReveal()
+      this.apply()
+    } else this.notify()
+  }
+
+  private collapseNote() {
+    if (this.collapsed || !this.edge || this.noteMotion) return
+    this.startNoteMotion('closing', 'strip')
+    this.notify()
+  }
+
+  private resetReveal() {
+    clearTimeout(this.revealTimer)
+    this.edgeRevealed = this.edgeCapsuleVisible = this.edgeRevealTarget = false
+  }
+
+  private revealCapsule(reveal: boolean) {
+    if (this.edgeRevealTarget === reveal) return
+    clearTimeout(this.revealTimer)
+    this.edgeRevealTarget = reveal
+    if (reveal) {
+      if (this.edgeCapsuleVisible) {
+        this.edgeRevealed = true
+        this.apply()
+      } else {
+        this.edgeCapsuleVisible = true
+        this.edgeRevealed = false
+        this.apply()
+        this.revealTimer = setTimeout(() => {
+          this.edgeRevealed = true
+          this.apply()
+        }, 32)
+      }
+    } else {
+      this.edgeRevealed = false
+      this.apply()
+      // 退出推回屏幕边缘并淡出，完成后才恢复独立细条。
+      this.revealTimer = setTimeout(() => {
+        this.edgeCapsuleVisible = false
+        this.apply()
+      }, 220)
+    }
+  }
+
   updateSettings(settings: WindowSettings) {
     writePreferences(this.directory, { ...this.preferences, settings })
     if (settings.defaultAlwaysOnTop !== this.preferences.settings.defaultAlwaysOnTop)
       this.freePinned = settings.defaultAlwaysOnTop
     this.preferences.settings = { ...settings }
     if (!settings.edgeAutoHide) {
+      this.cancelMotion()
+      this.setDragging(false)
+      this.resetReveal()
       this.edge = null
       this.collapsed = false
       this.persist()
@@ -190,8 +311,30 @@ export class NoteController {
   }
 
   setDragging(active: boolean) {
-    if (active === this.dragging || this.collapsed || this.window.isDestroyed()) return
+    if (active === this.dragging || this.window.isDestroyed()) return this.edgeDragMoved
     this.dragging = active
+    if (active) this.cancelMotion()
+    if (active) this.edgeDragMoved = false
+    if (active && this.collapsed && this.edge) {
+      this.edgeDrag = {
+        origin: screen.getCursorScreenPoint(),
+        bounds: { ...this.expanded },
+        area: screen.getDisplayMatching(this.expanded).workArea,
+        moved: false
+      }
+      this.dragTimer = setInterval(() => this.moveEdgeDrag(), 16)
+      return false
+    }
+    if (!active && this.edgeDrag) {
+      this.moveEdgeDrag()
+      this.edgeDragMoved = this.edgeDrag.moved
+      clearInterval(this.dragTimer)
+      this.dragTimer = undefined
+      this.edgeDrag = undefined
+      this.insideSince = this.outsideSince = 0
+      this.persist()
+      return this.edgeDragMoved
+    }
     if (active) {
       const origin = screen.getCursorScreenPoint()
       const bounds = this.window.getBounds()
@@ -224,11 +367,34 @@ export class NoteController {
         Math.min(260, this.expanded.height)
       )
     }
+    return false
+  }
+
+  private moveEdgeDrag() {
+    if (this.disposed || this.window.isDestroyed() || !this.edgeDrag || !this.edge) return
+    const { origin, bounds, area } = this.edgeDrag
+    const point = screen.getCursorScreenPoint()
+    const delta = this.edge === 'top' ? point.x - origin.x : point.y - origin.y
+    if (!this.edgeDrag.moved && Math.abs(delta) < 4) return
+    this.edgeDrag.moved = true
+    const clamp = (value: number, start: number, length: number, size: number) =>
+      Math.max(start, Math.min(value, start + Math.max(0, length - size)))
+    const next =
+      this.edge === 'top'
+        ? { ...bounds, x: clamp(bounds.x + delta, area.x, area.width, bounds.width) }
+        : { ...bounds, y: clamp(bounds.y + delta, area.y, area.height, bounds.height) }
+    if (next.x === this.expanded.x && next.y === this.expanded.y) return
+    this.expanded = next
+    this.apply()
   }
 
   setInteraction(active: boolean) {
     this.interaction = active
     this.outsideSince = 0
+    if (active && this.noteMotion === 'closing') {
+      this.cancelMotion()
+      this.notify()
+    }
   }
   setMenuOpen(active: boolean) {
     this.menuOpen = active
@@ -247,26 +413,35 @@ export class NoteController {
   }
 
   private trackPointer() {
-    if (!this.edge || !this.window.isVisible() || this.dragging) return
+    if (this.disposed || this.window.isDestroyed()) return
+    if (!this.edge || !this.window.isVisible() || this.dragging || this.noteMotion) return
     const point = screen.getCursorScreenPoint()
     const bounds = this.window.getBounds()
+    const hitBounds =
+      this.collapsed && this.edgeCapsuleVisible
+        ? {
+            x: bounds.x + (this.edge === 'right' ? 28 : 8),
+            y: bounds.y + 8,
+            width: this.edge === 'top' ? 60 : 28,
+            height: this.edge === 'top' ? 28 : 60
+          }
+        : bounds
     const inside =
-      point.x >= bounds.x &&
-      point.x < bounds.x + bounds.width &&
-      point.y >= bounds.y &&
-      point.y < bounds.y + bounds.height
+      point.x >= hitBounds.x &&
+      point.x < hitBounds.x + hitBounds.width &&
+      point.y >= hitBounds.y &&
+      point.y < hitBounds.y + hitBounds.height
     const now = Date.now()
     if (inside) {
       this.awaitingEntry = false
       this.outsideSince = 0
       this.insideSince ||= now
-      if (this.collapsed && now - this.insideSince >= 200) {
-        this.collapsed = false
-        this.apply()
-        this.window.showInactive()
+      if (this.collapsed) {
+        this.revealCapsule(true)
       }
     } else {
       this.insideSince = 0
+      if (this.collapsed) this.revealCapsule(false)
       if (
         this.awaitingEntry ||
         this.interaction ||
@@ -279,13 +454,16 @@ export class NoteController {
       }
       this.outsideSince ||= now
       if (now - this.outsideSince >= 600) {
-        this.collapsed = true
-        this.apply()
+        this.collapseNote()
       }
     }
   }
 
   dispose() {
+    if (this.disposed) return
+    this.disposed = true
+    this.cancelMotion()
+    this.resetReveal()
     clearInterval(this.timer)
     clearInterval(this.dragTimer)
     screen.removeListener('display-added', this.recover)

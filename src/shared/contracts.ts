@@ -55,7 +55,8 @@ export interface DesktopApi {
   toggleNotePin: () => Promise<ApiResult<void>>
   hideWindow: () => Promise<ApiResult<void>>
   setInteraction: (active: boolean) => Promise<ApiResult<void>>
-  setNoteDragging: (active: boolean) => Promise<ApiResult<void>>
+  setNoteDragging: (active: boolean) => Promise<ApiResult<boolean>>
+  finishNoteMotion: (revision: number) => Promise<ApiResult<void>>
   onWindowState: (listener: (state: DesktopState) => void) => () => void
   onSaveRequested: (listener: () => Promise<boolean>) => () => void
   listHabits: () => Promise<ApiResult<Habit[]>>
@@ -74,6 +75,8 @@ export interface DesktopApi {
   ) => Promise<ApiResult<Inspiration>>
   createTask: (description: string, expectedDate?: string) => Promise<ApiResult<Task>>
   updateTask: (id: string, description: string) => Promise<ApiResult<Task>>
+  setTaskPinned: (id: string, pinned: boolean) => Promise<ApiResult<Task>>
+  moveTask: (id: string, targetId: string, before: boolean) => Promise<ApiResult<void>>
   setTaskCompleted: (id: string, completed: boolean) => Promise<ApiResult<Task>>
   convertToMultiDay: (id: string) => Promise<ApiResult<Task>>
   setTaskProgress: (id: string, progress: number) => Promise<ApiResult<Task>>
@@ -85,8 +88,9 @@ export interface DesktopApi {
     completed: boolean
   ) => Promise<ApiResult<Task>>
   deleteSubitem: (id: string, subitemId: string) => Promise<ApiResult<Task>>
+  skipHabitTask: (id: string) => Promise<ApiResult<void>>
   deleteTask: (id: string) => Promise<ApiResult<boolean>>
-  openWindow: (kind: WindowKind) => Promise<ApiResult<void>>
+  openWindow: (kind: WindowKind, page?: MainPage) => Promise<ApiResult<void>>
   onTasksChanged: (listener: () => void) => () => void
   getBootstrap: () => Promise<ApiResult<BootstrapInfo>>
   runDiagnostics: () => Promise<ApiResult<DiagnosticReport>>
@@ -97,12 +101,21 @@ export interface WindowSettings {
   defaultAlwaysOnTop: boolean
   edgeAutoHide: boolean
 }
+export type MainPage = 'task' | 'habit' | 'inspiration' | 'settings'
+
 export interface DesktopState {
+  mainNavigation?: { page: MainPage; revision: number }
   exitPending: boolean
   settings: WindowSettings
   pinned: boolean
   edge: DockEdge | null
   collapsed: boolean
+  edgeRevealed?: boolean
+  edgeCapsuleVisible?: boolean
+  edgeCapsulePreparing?: boolean
+  noteMotion?: 'opening' | 'closing'
+  noteMotionRevision?: number
+  noteMotionSource?: 'capsule' | 'strip'
 }
 
 export type WindowKind = 'main' | 'note'
@@ -124,6 +137,7 @@ export interface Task {
   date: string
   habitId?: string
   completed: boolean
+  pinned?: boolean
   kind: 'today' | 'multi-day'
   progress: number
   completedOn: string | null

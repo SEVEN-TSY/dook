@@ -42,7 +42,7 @@ export class AppService {
     if (typeof id !== 'string' || !id) throw new Error('习惯标识无效。')
     if (typeof description !== 'string' || !description.trim())
       throw new Error('习惯描述不能为空。')
-    return this.habitStore().update(id, description.trim())
+    return this.habitStore().update(id, description.trim(), localDate(this.now()))
   }
 
   deleteHabit(id: string): void {
@@ -109,9 +109,10 @@ export class AppService {
   updateTask(id: string, description: string): Task {
     if (typeof description !== 'string' || !description.trim())
       throw new Error('任务描述不能为空。')
-    return this.taskStore().update(this.taskId(id), localDate(this.now()), {
-      description: description.trim()
-    })
+    const date = localDate(this.now())
+    const task = this.taskStore().get(this.taskId(id), date)
+    if (task.habitId) throw new Error('请在主界面的习惯中修改描述。')
+    return this.taskStore().update(task.id, date, { description: description.trim() })
   }
 
   setTaskCompleted(id: string, completed: boolean): Task {
@@ -128,6 +129,17 @@ export class AppService {
     return this.taskStore().update(task.id, date, { completed })
   }
 
+  skipHabitTask(id: string): void {
+    const date = localDate(this.now())
+    const store = this.taskStore()
+    store.transaction(() => {
+      const task = store.get(this.taskId(id), date)
+      if (!task.habitId || task.kind !== 'today' || task.date !== date)
+        throw new Error('只能暂停今天的习惯任务。')
+      store.skip(task.id, date)
+    })
+  }
+
   deleteTask(id: string): void {
     this.taskStore().delete(this.taskId(id), localDate(this.now()))
   }
@@ -135,6 +147,7 @@ export class AppService {
   convertToMultiDay(id: string): Task {
     const date = localDate(this.now())
     const task = this.taskStore().get(this.taskId(id), date)
+    if (task.habitId) throw new Error('习惯任务不能转为多天任务。')
     if (task.kind === 'multi-day') return task
     return this.taskStore().update(task.id, date, {
       kind: 'multi-day',
@@ -197,6 +210,38 @@ export class AppService {
       progress,
       completed: completedCount === subitems.length,
       completedOn: completedCount === subitems.length ? (task.completedOn ?? date) : null
+    })
+  }
+
+  setTaskPinned(id: string, pinned: boolean): Task {
+    if (typeof pinned !== 'boolean') throw new Error('置顶状态无效。')
+    const date = localDate(this.now())
+    const store = this.taskStore()
+    return store.transaction(() => {
+      const task = store.update(this.taskId(id), date, { pinned })
+      const group = store.list(date).filter((item) => item.kind === task.kind)
+      // 新置顶的任务放到分类最前，取消置顶后放到普通任务最前。
+      const peers = group.filter((item) => item.id !== id)
+      const boundary = pinned ? 0 : peers.filter((item) => item.pinned).length
+      peers.splice(boundary, 0, task)
+      store.setOrder(peers.map((item) => item.id))
+      return task
+    })
+  }
+
+  moveTask(id: string, targetId: string, before: boolean): void {
+    if (typeof before !== 'boolean') throw new Error('排序位置无效。')
+    const date = localDate(this.now())
+    const store = this.taskStore()
+    store.transaction(() => {
+      const task = store.get(this.taskId(id), date)
+      const target = store.get(this.taskId(targetId), date)
+      if (task.kind !== target.kind || Boolean(task.pinned) !== Boolean(target.pinned))
+        throw new Error('请在同一分类的置顶或普通任务之间调整顺序。')
+      if (id === targetId) return
+      const group = store.list(date).filter((item) => item.kind === task.kind && item.id !== id)
+      group.splice(group.findIndex((item) => item.id === targetId) + (before ? 0 : 1), 0, task)
+      store.setOrder(group.map((item) => item.id))
     })
   }
 
