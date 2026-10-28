@@ -1,6 +1,6 @@
 import { useEffect, useImperativeHandle, useRef, useState } from 'react'
 import type { Ref } from 'react'
-import type { Inspiration } from '../../../../shared/contracts'
+import type { Inspiration, InspirationTopic } from '../../../../shared/contracts'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
 import { useInspirationInput } from './useInspirationInput'
 
@@ -22,6 +22,14 @@ export function InspirationPanel({
   collapsible?: boolean
 }) {
   const [ideas, setIdeas] = useState<Inspiration[]>([])
+  const [view, setView] = useState<'date' | 'topic'>('date')
+  const [topics, setTopics] = useState<InspirationTopic[]>([])
+  const [picker, setPicker] = useState<string | null>(null)
+  const [newTopic, setNewTopic] = useState('')
+  const [renameId, setRenameId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const [openedGroup, setOpenedGroup] = useState<string | null>(null)
+  const [editingGroup, setEditingGroup] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
   const [hasMore, setHasMore] = useState(false)
   const [groupsOpen, setGroupsOpen] = useState<Record<string, boolean>>({})
@@ -35,6 +43,7 @@ export function InspirationPanel({
     const request = ++version.current
     try {
       if (workbench) {
+        const topicList = unwrap(await getDesktopApi().listInspirationTopics())
         const items: Inspiration[] = []
         let hasMore = true
         while (items.length < loadedCount.current && hasMore) {
@@ -49,6 +58,7 @@ export function InspirationPanel({
         }
         if (version.current === request) {
           setIdeas(items)
+          setTopics(topicList)
           setHasMore(hasMore)
         }
       } else {
@@ -120,9 +130,11 @@ export function InspirationPanel({
   useEffect(() => {
     onEditingChange(editing !== null || (focused && Boolean(addition.value.trim())))
   }, [editing, focused, addition.value, onEditingChange])
-  const toggleIdea = async (id: string) => {
+  const toggleIdea = async (id: string, group?: string) => {
     if (!(await save())) return
-    setOpened(opened === id ? null : id)
+    const close = opened === id && openedGroup === (group ?? null)
+    setOpened(close ? null : id)
+    setOpenedGroup(close ? null : (group ?? null))
   }
   const dateKey = (date: Date) =>
     `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -133,22 +145,35 @@ export function InspirationPanel({
     return dateKey(date)
   })
   const groups = workbench
-    ? [
-        ...dates.map((date, index) => ({
-          key: date,
-          label: index === 0 ? '今天' : date,
-          items: ideas.filter(
-            (idea) => idea.createdAt && dateKey(new Date(idea.createdAt)) === date
-          )
-        })),
-        {
-          key: 'history',
-          label: '历史灵感',
-          items: ideas.filter(
-            (idea) => !idea.createdAt || !dates.includes(dateKey(new Date(idea.createdAt)))
-          )
-        }
-      ]
+    ? view === 'topic'
+      ? [
+          ...topics.map((topic) => ({
+            key: topic.id,
+            label: topic.name,
+            items: ideas.filter((idea) => idea.topicIds.includes(topic.id))
+          })),
+          {
+            key: 'unassigned',
+            label: '未归主题',
+            items: ideas.filter((idea) => idea.topicIds.length === 0)
+          }
+        ]
+      : [
+          ...dates.map((date, index) => ({
+            key: date,
+            label: index === 0 ? '今天' : date,
+            items: ideas.filter(
+              (idea) => idea.createdAt && dateKey(new Date(idea.createdAt)) === date
+            )
+          })),
+          {
+            key: 'history',
+            label: '历史灵感',
+            items: ideas.filter(
+              (idea) => !idea.createdAt || !dates.includes(dateKey(new Date(idea.createdAt)))
+            )
+          }
+        ]
     : [{ key: 'all', label: '', items: ideas }]
   return (
     <section
@@ -169,6 +194,28 @@ export function InspirationPanel({
           <span data-testid="inspiration-count">{ideas.length}</span>
         </button>
       )}
+      {workbench && (
+        <div className="inspiration-views" role="group" aria-label="灵感视角">
+          {(['date', 'topic'] as const).map((option) => (
+            <button
+              key={option}
+              aria-pressed={view === option}
+              onClick={async () => {
+                if (!(await save())) return
+                ++version.current
+                loadedCount.current = 20
+                setGroupsOpen({})
+                setOpened(null)
+                setPicker(null)
+                setView(option)
+                void refresh()
+              }}
+            >
+              {option === 'date' ? '日期' : '主题'}
+            </button>
+          ))}
+        </div>
+      )}
       {(expanded || (workbench && !collapsible)) && (
         <div className="inspiration-list">
           {ideas.length === 0 && (
@@ -183,25 +230,62 @@ export function InspirationPanel({
               {workbench && (
                 <button
                   className="inspiration-heading"
-                  aria-expanded={groupsOpen[group.key] ?? index === 0}
+                  aria-expanded={groupsOpen[group.key] ?? (view === 'date' && index === 0)}
                   onClick={() =>
                     setGroupsOpen((current) => ({
                       ...current,
-                      [group.key]: !(current[group.key] ?? index === 0)
+                      [group.key]: !(current[group.key] ?? (view === 'date' && index === 0))
                     }))
                   }
                 >
                   <span>
-                    {(groupsOpen[group.key] ?? index === 0) ? '⌄' : '›'} {group.label}
+                    {(groupsOpen[group.key] ?? (view === 'date' && index === 0)) ? '⌄' : '›'}{' '}
+                    {group.label}
                   </span>
                 </button>
               )}
-              {(!workbench || (groupsOpen[group.key] ?? index === 0)) &&
+              {workbench &&
+                view === 'topic' &&
+                group.key !== 'unassigned' &&
+                (renameId === group.key ? (
+                  <form
+                    onSubmit={async (event) => {
+                      event.preventDefault()
+                      try {
+                        unwrap(await getDesktopApi().renameInspirationTopic(group.key, renameValue))
+                        setRenameId(null)
+                        void refresh()
+                      } catch (error) {
+                        report(error instanceof Error ? error.message : '修改主题失败。')
+                      }
+                    }}
+                  >
+                    <input
+                      aria-label="主题名称"
+                      value={renameValue}
+                      onChange={(event) => setRenameValue(event.target.value)}
+                    />
+                    <button type="submit">保存</button>
+                    <button type="button" onClick={() => setRenameId(null)}>
+                      取消
+                    </button>
+                  </form>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setRenameId(group.key)
+                      setRenameValue(group.label)
+                    }}
+                  >
+                    重命名
+                  </button>
+                ))}
+              {(!workbench || (groupsOpen[group.key] ?? (view === 'date' && index === 0))) &&
                 group.items.map((idea) => (
                   <article key={idea.id} data-inspiration-id={idea.id} className="inspiration-item">
                     {workbench ? (
                       <div className="inspiration-row">
-                        {editing === idea.id ? (
+                        {editing === idea.id && editingGroup === group.key ? (
                           <textarea
                             className="inspiration-inline-edit"
                             aria-label="编辑原始想法"
@@ -223,16 +307,89 @@ export function InspirationPanel({
                               if (!(await save())) return
                               original.start(idea)
                               setEditing(idea.id)
+                              setEditingGroup(group.key)
                             }}
                           >
                             <span>{idea.description}</span>
                           </button>
                         )}
+                        <div className="inspiration-topic-control">
+                          <button
+                            aria-label="归集主题"
+                            aria-expanded={picker === `${group.key}:${idea.id}`}
+                            onClick={() => {
+                              setPicker(
+                                picker === `${group.key}:${idea.id}`
+                                  ? null
+                                  : `${group.key}:${idea.id}`
+                              )
+                              setNewTopic('')
+                            }}
+                          >
+                            主题
+                          </button>
+                          {picker === `${group.key}:${idea.id}` && (
+                            <div className="inspiration-topic-picker">
+                              {topics.map((topic) => (
+                                <label key={topic.id}>
+                                  <input
+                                    type="checkbox"
+                                    checked={idea.topicIds.includes(topic.id)}
+                                    onChange={async (event) => {
+                                      try {
+                                        unwrap(
+                                          await getDesktopApi().setInspirationTopic(
+                                            idea.id,
+                                            topic.id,
+                                            event.target.checked
+                                          )
+                                        )
+                                        void refresh()
+                                      } catch (error) {
+                                        report(
+                                          error instanceof Error ? error.message : '归集失败。'
+                                        )
+                                      }
+                                    }}
+                                  />
+                                  {topic.name}
+                                </label>
+                              ))}
+                              <form
+                                onSubmit={async (event) => {
+                                  event.preventDefault()
+                                  try {
+                                    unwrap(
+                                      await getDesktopApi().createInspirationTopic(
+                                        newTopic,
+                                        idea.id
+                                      )
+                                    )
+                                    setNewTopic('')
+                                    void refresh()
+                                  } catch (error) {
+                                    report(
+                                      error instanceof Error ? error.message : '创建主题失败。'
+                                    )
+                                  }
+                                }}
+                              >
+                                <input
+                                  aria-label="新主题名称"
+                                  value={newTopic}
+                                  onChange={(event) => setNewTopic(event.target.value)}
+                                  placeholder="新主题"
+                                />
+                                <button type="submit">创建并归集</button>
+                              </form>
+                            </div>
+                          )}
+                        </div>
                         <button
                           className="inspiration-supplement"
                           data-testid="inspiration-supplement"
                           aria-expanded={opened === idea.id}
-                          onClick={() => void toggleIdea(idea.id)}
+                          onClick={() => void toggleIdea(idea.id, group.key)}
                         >
                           补充
                         </button>
@@ -247,10 +404,13 @@ export function InspirationPanel({
                         {idea.description}
                       </button>
                     )}
-                    {opened === idea.id && (
+                    {opened === idea.id && (!workbench || openedGroup === group.key) && (
                       <div className="inspiration-detail">
                         {workbench && (
-                          <button className="detail-back" onClick={() => void toggleIdea(idea.id)}>
+                          <button
+                            className="detail-back"
+                            onClick={() => void toggleIdea(idea.id, group.key)}
+                          >
                             ← 返回列表
                           </button>
                         )}

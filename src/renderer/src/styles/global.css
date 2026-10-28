@@ -2124,3 +2124,55 @@ h1 {
 .task-delete:focus-visible .habit-task-delete {
   display: inline-flex;
 }
+
+.inspiration-views {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.inspiration-views button,
+.inspiration-topic-control > button,
+.inspiration-date-group > button:not(.inspiration-heading),
+.inspiration-topic-picker button {
+  border: 0;
+  border-radius: 4px;
+  padding: 5px 9px;
+  background: #eef2fb;
+  color: #526fc4;
+  cursor: pointer;
+}
+.inspiration-views button[aria-pressed='true'] {
+  background: #526fc4;
+  color: white;
+}
+.inspiration-topic-control {
+  position: relative;
+  flex: none;
+  margin: 12px 0 0 8px;
+}
+.inspiration-topic-picker {
+  position: absolute;
+  z-index: 10;
+  right: 0;
+  min-width: 220px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #e5eaf1;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px #30374420;
+}
+.inspiration-topic-picker label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+}
+.inspiration-topic-picker form {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+.inspiration-topic-picker form input {
+  min-width: 0;
+  width: 110px;
+}

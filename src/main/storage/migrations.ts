@@ -102,5 +102,14 @@ export const migrations = [
     version: 9,
     name: 'inspiration_recorded_time',
     sql: `ALTER TABLE inspirations ADD COLUMN created_at TEXT;`
+  },
+  {
+    version: 10,
+    name: 'inspiration_topics',
+    sql: `
+      CREATE TABLE inspiration_topics (sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, name TEXT NOT NULL CHECK(length(trim(name)) > 0)) STRICT;
+      CREATE TABLE inspiration_topic_members (inspiration_id TEXT NOT NULL REFERENCES inspirations(id) ON DELETE CASCADE, topic_id TEXT NOT NULL REFERENCES inspiration_topics(id) ON DELETE CASCADE, PRIMARY KEY(inspiration_id, topic_id)) STRICT;
+      CREATE INDEX inspiration_topic_members_topic ON inspiration_topic_members(topic_id, inspiration_id);
+    `
   }
 ] as const

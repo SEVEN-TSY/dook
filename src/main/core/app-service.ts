@@ -69,6 +69,34 @@ export class AppService {
     return this.features.inspirations
   }
 
+  listInspirationTopics() {
+    return this.inspirationStore().listTopics()
+  }
+
+  createInspirationTopic(name: string, inspirationId: string) {
+    if (typeof name !== 'string' || !name.trim()) throw new Error('主题名称不能为空。')
+    if (typeof inspirationId !== 'string' || !inspirationId) throw new Error('灵感标识无效。')
+    return this.inspirationStore().createTopic(name.trim(), inspirationId)
+  }
+
+  renameInspirationTopic(id: string, name: string) {
+    if (typeof id !== 'string' || !id) throw new Error('主题标识无效。')
+    if (typeof name !== 'string' || !name.trim()) throw new Error('主题名称不能为空。')
+    this.inspirationStore().renameTopic(id, name.trim())
+  }
+
+  setInspirationTopic(inspirationId: string, topicId: string, included: boolean) {
+    if (
+      typeof inspirationId !== 'string' ||
+      !inspirationId ||
+      typeof topicId !== 'string' ||
+      !topicId ||
+      typeof included !== 'boolean'
+    )
+      throw new Error('主题关联无效。')
+    this.inspirationStore().setTopic(inspirationId, topicId, included)
+  }
+
   listInspirations(): Inspiration[] {
     return this.inspirationStore().list()
   }

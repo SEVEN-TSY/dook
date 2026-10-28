@@ -80,6 +80,11 @@ export async function inspirationSmoke({ main, note, phase, js, click, input, wa
         )
       }
     }
+    const topic = await js(
+      main,
+      `(async () => { const idea = (await window.myTodo.listInspirations()).data[0]; return window.myTodo.createInspirationTopic('重启主题', idea.id) })()`
+    )
+    assert.equal(topic.ok, true)
     await append('先梳理需求')
     await append('再探索实现')
     await append('隐藏前补充', false)
@@ -95,6 +100,8 @@ export async function inspirationSmoke({ main, note, phase, js, click, input, wa
   const saved = await ideas(note)
   assert.equal(saved.length, 1)
   assert.equal(saved[0].description, '灵感整合工具')
+  const topics = (await js(main, 'window.myTodo.listInspirationTopics()')).data
+  assert.equal(topics.find((topic) => topic.name === '重启主题')?.id, saved[0].topicIds[0])
   assert.deepEqual(
     saved[0].additions.map((item) => item.content),
     ['先梳理需求', '再探索实现', '隐藏前补充']

@@ -145,6 +145,7 @@ test('旧灵感迁移保留原文补充并在分页中排在新灵感之后', ()
       id: 'old',
       description: '旧灵感',
       createdAt: null,
+      topicIds: [],
       additions: [{ id: 'addition', content: '旧补充' }]
     })
   } finally {

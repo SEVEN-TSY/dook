@@ -1,6 +1,10 @@
-import type { Inspiration, InspirationPage } from '../../shared/contracts'
+import type { Inspiration, InspirationPage, InspirationTopic } from '../../shared/contracts'
 
 export interface InspirationStore {
+  listTopics(): InspirationTopic[]
+  createTopic(name: string, inspirationId: string): InspirationTopic
+  renameTopic(id: string, name: string): void
+  setTopic(inspirationId: string, topicId: string, included: boolean): void
   list(): Inspiration[]
   page(offset: number, limit: number): InspirationPage
   create(description: string, createdAt: string): Inspiration

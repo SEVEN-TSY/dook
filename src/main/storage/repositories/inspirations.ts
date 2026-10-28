@@ -1,10 +1,72 @@
 import { randomUUID } from 'node:crypto'
 import type { DatabaseSync } from 'node:sqlite'
-import type { Inspiration, InspirationAddition, InspirationPage } from '../../../shared/contracts'
+import type {
+  Inspiration,
+  InspirationAddition,
+  InspirationPage,
+  InspirationTopic
+} from '../../../shared/contracts'
 import type { InspirationStore } from '../../core/inspirations'
 
 export class InspirationRepository implements InspirationStore {
   constructor(private readonly database: DatabaseSync) {}
+
+  listTopics(): InspirationTopic[] {
+    return this.database
+      .prepare('SELECT id, name FROM inspiration_topics ORDER BY sequence')
+      .all()
+      .map((row) => ({ id: String(row.id), name: String(row.name) }))
+  }
+
+  createTopic(name: string, inspirationId: string): InspirationTopic {
+    this.get(inspirationId)
+    const topic = { id: randomUUID(), name }
+    this.database.exec('BEGIN')
+    try {
+      this.database
+        .prepare('INSERT INTO inspiration_topics (id, name) VALUES (?, ?)')
+        .run(topic.id, name)
+      this.database
+        .prepare('INSERT INTO inspiration_topic_members (inspiration_id, topic_id) VALUES (?, ?)')
+        .run(inspirationId, topic.id)
+      this.database.exec('COMMIT')
+      return topic
+    } catch (error) {
+      this.database.exec('ROLLBACK')
+      throw error
+    }
+  }
+
+  renameTopic(id: string, name: string): void {
+    if (
+      !this.database.prepare('UPDATE inspiration_topics SET name = ? WHERE id = ?').run(name, id)
+        .changes
+    )
+      throw new Error('主题不存在。')
+  }
+
+  setTopic(inspirationId: string, topicId: string, included: boolean): void {
+    this.get(inspirationId)
+    if (!this.database.prepare('SELECT id FROM inspiration_topics WHERE id = ?').get(topicId))
+      throw new Error('主题不存在。')
+    if (included)
+      this.database
+        .prepare(
+          'INSERT OR IGNORE INTO inspiration_topic_members (inspiration_id, topic_id) VALUES (?, ?)'
+        )
+        .run(inspirationId, topicId)
+    else
+      this.database
+        .prepare('DELETE FROM inspiration_topic_members WHERE inspiration_id = ? AND topic_id = ?')
+        .run(inspirationId, topicId)
+  }
+
+  private topicIds(id: string): string[] {
+    return this.database
+      .prepare('SELECT topic_id FROM inspiration_topic_members WHERE inspiration_id = ?')
+      .all(id)
+      .map((row) => String(row.topic_id))
+  }
 
   list(): Inspiration[] {
     const additions = new Map<string, InspirationAddition[]>()
@@ -23,6 +85,7 @@ export class InspirationRepository implements InspirationStore {
         id: String(row.id),
         description: String(row.description),
         createdAt: row.created_at === null ? null : String(row.created_at),
+        topicIds: this.topicIds(String(row.id)),
         additions: additions.get(String(row.id)) ?? []
       }))
   }
@@ -37,6 +100,7 @@ export class InspirationRepository implements InspirationStore {
       id: String(row.id),
       description: String(row.description),
       createdAt: row.created_at === null ? null : String(row.created_at),
+      topicIds: this.topicIds(String(row.id)),
       additions: this.database
         .prepare(
           'SELECT id, content FROM inspiration_additions WHERE inspiration_id = ? ORDER BY sequence'
@@ -48,7 +112,7 @@ export class InspirationRepository implements InspirationStore {
   }
 
   create(description: string, createdAt: string): Inspiration {
-    const inspiration = { id: randomUUID(), description, additions: [], createdAt }
+    const inspiration = { id: randomUUID(), description, additions: [], createdAt, topicIds: [] }
     this.database
       .prepare('INSERT INTO inspirations (id, description, created_at) VALUES (?, ?, ?)')
       .run(inspiration.id, description, createdAt)
