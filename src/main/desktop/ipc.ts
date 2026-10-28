@@ -125,6 +125,17 @@ export function registerIpc(handlers: Handlers): () => void {
     return true
   })
   register(IPC_CHANNELS.listToday, () => handlers.service.listToday())
+  register(IPC_CHANNELS.listInspirationTopics, () => handlers.service.listInspirationTopics())
+  register(IPC_CHANNELS.createInspirationTopic, (_, name, id) =>
+    mutate(() => handlers.service.createInspirationTopic(text(name), text(id)))
+  )
+  register(IPC_CHANNELS.renameInspirationTopic, (_, id, name) =>
+    mutate(() => handlers.service.renameInspirationTopic(text(id), text(name)))
+  )
+  register(IPC_CHANNELS.setInspirationTopic, (_, id, topicId, included) => {
+    if (typeof included !== 'boolean') throw new Error('主题关联无效。')
+    return mutate(() => handlers.service.setInspirationTopic(text(id), text(topicId), included))
+  })
   register(IPC_CHANNELS.listInspirations, () => handlers.service.listInspirations())
   register(IPC_CHANNELS.listInspirationPage, (_, offset, limit) => {
     if (typeof offset !== 'number' || typeof limit !== 'number') throw new Error('分页参数无效。')

@@ -47,6 +47,8 @@ test('SQLite迁移可重复启动，诊断不留下业务数据', (t) => {
         'habit_generations',
         'habits',
         'inspiration_additions',
+        'inspiration_topic_members',
+        'inspiration_topics',
         'inspirations',
         'schema_migrations',
         'sqlite_sequence',
