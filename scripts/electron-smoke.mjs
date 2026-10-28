@@ -556,6 +556,10 @@ async function runSmoke() {
       }
       await input(main, '[data-testid=task-new]', '工作台任务')
       await count(note, 1)
+      writeFileSync(
+        resolve(output, 'workbench-tasks.png'),
+        (await main.webContents.capturePage()).toPNG()
+      )
       await click(main, '[data-testid=task-description]')
       await input(main, '[data-testid=task-edit]', '更新工作台任务', null)
       await click(main, '.detail-back')

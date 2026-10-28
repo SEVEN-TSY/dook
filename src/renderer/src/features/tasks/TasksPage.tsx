@@ -11,6 +11,54 @@ import type { InspirationPanelHandle } from '../inspirations/InspirationPanel'
 import { useInspirationInput } from '../inspirations/useInspirationInput'
 import { SettingsPage } from '../settings/SettingsPage'
 
+function NavIcon({ name }: { name: 'task' | 'habit' | 'inspiration' | 'settings' | 'note' }) {
+  const paths = {
+    task: (
+      <>
+        <rect x="3.5" y="4" width="13" height="13" rx="3" />
+        <path d="m7 10 2 2 4-4" />
+      </>
+    ),
+    habit: (
+      <>
+        <path d="M15.5 7A6 6 0 0 0 5 6L3.5 8M4.5 13A6 6 0 0 0 15 14l1.5-2" />
+        <path d="M3.5 4.5V8H7M16.5 15.5V12H13" />
+      </>
+    ),
+    inspiration: (
+      <>
+        <path d="M7 14c0-1.6-2.5-2.7-2.5-5a5.5 5.5 0 0 1 11 0c0 2.3-2.5 3.4-2.5 5M7 14h6M8 17h4" />
+      </>
+    ),
+    settings: (
+      <>
+        <circle cx="10" cy="10" r="3" />
+        <path d="M10 2.5v1.2M10 16.3v1.2M2.5 10h1.2M16.3 10h1.2M4.7 4.7l.9.9m8.8 8.8.9.9m0-10.6-.9.9m-8.8 8.8-.9.9" />
+      </>
+    ),
+    note: (
+      <>
+        <rect x="4" y="3.5" width="12" height="13" rx="2" />
+        <path d="M7 7h6M7 10h6M7 13h3" />
+      </>
+    )
+  }
+  return (
+    <svg
+      className="nav-icon"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {paths[name]}
+    </svg>
+  )
+}
+
 function focusTaskEditor(element: HTMLTextAreaElement | null) {
   if (!element) return
   element.focus({ preventScroll: true })
@@ -167,7 +215,8 @@ export function TasksPage({
       <section className="workbench" hidden={hidden}>
         <nav className="workbench-nav" aria-label="主导航">
           <div className="workbench-brand">
-            ✓ <strong>myTodo</strong>
+            <span className="brand-mark">✓</span>
+            <strong>myTodo</strong>
           </div>
           {(
             [
@@ -178,22 +227,32 @@ export function TasksPage({
           ).map(([id, label]) => (
             <button
               key={id}
+              aria-label={label}
               aria-current={page === id ? 'page' : undefined}
               onClick={() => void navigate(id)}
             >
-              {label}
+              <NavIcon name={id} />
+              <span>{label}</span>
             </button>
           ))}
           <button
             className="nav-settings"
             data-testid="open-settings"
+            aria-label="设置"
             aria-current={page === 'settings' ? 'page' : undefined}
             onClick={() => void navigate('settings')}
           >
-            设置
+            <NavIcon name="settings" />
+            <span>设置</span>
           </button>
-          <button data-testid="open-other" onClick={() => void openOther()}>
-            打开桌面便签 ↗
+          <button
+            data-testid="open-other"
+            aria-label="打开桌面便签"
+            onClick={() => void openOther()}
+          >
+            <NavIcon name="note" />
+            <span>桌面便签</span>
+            <span className="nav-arrow">↗</span>
           </button>
         </nav>
         <main className="workbench-main">
@@ -271,8 +330,18 @@ export function TasksPage({
             hidden={page !== 'task'}
           >
             <div className="workbench-list" aria-label="任务">
+              <div className="list-caption">
+                <span>全部任务</span>
+                <span>{today?.tasks.length ?? 0} 项</span>
+              </div>
               {today?.tasks.length === 0 && (
-                <div className="workbench-empty">还没有任务，点击“新增任务”开始记录。</div>
+                <div className="workbench-empty">
+                  <span className="empty-icon" aria-hidden="true">
+                    ✓
+                  </span>
+                  <strong>给今天留个开始</strong>
+                  <span>点击右上角，记下第一项任务</span>
+                </div>
               )}
               {today?.tasks.map((task, index) => (
                 <div
@@ -281,6 +350,9 @@ export function TasksPage({
                   data-task-kind={task.kind}
                   className={`task-row ${task.completed ? 'completed' : ''} ${task.kind === 'multi-day' && today.tasks[index - 1]?.kind !== 'multi-day' ? 'multi-day-start' : ''} ${selectedTask === task.id ? 'selected' : ''}`}
                 >
+                  {task.kind === 'multi-day' && today.tasks[index - 1]?.kind !== 'multi-day' && (
+                    <span className="group-label">持续推进</span>
+                  )}
                   <input
                     type="checkbox"
                     checked={task.completed}

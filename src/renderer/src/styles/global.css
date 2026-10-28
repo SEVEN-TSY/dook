@@ -1091,3 +1091,296 @@ h1 {
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
+
+/* 工作台视觉：清晰的导航、轻量列表和独立详情。 */
+.workbench {
+  background: #fff;
+  color: #293445;
+}
+.workbench-nav {
+  width: 208px;
+  flex-basis: 208px;
+  padding: 26px 14px 18px;
+  background: #f7f8fa;
+  border-color: #e9edf2;
+  gap: 3px;
+}
+.workbench-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px 36px;
+  color: #263142;
+  font-size: 16px;
+  letter-spacing: -0.3px;
+}
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: #526fc4;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 700;
+}
+.workbench-nav button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 42px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #6c7788;
+}
+.nav-icon {
+  width: 19px;
+  height: 19px;
+  flex: none;
+}
+.workbench-nav button[aria-current='page'] {
+  box-shadow: none;
+  background: #e9eefb;
+  color: #4765b5;
+}
+.workbench-nav button:hover {
+  background: #edf1f6;
+}
+.workbench-nav button[aria-current='page']:hover {
+  background: #e9eefb;
+}
+.nav-arrow {
+  margin-left: auto;
+  color: #9aa5b4;
+}
+.workbench-nav .nav-settings {
+  margin-top: auto;
+}
+.workbench-main {
+  padding: 42px 48px;
+}
+.workbench-header {
+  min-height: 52px;
+  margin-bottom: 38px;
+}
+.workbench-header h1 {
+  font-size: 25px;
+  letter-spacing: -0.5px;
+  line-height: 1.25;
+}
+.workbench-header p {
+  margin-top: 8px;
+  color: #8a96a5;
+  font-size: 12px;
+}
+.primary-button {
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: #526fc4;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 3px 8px #526fc420;
+}
+.workbench-split {
+  gap: 32px;
+}
+.workbench-list {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+.list-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px 14px;
+  border-bottom: 1px solid #edf0f4;
+  color: #8b96a5;
+  font-size: 12px;
+}
+.list-caption span:first-child {
+  color: #6e7a8b;
+  font-weight: 600;
+}
+.workbench .task-row {
+  min-height: 61px;
+  padding: 11px 8px;
+  gap: 14px;
+  border-color: #f0f2f5;
+}
+.workbench .task-row:hover {
+  background: #f8faff;
+}
+.workbench .task-row.selected {
+  background: #f1f5fd;
+  box-shadow: none;
+  border-radius: 8px;
+}
+.workbench .task-description {
+  color: #303b4c;
+  font-size: 14px;
+}
+.workbench .completed .task-description {
+  color: #a2aab5;
+}
+.workbench .task-row.multi-day-start {
+  margin-top: 36px;
+  border-top: 1px solid #e9edf2;
+}
+.group-label {
+  position: absolute;
+  left: 2px;
+  top: -27px;
+  color: #8b96a5;
+  font-size: 12px;
+  font-weight: 600;
+}
+.workbench-empty {
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 40px;
+  color: #9aa5b3;
+  font-size: 12px;
+}
+.workbench-empty strong {
+  color: #667486;
+  font-size: 14px;
+  font-weight: 600;
+}
+.empty-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 8px;
+  border: 1px solid #e6ebf4;
+  border-radius: 14px;
+  color: #9daed3;
+  background: #f8faff;
+  font-size: 20px;
+}
+.workbench-detail,
+.inspiration-workbench .inspiration-detail {
+  padding: 25px;
+  border-color: #e9edf3;
+  border-radius: 12px;
+  background: #fafbfd;
+}
+.workbench-detail h2,
+.inspiration-workbench h2 {
+  margin-bottom: 22px;
+  color: #303b4c;
+  font-size: 15px;
+}
+.detail-back {
+  margin-bottom: 24px;
+  color: #77869c;
+  font-size: 12px;
+}
+.detail-back:hover {
+  color: #526fc4;
+}
+.workbench-detail textarea,
+.detail-description,
+.inspiration-workbench .inspiration-detail textarea,
+.inspiration-workbench .inspiration-detail input {
+  background: #fff;
+  border-color: #e4e9f0;
+  border-radius: 8px;
+  padding: 11px 12px;
+  line-height: 1.6;
+}
+.workbench .habits-panel,
+.workbench .settings-page {
+  max-width: 760px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+.workbench .habits-panel h2 {
+  font-size: 14px;
+}
+.workbench .habit-hint,
+.workbench .settings-intro {
+  color: #8a96a5;
+  line-height: 1.7;
+}
+.workbench .habit-list li {
+  min-height: 58px;
+}
+.inspiration-workbench .inspiration-list {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+.inspiration-workbench .inspiration-item {
+  border-color: #edf0f4;
+}
+.inspiration-workbench .inspiration-summary {
+  padding: 17px 8px;
+}
+.inspiration-workbench .inspiration-empty {
+  padding: 50px 8px;
+  color: #8a96a5;
+}
+.inspiration-workbench .inspiration-edit-button,
+.inspiration-workbench .inspiration-append-button {
+  padding: 8px 11px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+.workbench-add {
+  border-color: #e9edf3;
+  background: #fafbfd;
+}
+@media (max-width: 760px) {
+  .workbench-nav {
+    width: 66px;
+    flex-basis: 66px;
+    padding: 20px 8px;
+  }
+  .workbench-brand {
+    justify-content: center;
+    padding: 0 0 30px;
+  }
+  .workbench-brand strong,
+  .workbench-nav button span {
+    display: none;
+  }
+  .workbench-nav button {
+    justify-content: center;
+    padding: 10px;
+  }
+  .workbench-main {
+    padding: 26px 20px;
+  }
+  .workbench-header {
+    margin-bottom: 28px;
+  }
+  .workbench-header h1 {
+    font-size: 22px;
+  }
+  .workbench-detail,
+  .inspiration-workbench .inspiration-detail {
+    padding: 20px;
+  }
+}
+@media (max-width: 760px) {
+  .workbench-nav button {
+    flex-direction: column;
+    gap: 3px;
+    padding: 8px 2px;
+    font-size: 10px;
+  }
+  .workbench-nav button span:not(.nav-arrow) {
+    display: block;
+  }
+  .workbench-nav .nav-arrow {
+    display: none;
+  }
+}
