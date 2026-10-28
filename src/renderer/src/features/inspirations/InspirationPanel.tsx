@@ -101,14 +101,54 @@ export function InspirationPanel({
           )}
           {ideas.map((idea) => (
             <article key={idea.id} data-inspiration-id={idea.id} className="inspiration-item">
-              <button
-                className="inspiration-summary"
-                data-testid="inspiration-summary"
-                aria-expanded={opened === idea.id}
-                onClick={() => void toggleIdea(idea.id)}
-              >
-                {idea.description}
-              </button>
+              {workbench ? (
+                <div className="inspiration-row">
+                  {editing === idea.id ? (
+                    <textarea
+                      className="inspiration-inline-edit"
+                      aria-label="编辑原始想法"
+                      data-testid="inspiration-edit"
+                      autoFocus
+                      value={original.value}
+                      onChange={(event) => original.setValue(event.target.value)}
+                      onBlur={() => void original.save()}
+                      onCompositionStart={() => {
+                        original.composing.current = true
+                      }}
+                      onCompositionEnd={original.endComposition}
+                    />
+                  ) : (
+                    <button
+                      className="inspiration-summary"
+                      data-testid="inspiration-summary"
+                      onClick={async () => {
+                        if (!(await save())) return
+                        original.start(idea)
+                        setEditing(idea.id)
+                      }}
+                    >
+                      <span>{idea.description}</span>
+                    </button>
+                  )}
+                  <button
+                    className="inspiration-supplement"
+                    data-testid="inspiration-supplement"
+                    aria-expanded={opened === idea.id}
+                    onClick={() => void toggleIdea(idea.id)}
+                  >
+                    补充
+                  </button>
+                </div>
+              ) : (
+                <button
+                  className="inspiration-summary"
+                  data-testid="inspiration-summary"
+                  aria-expanded={opened === idea.id}
+                  onClick={() => void toggleIdea(idea.id)}
+                >
+                  {idea.description}
+                </button>
+              )}
               {opened === idea.id && (
                 <div className="inspiration-detail">
                   {workbench && (
@@ -122,41 +162,42 @@ export function InspirationPanel({
                       <p className="inspiration-original">{idea.description}</p>
                     </>
                   )}
-                  {editing === idea.id ? (
-                    <input
-                      aria-label="编辑原始想法"
-                      data-testid="inspiration-edit"
-                      autoFocus
-                      value={original.value}
-                      onChange={(event) => original.setValue(event.target.value)}
-                      onBlur={() => void original.save()}
-                      onCompositionStart={() => {
-                        original.composing.current = true
-                      }}
-                      onCompositionEnd={original.endComposition}
-                      onKeyDown={(event) => {
-                        if (
-                          event.key === 'Enter' &&
-                          !event.nativeEvent.isComposing &&
-                          event.keyCode !== 229
-                        ) {
-                          event.preventDefault()
-                          void original.submit()
-                        }
-                      }}
-                    />
-                  ) : (
-                    <button
-                      className="inspiration-edit-button"
-                      data-testid="inspiration-edit-original"
-                      onClick={() => {
-                        original.start(idea)
-                        setEditing(idea.id)
-                      }}
-                    >
-                      编辑原始想法
-                    </button>
-                  )}
+                  {!workbench &&
+                    (editing === idea.id ? (
+                      <input
+                        aria-label="编辑原始想法"
+                        data-testid="inspiration-edit"
+                        autoFocus
+                        value={original.value}
+                        onChange={(event) => original.setValue(event.target.value)}
+                        onBlur={() => void original.save()}
+                        onCompositionStart={() => {
+                          original.composing.current = true
+                        }}
+                        onCompositionEnd={original.endComposition}
+                        onKeyDown={(event) => {
+                          if (
+                            event.key === 'Enter' &&
+                            !event.nativeEvent.isComposing &&
+                            event.keyCode !== 229
+                          ) {
+                            event.preventDefault()
+                            void original.submit()
+                          }
+                        }}
+                      />
+                    ) : (
+                      <button
+                        className="inspiration-edit-button"
+                        data-testid="inspiration-edit-original"
+                        onClick={() => {
+                          original.start(idea)
+                          setEditing(idea.id)
+                        }}
+                      >
+                        编辑原始想法
+                      </button>
+                    ))}
                   <ol className="inspiration-additions">
                     {idea.additions.map((item) => (
                       <li key={item.id}>{item.content}</li>
