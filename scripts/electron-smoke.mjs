@@ -967,6 +967,75 @@ async function runSmoke() {
         ),
         false
       )
+      const headings = await js(
+        main,
+        `Array.from(document.querySelectorAll('.inspiration-date-group > button')).map(button => ({ label: button.textContent.trim().slice(2), expanded: button.getAttribute('aria-expanded') }))`
+      )
+      const localDate = (daysAgo) => {
+        const date = new Date()
+        date.setHours(12, 0, 0, 0)
+        date.setDate(date.getDate() - daysAgo)
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+      }
+      assert.deepEqual(
+        headings.map((heading) => heading.label),
+        ['今天', ...Array.from({ length: 6 }, (_, i) => localDate(i + 1)), '历史灵感']
+      )
+      assert.deepEqual(
+        headings.map((heading) => heading.expanded),
+        ['true', ...Array(7).fill('false')]
+      )
+      await click(main, '.inspiration-date-group:nth-child(2) > button')
+      assert.equal(
+        await js(
+          main,
+          `document.querySelectorAll('.inspiration-date-group > button')[1].getAttribute('aria-expanded')`
+        ),
+        'true'
+      )
+      assert.equal(
+        await js(
+          main,
+          `document.querySelectorAll('.inspiration-date-group > button')[0].getAttribute('aria-expanded')`
+        ),
+        'true'
+      )
+      await click(main, '.inspiration-date-group:nth-child(2) > button')
+
+      await js(
+        main,
+        `(async () => { for (let i = 0; i < 25; i++) { const result = await window.myTodo.createInspiration('分页灵感 ' + String(i).padStart(2, '0')); if (!result.ok) throw new Error('创建灵感失败'); } })()`
+      )
+      await waitFor(
+        () => js(main, `document.querySelectorAll('.inspiration-item').length === 20`),
+        '首屏加载20条灵感'
+      )
+      await js(main, `window.scrollTo(0, document.documentElement.scrollHeight)`)
+      await waitFor(
+        () => js(main, `document.querySelectorAll('.inspiration-item').length === 26`),
+        '下滑加载剩余灵感'
+      )
+      const loadedIdeas = await js(
+        main,
+        `Array.from(document.querySelectorAll('.inspiration-item')).map(item => ({ id: item.dataset.inspirationId, text: item.querySelector('.inspiration-summary').textContent.trim() }))`
+      )
+      assert.equal(new Set(loadedIdeas.map((idea) => idea.id)).size, 26, '分页没有重复灵感')
+      assert.deepEqual(
+        new Set(loadedIdeas.map((idea) => idea.text)),
+        new Set([
+          '编辑后的灵感',
+          ...Array.from({ length: 25 }, (_, i) => '分页灵感 ' + String(i).padStart(2, '0'))
+        ]),
+        '分页没有遗漏灵感'
+      )
+      assert.equal(
+        await js(
+          main,
+          `Array.from(document.querySelectorAll('.inspiration-heading')).some(button => button.textContent.includes('加载更多'))`
+        ),
+        false,
+        '分页加载结束'
+      )
       await click(main, '[data-testid=open-settings]')
       assert.equal(
         await js(main, 'document.querySelector(".workbench-header h1").textContent'),
