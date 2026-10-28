@@ -217,7 +217,19 @@ export function InspirationPanel({
         </div>
       )}
       {(expanded || (workbench && !collapsible)) && (
-        <div className="inspiration-list">
+        <div
+          className="inspiration-list"
+          onWheel={(event) => {
+            const scroller = document.scrollingElement
+            if (
+              workbench &&
+              event.deltaY > 0 &&
+              scroller &&
+              scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 80
+            )
+              void loadMore()
+          }}
+        >
           {ideas.length === 0 && (
             <p className="inspiration-empty">
               {workbench
@@ -231,12 +243,13 @@ export function InspirationPanel({
                 <button
                   className="inspiration-heading"
                   aria-expanded={groupsOpen[group.key] ?? (view === 'date' && index === 0)}
-                  onClick={() =>
+                  onClick={async () => {
+                    if (!(await save())) return
                     setGroupsOpen((current) => ({
                       ...current,
                       [group.key]: !(current[group.key] ?? (view === 'date' && index === 0))
                     }))
-                  }
+                  }}
                 >
                   <span>
                     {(groupsOpen[group.key] ?? (view === 'date' && index === 0)) ? '⌄' : '›'}{' '}
@@ -336,12 +349,14 @@ export function InspirationPanel({
                                     type="checkbox"
                                     checked={idea.topicIds.includes(topic.id)}
                                     onChange={async (event) => {
+                                      const checked = event.target.checked
+                                      if (!(await save())) return
                                       try {
                                         unwrap(
                                           await getDesktopApi().setInspirationTopic(
                                             idea.id,
                                             topic.id,
-                                            event.target.checked
+                                            checked
                                           )
                                         )
                                         void refresh()
@@ -358,6 +373,7 @@ export function InspirationPanel({
                               <form
                                 onSubmit={async (event) => {
                                   event.preventDefault()
+                                  if (!(await save())) return
                                   try {
                                     unwrap(
                                       await getDesktopApi().createInspirationTopic(

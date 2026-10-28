@@ -942,7 +942,37 @@ async function runSmoke() {
           js(main, `document.querySelector('.inspiration-list').textContent.includes('产品计划')`),
         '主题改名'
       )
+      await click(main, '[data-testid=inspiration-summary]')
+      await input(main, '[data-testid=inspiration-edit]', '', null)
+      await js(
+        main,
+        `Array.from(document.querySelectorAll('.inspiration-date-group .inspiration-heading')).find(x => x.textContent.includes('产品计划')).click()`
+      )
+      await waitFor(
+        () => js(main, `document.querySelector('.task-error')?.textContent.includes('不能为空')`),
+        '保存失败提示'
+      )
+      assert.equal(
+        await js(main, `document.querySelector('[data-testid=inspiration-edit]')?.value`),
+        '',
+        '折叠失败保留草稿'
+      )
       await click(main, '[aria-label="归集主题"]')
+      await js(
+        main,
+        `Array.from(document.querySelectorAll('.inspiration-topic-picker label')).find(x => x.textContent.includes('产品计划')).querySelector('input').click()`
+      )
+      assert.equal(
+        (await js(main, 'window.myTodo.listInspirations()')).data[0].topicIds.length,
+        2,
+        '保存失败不取消关联'
+      )
+      assert.equal(
+        await js(main, `document.querySelector('[data-testid=inspiration-edit]')?.value`),
+        '',
+        '取消归集失败保留草稿'
+      )
+      await input(main, '[data-testid=inspiration-edit]', '编辑后的灵感', null)
       await js(
         main,
         `Array.from(document.querySelectorAll('.inspiration-topic-picker label')).find(x => x.textContent.includes('产品计划')).querySelector('input').click()`
@@ -1056,15 +1086,23 @@ async function runSmoke() {
           ),
         '切换主题视角'
       )
+      await js(main, `window.scrollTo(0, document.documentElement.scrollHeight)`)
+      await js(
+        main,
+        `document.querySelector('.inspiration-list').dispatchEvent(new WheelEvent('wheel', { deltaY: 300, bubbles: true }))`
+      )
+      await waitFor(
+        () =>
+          js(
+            main,
+            `!Array.from(document.querySelectorAll('.inspiration-heading')).some(x => x.textContent.includes('加载更多'))`
+          ),
+        '折叠主题时下滑分页'
+      )
       await js(
         main,
         `Array.from(document.querySelectorAll('.inspiration-date-group .inspiration-heading')).find(x => x.textContent.includes('工作流')).click()`
       )
-      await waitFor(
-        () => js(main, `document.querySelectorAll('.inspiration-item').length === 20`),
-        '主题首屏'
-      )
-      await js(main, `window.scrollTo(0, document.documentElement.scrollHeight)`)
       await waitFor(
         () => js(main, `document.querySelectorAll('.inspiration-item').length === 26`),
         '主题下滑分页'
