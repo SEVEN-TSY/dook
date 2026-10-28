@@ -1036,6 +1036,53 @@ async function runSmoke() {
         false,
         '分页加载结束'
       )
+      await js(
+        main,
+        `(async () => {
+        const topic = (await window.myTodo.listInspirationTopics()).data.find(x => x.name === '工作流');
+        const ideas = (await window.myTodo.listInspirations()).data;
+        for (const idea of ideas) await window.myTodo.setInspirationTopic(idea.id, topic.id, true);
+      })()`
+      )
+      await js(
+        main,
+        `Array.from(document.querySelectorAll('.inspiration-views button')).find(x => x.textContent === '主题').click()`
+      )
+      await waitFor(
+        () =>
+          js(
+            main,
+            `Array.from(document.querySelectorAll('.inspiration-date-group .inspiration-heading')).some(x => x.textContent.includes('工作流'))`
+          ),
+        '切换主题视角'
+      )
+      await js(
+        main,
+        `Array.from(document.querySelectorAll('.inspiration-date-group .inspiration-heading')).find(x => x.textContent.includes('工作流')).click()`
+      )
+      await waitFor(
+        () => js(main, `document.querySelectorAll('.inspiration-item').length === 20`),
+        '主题首屏'
+      )
+      await js(main, `window.scrollTo(0, document.documentElement.scrollHeight)`)
+      await waitFor(
+        () => js(main, `document.querySelectorAll('.inspiration-item').length === 26`),
+        '主题下滑分页'
+      )
+      assert.equal(
+        await js(
+          main,
+          `new Set(Array.from(document.querySelectorAll('.inspiration-item')).map(x => x.dataset.inspirationId)).size`
+        ),
+        26
+      )
+      assert.equal(
+        await js(
+          main,
+          `Array.from(document.querySelectorAll('.inspiration-heading')).some(x => x.textContent.includes('加载更多'))`
+        ),
+        false
+      )
       await click(main, '[data-testid=open-settings]')
       assert.equal(
         await js(main, 'document.querySelector(".workbench-header h1").textContent'),
