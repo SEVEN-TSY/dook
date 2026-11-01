@@ -280,3 +280,45 @@ test('归档保留内容和主题，禁止旧编辑，恢复后可删除已归�
     database.close()
   }
 })
+
+test('归档分页与普通分页隔离，删除失败回滚关联并可恢复', () => {
+  const database = new AppDatabase(':memory:')
+  const service = new AppService(database, undefined, undefined, {
+    inspirations: new InspirationRepository(database.connection)
+  })
+  try {
+    const topic = service.createInspirationTopic('主题')
+    const ids: string[] = []
+    for (let i = 0; i < 25; i++) {
+      const idea = service.createInspiration(`灵感${i}`)
+      service.setInspirationTopic(idea.id, topic.id, true)
+      service.appendInspiration(idea.id, '补充')
+      ids.push(idea.id)
+      service.archiveInspiration(idea.id)
+    }
+    const first = service.listInspirationPage(0, 20, { kind: 'archive' })
+    const second = service.listInspirationPage(20, 20, { kind: 'archive' })
+    assert.equal(first.hasMore, true)
+    assert.equal(second.hasMore, false)
+    assert.equal(new Set([...first.items, ...second.items].map((item) => item.id)).size, 25)
+    assert.equal(
+      service.listInspirationPage(0, 20, { kind: 'topic', topicId: topic.id }).items.length,
+      0
+    )
+    database.connection.exec(
+      "CREATE TRIGGER prevent_delete BEFORE DELETE ON inspiration_additions BEGIN SELECT RAISE(ABORT, '阻止删除'); END"
+    )
+    assert.throws(() => service.deleteArchivedInspiration(ids[0]))
+    const retained = service
+      .listInspirationPage(0, 100, { kind: 'archive' })
+      .items.find((item) => item.id === ids[0])
+    assert.deepEqual(retained?.topicIds, [topic.id])
+    assert.equal(retained?.additions[0]?.content, '补充')
+    database.connection.exec('DROP TRIGGER prevent_delete')
+    service.deleteInspirationTopic(topic.id)
+    service.restoreInspiration(ids[0])
+    assert.equal(service.listInspirationPage(0, 20, { kind: 'unassigned' }).items[0]?.id, ids[0])
+  } finally {
+    database.close()
+  }
+})

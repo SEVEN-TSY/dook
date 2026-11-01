@@ -1261,7 +1261,8 @@ async function runSmoke() {
       assert.deepEqual(headings, [
         '今天',
         ...Array.from({ length: 6 }, (_, i) => localDate(i + 1)),
-        '历史灵感'
+        '历史灵感',
+        '已归档灵感'
       ])
       await js(
         main,
@@ -1313,6 +1314,70 @@ async function runSmoke() {
         ),
         26,
         '主题分页无遗漏和重复'
+      )
+      await click(main, '[aria-label="归档灵感"]')
+      await waitFor(
+        () => js(main, `document.querySelectorAll('.inspiration-item').length === 25`),
+        '归档移出主题'
+      )
+      await chooseView('日期')
+      await chooseGroup('已归档灵感')
+      await waitFor(
+        () => js(main, `document.querySelectorAll('.inspiration-item').length === 1`),
+        '归档区显示'
+      )
+      assert.equal(
+        await js(
+          main,
+          `Boolean(document.querySelector('[aria-label="新增灵感"], [aria-label="归集主题"], [aria-label="归档灵感"]'))`
+        ),
+        false
+      )
+      await click(main, '.inspiration-summary')
+      await waitFor(
+        () => js(main, `Boolean(document.querySelector('.inspiration-detail'))`),
+        '归档详情可读'
+      )
+      assert.equal(
+        await js(main, `Boolean(document.querySelector('[data-testid=inspiration-addition]'))`),
+        false
+      )
+      writeFileSync(
+        resolve(output, 'inspiration-archive.png'),
+        (await main.webContents.capturePage()).toPNG()
+      )
+      const previousBounds = main.getBounds()
+      main.setSize(800, previousBounds.height)
+      await new Promise((resolveWait) => setTimeout(resolveWait, 200))
+      writeFileSync(
+        resolve(output, 'inspiration-archive-narrow.png'),
+        (await main.webContents.capturePage()).toPNG()
+      )
+      main.setBounds(previousBounds)
+      await click(main, '[aria-label="恢复灵感"]')
+      await waitFor(
+        () => js(main, `document.querySelectorAll('.inspiration-item').length === 0`),
+        '恢复后离开归档区'
+      )
+      await chooseView('主题')
+      await waitFor(
+        () => js(main, `document.querySelectorAll('.inspiration-item').length === 26`),
+        '恢复主题关联'
+      )
+      await click(main, '[aria-label="归档灵感"]')
+      await chooseView('日期')
+      await waitFor(
+        () => js(main, `document.querySelectorAll('.inspiration-item').length === 1`),
+        '再次归档'
+      )
+      dialog.showMessageBox = async () => ({ response: 0, checkboxChecked: false })
+      await click(main, '[aria-label="永久删除灵感"]')
+      assert.equal(await js(main, `document.querySelectorAll('.inspiration-item').length`), 1)
+      dialog.showMessageBox = async () => ({ response: 1, checkboxChecked: false })
+      await click(main, '[aria-label="永久删除灵感"]')
+      await waitFor(
+        () => js(main, `document.querySelectorAll('.inspiration-item').length === 0`),
+        '确认永久删除'
       )
       await click(main, '[data-testid=open-settings]')
       assert.equal(
