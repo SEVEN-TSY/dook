@@ -74,10 +74,21 @@ export class AppService {
     return this.inspirationStore().listTopics()
   }
 
-  createInspirationTopic(name: string, inspirationId: string) {
+  createInspirationTopic(name: string, inspirationId?: string) {
     if (typeof name !== 'string' || !name.trim()) throw new Error('主题名称不能为空。')
-    if (typeof inspirationId !== 'string' || !inspirationId) throw new Error('灵感标识无效。')
+    if (inspirationId !== undefined && (typeof inspirationId !== 'string' || !inspirationId))
+      throw new Error('灵感标识无效。')
     return this.inspirationStore().createTopic(name.trim(), inspirationId)
+  }
+
+  inspirationTopicDetails(id: string) {
+    if (typeof id !== 'string' || !id) throw new Error('主题标识无效。')
+    return this.inspirationStore().topicDetails(id)
+  }
+
+  deleteInspirationTopic(id: string) {
+    this.inspirationTopicDetails(id)
+    this.inspirationStore().deleteTopic(id)
   }
 
   renameInspirationTopic(id: string, name: string) {

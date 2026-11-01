@@ -38,6 +38,7 @@ const api: DesktopApi = {
   listInspirationTopics: () => ipcRenderer.invoke(IPC_CHANNELS.listInspirationTopics),
   createInspirationTopic: (name, id) =>
     ipcRenderer.invoke(IPC_CHANNELS.createInspirationTopic, name, id),
+  deleteInspirationTopic: (id) => ipcRenderer.invoke(IPC_CHANNELS.deleteInspirationTopic, id),
   renameInspirationTopic: (id, name) =>
     ipcRenderer.invoke(IPC_CHANNELS.renameInspirationTopic, id, name),
   setInspirationTopic: (id, topicId, included) =>

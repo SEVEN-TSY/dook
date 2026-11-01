@@ -69,8 +69,9 @@ export interface DesktopApi {
   listInspirationTopics: () => Promise<ApiResult<InspirationTopic[]>>
   createInspirationTopic: (
     name: string,
-    inspirationId: string
+    inspirationId?: string
   ) => Promise<ApiResult<InspirationTopic>>
+  deleteInspirationTopic: (id: string) => Promise<ApiResult<boolean>>
   renameInspirationTopic: (id: string, name: string) => Promise<ApiResult<void>>
   setInspirationTopic: (
     inspirationId: string,

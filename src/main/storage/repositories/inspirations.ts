@@ -19,23 +19,39 @@ export class InspirationRepository implements InspirationStore {
       .map((row) => ({ id: String(row.id), name: String(row.name) }))
   }
 
-  createTopic(name: string, inspirationId: string): InspirationTopic {
-    this.get(inspirationId)
+  createTopic(name: string, inspirationId?: string): InspirationTopic {
+    if (inspirationId !== undefined) this.get(inspirationId)
     const topic = { id: randomUUID(), name }
     this.database.exec('BEGIN')
     try {
       this.database
         .prepare('INSERT INTO inspiration_topics (id, name) VALUES (?, ?)')
         .run(topic.id, name)
-      this.database
-        .prepare('INSERT INTO inspiration_topic_members (inspiration_id, topic_id) VALUES (?, ?)')
-        .run(inspirationId, topic.id)
+      if (inspirationId !== undefined)
+        this.database
+          .prepare('INSERT INTO inspiration_topic_members (inspiration_id, topic_id) VALUES (?, ?)')
+          .run(inspirationId, topic.id)
       this.database.exec('COMMIT')
       return topic
     } catch (error) {
       this.database.exec('ROLLBACK')
       throw error
     }
+  }
+
+  topicDetails(id: string): { name: string; count: number } {
+    const row = this.database
+      .prepare(
+        'SELECT name, (SELECT COUNT(*) FROM inspiration_topic_members WHERE topic_id = ?) AS count FROM inspiration_topics WHERE id = ?'
+      )
+      .get(id, id)
+    if (!row) throw new Error('主题不存在。')
+    return { name: String(row.name), count: Number(row.count) }
+  }
+
+  deleteTopic(id: string): void {
+    if (!this.database.prepare('DELETE FROM inspiration_topics WHERE id = ?').run(id).changes)
+      throw new Error('主题不存在。')
   }
 
   renameTopic(id: string, name: string): void {

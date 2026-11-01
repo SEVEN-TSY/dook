@@ -44,6 +44,8 @@ export function InspirationPanel({
   const [topics, setTopics] = useState<InspirationTopic[]>([])
   const [picker, setPicker] = useState<string | null>(null)
   const [newTopic, setNewTopic] = useState('')
+  const [creatingTopic, setCreatingTopic] = useState(false)
+  const [topicName, setTopicName] = useState('')
   const [renameId, setRenameId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [openedGroup, setOpenedGroup] = useState<string | null>(null)
@@ -91,6 +93,22 @@ export function InspirationPanel({
     try {
       if (workbench) {
         const topicList = unwrap(await getDesktopApi().listInspirationTopics())
+        if (
+          view === 'topic' &&
+          groupKey !== 'unassigned' &&
+          !topicList.some((topic) => topic.id === groupKey)
+        ) {
+          if (version.current === request) {
+            ++version.current
+            selectedByView.current.topic = null
+            setOpened(null)
+            setPicker(null)
+            setIdeas([])
+            setTopics(topicList)
+            setTopicGroup('unassigned')
+          }
+          return
+        }
         const items: Inspiration[] = []
         let hasMore = true
         while (items.length < loadedCount.current && hasMore) {
@@ -281,6 +299,57 @@ export function InspirationPanel({
               </button>
             ))}
           </div>
+          {view === 'topic' && (
+            <div className="inspiration-topic-create">
+              {creatingTopic ? (
+                <form
+                  onSubmit={async (event) => {
+                    event.preventDefault()
+                    try {
+                      const topic = unwrap(await getDesktopApi().createInspirationTopic(topicName))
+                      setCreatingTopic(false)
+                      setTopicName('')
+                      ++version.current
+                      setOpened(null)
+                      setPicker(null)
+                      selectedByView.current.topic = null
+                      setIdeas([])
+                      setTopicGroup(topic.id)
+                      notifySuccess('主题已创建')
+                      void refresh()
+                    } catch (error) {
+                      notifyError(error instanceof Error ? error.message : '创建主题失败。')
+                    }
+                  }}
+                >
+                  <input
+                    aria-label="新增主题名称"
+                    value={topicName}
+                    onChange={(event) => setTopicName(event.target.value)}
+                    autoFocus
+                  />
+                  <button type="submit">创建</button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreatingTopic(false)
+                      setTopicName('')
+                    }}
+                  >
+                    取消
+                  </button>
+                </form>
+              ) : (
+                <button
+                  aria-label="新增主题"
+                  title="新增主题"
+                  onClick={() => setCreatingTopic(true)}
+                >
+                  ＋
+                </button>
+              )}
+            </div>
+          )}
           {groups.map((group) => (
             <div className="inspiration-nav-item" key={group.key}>
               <button
@@ -330,16 +399,45 @@ export function InspirationPanel({
                     </button>
                   </form>
                 ) : (
-                  <button
-                    aria-label={`重命名${group.label}`}
-                    title="重命名"
-                    onClick={() => {
-                      setRenameId(group.key)
-                      setRenameValue(group.label)
-                    }}
-                  >
-                    ✎
-                  </button>
+                  <>
+                    <button
+                      aria-label={`重命名${group.label}`}
+                      title="重命名"
+                      onClick={() => {
+                        setRenameId(group.key)
+                        setRenameValue(group.label)
+                      }}
+                    >
+                      ✎
+                    </button>
+                    <button
+                      aria-label={`删除${group.label}`}
+                      title="删除主题"
+                      onClick={async () => {
+                        try {
+                          const deleted = unwrap(
+                            await getDesktopApi().deleteInspirationTopic(group.key)
+                          )
+                          if (!deleted) return
+                          if (topicGroup === group.key) {
+                            ++version.current
+                            setIdeas([])
+                            setOpened(null)
+                            setPicker(null)
+                            selectedByView.current.topic = null
+                            setTopicGroup('unassigned')
+                          }
+                          setRenameId(null)
+                          notifySuccess('主题已删除')
+                          void refresh()
+                        } catch (error) {
+                          notifyError(error instanceof Error ? error.message : '删除主题失败。')
+                        }
+                      }}
+                    >
+                      ×
+                    </button>
+                  </>
                 ))}
             </div>
           ))}
