@@ -281,6 +281,39 @@ test('归档保留内容和主题，禁止旧编辑，恢复后可删除已归�
   }
 })
 
+test('归档状态、内容和主题跨重启保留，恢复后重新进入主题', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'mytodo-archive-'))
+  const path = join(directory, 'app.sqlite')
+  let database = new AppDatabase(path)
+  const open = () =>
+    new AppService(database, undefined, undefined, {
+      inspirations: new InspirationRepository(database.connection)
+    })
+  try {
+    let service = open()
+    const topic = service.createInspirationTopic('持久主题')
+    const idea = service.createInspiration('持久灵感', topic.id)
+    service.appendInspiration(idea.id, '持久补充')
+    service.archiveInspiration(idea.id)
+    database.close()
+    database = new AppDatabase(path)
+    service = open()
+    assert.deepEqual(service.listInspirations(), [])
+    const archived = service.listInspirationPage(0, 20, { kind: 'archive' }).items[0]
+    assert.equal(archived?.id, idea.id)
+    assert.deepEqual(archived?.topicIds, [topic.id])
+    assert.equal(archived?.additions[0]?.content, '持久补充')
+    service.restoreInspiration(idea.id)
+    assert.equal(
+      service.listInspirationPage(0, 20, { kind: 'topic', topicId: topic.id }).items[0]?.id,
+      idea.id
+    )
+  } finally {
+    database.close()
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
 test('归档分页与普通分页隔离，删除失败回滚关联并可恢复', () => {
   const database = new AppDatabase(':memory:')
   const service = new AppService(database, undefined, undefined, {

@@ -351,6 +351,7 @@ export function InspirationPanel({
                 <form
                   onSubmit={async (event) => {
                     event.preventDefault()
+                    if (!(await save())) return
                     try {
                       const topic = unwrap(await getDesktopApi().createInspirationTopic(topicName))
                       setCreatingTopic(false)
@@ -358,6 +359,7 @@ export function InspirationPanel({
                       ++version.current
                       setOpened(null)
                       setPicker(null)
+                      setAdding(false)
                       selectedByView.current.topic = null
                       setIdeas([])
                       setTopicGroup(topic.id)
@@ -461,6 +463,7 @@ export function InspirationPanel({
                       aria-label={`删除${group.label}`}
                       title="删除主题"
                       onClick={async () => {
+                        if (topicGroup === group.key && !(await save())) return
                         try {
                           const deleted = unwrap(
                             await getDesktopApi().deleteInspirationTopic(group.key)
@@ -471,6 +474,7 @@ export function InspirationPanel({
                             setIdeas([])
                             setOpened(null)
                             setPicker(null)
+                            setAdding(false)
                             selectedByView.current.topic = null
                             setTopicGroup('unassigned')
                           }

@@ -796,6 +796,61 @@ async function runSmoke() {
           () => js(main, `Boolean(document.querySelector('[aria-label="重命名独立主题"]'))`),
           '独立创建主题'
         )
+        await click(main, '[aria-label="新增灵感"]')
+        await input(main, '[aria-label="新增灵感内容"]', '切组前草稿', null)
+        await click(main, '[aria-label="新增主题"]')
+        await js(
+          main,
+          `document.querySelector('[aria-label="新增灵感内容"]').dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }))`
+        )
+        await input(main, '[aria-label="新增主题名称"]', '新主题', null)
+        await js(main, `document.querySelector('[aria-label="新增主题名称"]').form.requestSubmit()`)
+        await waitFor(
+          () =>
+            js(
+              main,
+              `document.querySelector('[aria-label="新增灵感内容"]')?.value === '切组前草稿' && Boolean(document.querySelector('[aria-label="新增主题名称"]'))`
+            ),
+          '组合输入时保留草稿和当前主题'
+        )
+        await js(
+          main,
+          `document.querySelector('[aria-label="新增灵感内容"]').dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }))`
+        )
+        await input(main, '[aria-label="新增主题名称"]', '新主题')
+        await waitFor(
+          () =>
+            js(
+              main,
+              `document.querySelector('.inspiration-group-title')?.textContent === '新主题'`
+            ),
+          '创建主题后切组'
+        )
+        const draft = (await js(main, 'window.myTodo.listInspirations()')).data.find(
+          (idea) => idea.description === '切组前草稿'
+        )
+        const originalTopic = (await js(main, 'window.myTodo.listInspirationTopics()')).data.find(
+          (topic) => topic.name === '独立主题'
+        )
+        assert.deepEqual(draft.topicIds, [originalTopic.id], '草稿保存在原主题')
+        await click(main, '[aria-label="新增灵感"]')
+        await input(main, '[aria-label="新增灵感内容"]', '删除前草稿', null)
+        dialog.showMessageBox = async () => ({ response: 1, checkboxChecked: false })
+        await click(main, '[aria-label="删除新主题"]')
+        await waitFor(
+          () =>
+            js(
+              main,
+              `document.querySelector('.inspiration-group-title')?.textContent === '未归主题'`
+            ),
+          '删除当前主题后切组'
+        )
+        assert.ok(
+          (await js(main, 'window.myTodo.listInspirations()')).data.some(
+            (idea) => idea.description === '删除前草稿' && idea.topicIds.length === 0
+          ),
+          '删除主题前保存草稿'
+        )
         await click(main, '[aria-label="重命名独立主题"]')
         await input(main, '[aria-label="主题名称"]', '改名主题')
         await waitFor(
@@ -813,7 +868,7 @@ async function runSmoke() {
         }
         await click(main, '[aria-label="删除改名主题"]')
         await waitFor(() => detail !== '', '删除确认')
-        assert.match(detail, /1条灵感/)
+        assert.match(detail, /2条灵感/)
         assert.ok(
           (await js(note, 'window.myTodo.listInspirationTopics()')).data.some(
             (t) => t.name === '改名主题'
