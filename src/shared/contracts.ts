@@ -122,6 +122,7 @@ export interface DesktopApi {
 
 export type DockEdge = 'left' | 'right' | 'top'
 export interface WindowSettings {
+  launchAtLogin: boolean
   defaultAlwaysOnTop: boolean
   edgeAutoHide: boolean
 }

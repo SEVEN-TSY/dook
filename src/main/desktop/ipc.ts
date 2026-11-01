@@ -65,11 +65,14 @@ export function registerIpc(handlers: Handlers): () => void {
       typeof settings !== 'object' ||
       !('defaultAlwaysOnTop' in settings) ||
       !('edgeAutoHide' in settings) ||
+      !('launchAtLogin' in settings) ||
+      typeof settings.launchAtLogin !== 'boolean' ||
       typeof settings.defaultAlwaysOnTop !== 'boolean' ||
       typeof settings.edgeAutoHide !== 'boolean'
     )
       throw new Error('窗口设置无效。')
     handlers.desktop.updateSettings({
+      launchAtLogin: settings.launchAtLogin,
       defaultAlwaysOnTop: settings.defaultAlwaysOnTop,
       edgeAutoHide: settings.edgeAutoHide
     })

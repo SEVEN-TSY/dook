@@ -36,7 +36,8 @@ export class Desktop {
 
   constructor(
     private readonly directory: string,
-    private readonly quit: () => void
+    private readonly quit: () => void,
+    private readonly setLaunchAtLogin: (enabled: boolean) => void = () => {}
   ) {}
 
   startTray() {
@@ -130,7 +131,15 @@ export class Desktop {
   }
 
   updateSettings(settings: Parameters<NoteController['updateSettings']>[0]) {
-    this.note?.updateSettings(settings)
+    if (!this.note) throw new Error('桌面便签尚未就绪。')
+    const previous = this.note.state().settings.launchAtLogin
+    if (settings.launchAtLogin !== previous) this.setLaunchAtLogin(settings.launchAtLogin)
+    try {
+      this.note.updateSettings(settings)
+    } catch (error) {
+      if (settings.launchAtLogin !== previous) this.setLaunchAtLogin(previous)
+      throw error
+    }
   }
   togglePin(window: BrowserWindow) {
     if (window === this.windows.get('note')) this.note?.togglePin()

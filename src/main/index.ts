@@ -9,6 +9,8 @@ import { localDate } from './core/tasks'
 import { AppDatabase } from './storage/database'
 import { AppService } from './core/app-service'
 import { Desktop } from './desktop/desktop'
+import { configureLaunchAtLogin } from './desktop/login-item'
+import { readPreferences } from './desktop/preferences'
 import { registerIpc } from './desktop/ipc'
 import { runDiagnostics } from './desktop/diagnostics'
 import { startMcpEndpoint } from './mcp/server'
@@ -35,7 +37,9 @@ if (!app.requestSingleInstanceLock()) {
         inspirations: new InspirationRepository(database.connection)
       })
       service.ensureDailyTasks()
-      const desktop = new Desktop(dataDirectory, () => app.quit())
+      const setLaunchAtLogin = (enabled: boolean) => configureLaunchAtLogin(app, enabled)
+      setLaunchAtLogin(readPreferences(dataDirectory).settings.launchAtLogin)
+      const desktop = new Desktop(dataDirectory, () => app.quit(), setLaunchAtLogin)
       const windows = desktop.windows
       const changed = () => {
         for (const window of windows.values()) {

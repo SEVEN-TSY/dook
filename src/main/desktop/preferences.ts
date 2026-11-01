@@ -10,11 +10,13 @@ export interface DesktopPreferences {
 
 export function readPreferences(directory: string): DesktopPreferences {
   const defaults: DesktopPreferences = {
-    settings: { defaultAlwaysOnTop: true, edgeAutoHide: true },
+    settings: { launchAtLogin: true, defaultAlwaysOnTop: true, edgeAutoHide: true },
     edge: null
   }
   try {
     const saved = JSON.parse(readFileSync(resolve(directory, 'desktop-settings.json'), 'utf8'))
+    if (typeof saved.settings?.launchAtLogin === 'boolean')
+      defaults.settings.launchAtLogin = saved.settings.launchAtLogin
     if (typeof saved.settings?.defaultAlwaysOnTop === 'boolean')
       defaults.settings.defaultAlwaysOnTop = saved.settings.defaultAlwaysOnTop
     if (typeof saved.settings?.edgeAutoHide === 'boolean')
