@@ -878,6 +878,75 @@ async function runSmoke() {
             ),
           '创建主题'
         )
+        await input(main, '[aria-label="搜索主题"]', '不存在', '')
+        assert.equal(
+          await js(
+            main,
+            `Boolean(document.querySelector('.inspiration-topic-picker input[type=checkbox]'))`
+          ),
+          false
+        )
+        await input(main, '[aria-label="搜索主题"]', '持久', '')
+        assert.equal(
+          await js(
+            main,
+            `document.querySelector('.inspiration-topic-picker input[type=checkbox]').checked`
+          ),
+          true
+        )
+        await input(main, '[aria-label="搜索主题"]', '', '')
+        await input(main, '[aria-label="新主题名称"]', '另一个主题')
+        await waitFor(
+          () =>
+            js(
+              main,
+              `document.querySelectorAll('.inspiration-topic-picker input[type=checkbox]').length === 2`
+            ),
+          '多主题创建'
+        )
+        await js(
+          main,
+          `(() => { const box = Array.from(document.querySelectorAll('.inspiration-topic-picker label')).find(label => label.textContent.includes('另一个主题')).querySelector('input'); box.click(); box.click(); box.click(); })()`
+        )
+        await waitFor(
+          () =>
+            js(
+              main,
+              `(async () => (await window.myTodo.listInspirations()).data[0].topicIds.length === 1)()`
+            ),
+          '连续切换后的关联'
+        )
+        await waitFor(
+          () =>
+            js(
+              main,
+              `document.querySelectorAll('.inspiration-topic-picker input[type=checkbox]:checked').length === 1`
+            ),
+          '连续切换后的选中状态'
+        )
+        await input(main, '[aria-label="新主题名称"]', '   ')
+        await waitFor(
+          () =>
+            js(
+              main,
+              `document.querySelector('[role=alert]')?.textContent.includes('主题名称不能为空')`
+            ),
+          '创建失败提示'
+        )
+        await click(main, '[aria-label="关闭提示"]')
+        await input(main, '[aria-label="新主题名称"]', '持久主题二')
+        await waitFor(
+          () =>
+            js(
+              main,
+              `document.querySelectorAll('.inspiration-topic-picker input[type=checkbox]:checked').length === 2`
+            ),
+          '失败后继续创建'
+        )
+        writeFileSync(
+          resolve(output, 'inspiration-topic-picker.png'),
+          (await main.webContents.capturePage()).toPNG()
+        )
         await click(main, '[data-testid=inspiration-supplement]')
         await input(main, '[data-testid=inspiration-addition]', '持久补充')
         await waitFor(
