@@ -36,7 +36,8 @@
 - `renderer/src/features/tasks/NoteTransition.tsx`以独立共享表面完成胶囊与便签的FLIP投影、圆角校正及内容交接；动画完成后按版本向主进程握手，避免过早收缩原生窗口。
 - `renderer/src/features/tasks/useTaskInput.ts`串行协调同一轮输入的创建和更新，不阻塞继续输入；任务组件在设置页和收起状态保持挂载。
 - `renderer/src/features/shared/useSerialSave.ts`统一管理草稿串行保存、组合输入延后和失败保留；任务、灵感及子事项各自保留领域校验和持久化动作。
-- `renderer/src/features/settings/SettingsPage.tsx`提供默认置顶及贴边自动隐藏设置。
+- `renderer/src/features/settings/SettingsPage.tsx`提供开机自启、默认置顶及贴边自动隐藏设置。
+- `main/desktop/login-item.ts`通过Electron登录项API应用开机自启偏好，仅Windows安装版注册，开发及集成验证不注册临时程序。
 - `renderer/src/styles/global.css`定义两种布局的共同蓝白样式。
 
 基础设施诊断服务和原验证页源码仍保留，业务首页由TasksPage承担；MCP工具仍只有`app_diagnostics`。
@@ -52,7 +53,7 @@
 6. 贴边仅吸附左、右、上外侧边缘，收起保留无文字完成比例能量条。悬停呼出仅包含任务完成数和总数的胶囊，不抢焦点；点击展开便签，按住拖动沿当前边缘移动并保存位置。主进程通过拖动结束返回值区分拖动和点击。托盘唤出后恢复自动收回，鼠标不在窗口内时无需先进入，展开动画完成后按离开计时收回；输入编辑保护继续生效。显示器或分辨率变化时修正位置，保持主动隐藏状态。
 7. 显式退出准备期间同步阻止新的人机输入和新开窗口，再请求两端提交有效输入并等待结果；失败解除输入锁并保留窗口供重试，成功后销毁托盘、移除IPC、关闭MCP和数据库。新唤出意图会使较早的隐藏请求失效。
 
-同一数据目录重复启动会打开或唤出便签。开发数据与安装版数据分开，集成验证使用独立目录。常驻托盘不包含开机自启动。
+同一数据目录重复启动会打开或唤出便签。开发数据与安装版数据分开，集成验证使用独立目录。Windows安装版启动时应用开机自启偏好，首次使用和缺少该字段的旧配置默认开启；设置页修改后立即更新系统登录项并保存偏好。
 
 ## 4. 数据库策略
 
@@ -114,7 +115,7 @@ TasksPage为每个窗口维护唯一的生命周期保存回调，聚合任务�
 - 系统删除确认框的返回值在集成脚本中模拟；生产代码仍使用Electron原生确认框。
 - 屏幕拓扑和鼠标坐标可在操作系统边界替换，真实窗口、React、IPC、SQLite及资源退出不替换；物理设备与Windows外壳验收见[桌面便签验证](./desktop-validation.md)。
 
-新增业务继续按shared契约→storage迁移/仓储→core用例→IPC/preload→renderer的边界推进。MCP业务工具、自定义类别、未来AI能力及自启动留待后续。构建输出在`out/`，安装产物在`release/`，验证产物在`.local/smoke/`，均不进入Git。
+新增业务继续按shared契约→storage迁移/仓储→core用例→IPC/preload→renderer的边界推进。MCP业务工具、自定义类别及未来AI能力留待后续。构建输出在`out/`，安装产物在`release/`，验证产物在`.local/smoke/`，均不进入Git。
 
 Electron分类场景还可分别运行node scripts/run-smoke.mjs multiday和node scripts/run-smoke.mjs subitems，隔离首次操作及重启数据，避免与普通回归中的任务数量断言耦合。
 

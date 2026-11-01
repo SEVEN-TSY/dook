@@ -30,6 +30,22 @@ export function SettingsPage({
         ← 返回今天任务
       </button>
       <h1>设置</h1>
+      <p className="settings-intro">启动</p>
+      <label className="setting-row">
+        <span>
+          <strong>开机自启</strong>
+          <small>登录Windows后自动启动myTodo，安装版生效。</small>
+        </span>
+        <input
+          data-testid="launch-at-login"
+          type="checkbox"
+          checked={state?.settings.launchAtLogin ?? true}
+          disabled={!state || busy}
+          onChange={(event) =>
+            state && void update({ ...state.settings, launchAtLogin: event.target.checked })
+          }
+        />
+      </label>
       <p className="settings-intro">桌面便签</p>
       <label className="setting-row">
         <span>
