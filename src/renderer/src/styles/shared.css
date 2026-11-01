@@ -1,0 +1,104 @@
+/* Shared by the desktop note and the full workspace. No window geometry lives here. */
+:root {
+  --app-accent: #526fc4;
+  --app-accent-foreground: #ffffff;
+  --app-accent-soft: color-mix(in srgb, var(--app-accent) 10%, white);
+  --app-accent-hover: color-mix(in srgb, var(--app-accent) 13%, white);
+  --app-accent-selected: color-mix(in srgb, var(--app-accent) 20%, white);
+  --app-primary-hover: color-mix(in srgb, var(--app-accent) 93%, black);
+  --app-accent-ink: color-mix(in srgb, var(--app-accent) 75%, #253043);
+  --app-accent-track: color-mix(in srgb, var(--app-accent) 18%, white);
+  --app-accent-fill: color-mix(in srgb, var(--app-accent) 65%, white);
+  --app-text: #303744;
+  --app-muted: #6a7588;
+  --app-surface: #fafbfe;
+  --app-border: #e5eaf1;
+  --app-hover: var(--app-accent-hover);
+  --app-accent-subtle: color-mix(in srgb, var(--app-accent) 4%, white);
+  --app-input-border: color-mix(in srgb, var(--app-accent) 32%, #e5e7eb);
+  --app-accent-border: color-mix(in srgb, var(--app-accent) 48%, white);
+  --app-accent-shadow: color-mix(in srgb, var(--app-accent) 15%, transparent);
+  --app-inspiration: #ad7c16;
+  --app-inspiration-surface: #fff9e8;
+}
+.task-check {
+  accent-color: var(--app-accent);
+}
+.clearable-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+.clearable-input > input {
+  min-width: 0;
+  width: 100%;
+}
+.clearable-input > button.input-clear,
+.workbench .clearable-input > button.input-clear,
+.note .clearable-input > button.input-clear {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #e4e8ef;
+  color: #788395;
+  cursor: pointer;
+}
+.clearable-input > button.input-clear:hover {
+  background: #d6dce6;
+  color: #465064;
+}
+.note-progress-ring {
+  position: absolute;
+  inset: 0;
+  width: 36px;
+  height: 36px;
+  fill: var(--app-accent-soft);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+.note-progress-track {
+  stroke: var(--app-accent-track);
+}
+.note-progress-value {
+  fill: none;
+  stroke: var(--app-accent-fill);
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 18px 18px;
+  transition: stroke-dasharray 240ms ease;
+}
+.note-progress-count {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1px;
+  color: #697994;
+  font-size: 11px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+.note-progress-count strong {
+  color: var(--app-accent);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .note-progress-value {
+    transition: none;
+  }
+}

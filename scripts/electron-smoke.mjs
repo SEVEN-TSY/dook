@@ -40,7 +40,10 @@ const waitFor = async (condition, label) => {
   }
   throw new Error(`等待超时：${label}`)
 }
-const js = (window, code) => window.webContents.executeJavaScript(code)
+const js = (window, code) =>
+  window.webContents.executeJavaScript(code).catch((error) => {
+    throw new Error(`Renderer script failed: ${code}\n${error.message}`)
+  })
 const ready = (window) =>
   waitFor(
     async () =>
@@ -56,6 +59,16 @@ const rows = (window) =>
 const count = (window, n) => waitFor(async () => (await rows(window)).length === n, `任务数量${n}`)
 async function input(window, selector, value, key = 'Enter') {
   window.focus()
+  await js(
+    window,
+    `(() => {
+    const field = document.querySelector(${JSON.stringify(selector)});
+    if (field?.closest('.inline-composer[hidden]')) {
+      const label = field.dataset.testid?.startsWith('habit') ? '新增习惯' : '新增任务';
+      document.querySelector('[aria-label="' + label + '"]')?.click();
+    }
+  })()`
+  )
   await waitFor(
     () =>
       js(
@@ -810,7 +823,49 @@ async function runSmoke() {
         `Array.from(document.querySelectorAll('.inspiration-views button')).find(x => x.textContent === '主题').click()`
       )
       if (phase === 'topic-management-create') {
+        const createTopicHeight = await js(
+          main,
+          `document.querySelector('.inspiration-topic-create').getBoundingClientRect().height`
+        )
         await click(main, '[aria-label="新增主题"]')
+        assert.equal(
+          await js(
+            main,
+            `document.querySelector('.inspiration-topic-create').getBoundingClientRect().height`
+          ),
+          createTopicHeight,
+          '新建主题输入保持原入口高度'
+        )
+        writeFileSync(
+          resolve(output, 'inspiration-topic-create.png'),
+          (await main.webContents.capturePage()).toPNG()
+        )
+        await input(main, '[aria-label="新增主题名称"]', '临时输入', null)
+        await js(
+          main,
+          `(() => {
+          const form = document.querySelector('.inspiration-topic-form');
+          const field = form.querySelector('input').getBoundingClientRect();
+          for (const button of form.querySelectorAll(':scope > button')) {
+            const rect = button.getBoundingClientRect();
+            if (Math.abs(rect.top + rect.height / 2 - field.top - field.height / 2) > 0.5)
+              throw new Error('主题操作按钮未垂直居中');
+          }
+        })()`
+        )
+        await click(main, '[aria-label="清除新增主题名称"]')
+        assert.equal(
+          await js(
+            main,
+            `(() => {
+            const field = document.querySelector('[aria-label="新增主题名称"]');
+            return field.value === '' && document.activeElement === field &&
+              !document.querySelector('[aria-label="清除新增主题名称"]');
+          })()`
+          ),
+          true,
+          '单行输入清除后为空、保留焦点并隐藏清除按钮'
+        )
         await input(main, '[aria-label="新增主题名称"]', '独立主题')
         await waitFor(
           () => js(main, `Boolean(document.querySelector('[aria-label="重命名独立主题"]'))`),
@@ -910,7 +965,8 @@ async function runSmoke() {
           (topic) => topic.name === '独立主题'
         )
         assert.deepEqual(draft.topicIds, [originalTopic.id], '草稿保存在原主题')
-        await click(main, '[aria-label="新增灵感"]')
+        if (!(await js(main, `Boolean(document.querySelector('[aria-label="新增灵感内容"]'))`)))
+          await click(main, '[aria-label="新增灵感"]')
         await input(main, '[aria-label="新增灵感内容"]', '删除前草稿', null)
         dialog.showMessageBox = async () => ({ response: 1, checkboxChecked: false })
         await click(main, '[aria-label="删除新主题"]')
@@ -928,7 +984,25 @@ async function runSmoke() {
           ),
           '删除主题前保存草稿'
         )
+        const renameTopicHeight = await js(
+          main,
+          `document.querySelector('[aria-label="重命名独立主题"]').closest('.inspiration-nav-item').getBoundingClientRect().height`
+        )
         await click(main, '[aria-label="重命名独立主题"]')
+        assert.equal(
+          await js(
+            main,
+            `document.querySelector('[aria-label="主题名称"]').closest('.inspiration-nav-item').getBoundingClientRect().height`
+          ),
+          renameTopicHeight,
+          '修改主题名称保持分组项高度'
+        )
+        await click(main, '[aria-label="清除主题名称"]')
+        assert.equal(
+          await js(main, `document.querySelector('[aria-label="主题名称"]').value`),
+          '',
+          '重命名输入支持清除'
+        )
         await input(main, '[aria-label="主题名称"]', '改名主题')
         await waitFor(
           () => js(main, `Boolean(document.querySelector('[aria-label="删除改名主题"]'))`),
@@ -992,6 +1066,7 @@ async function runSmoke() {
             ),
           '重启后归档补充可见'
         )
+        await click(main, '.inspiration-detail .detail-back')
         await click(main, '[aria-label="恢复灵感"]')
         await waitFor(
           () => js(main, `!document.querySelector('.inspiration-item')`),
@@ -1202,6 +1277,13 @@ async function runSmoke() {
       return
     }
     if (phase === 'workbench') {
+      const captureDesign = async (filename) => {
+        await js(
+          main,
+          'new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))'
+        )
+        writeFileSync(resolve(output, filename), (await main.webContents.capturePage()).toPNG())
+      }
       await waitFor(
         () => js(main, 'Boolean(document.querySelector(".workbench-header h1"))'),
         '工作台就绪'
@@ -1210,14 +1292,62 @@ async function runSmoke() {
         await js(main, 'document.querySelector(".workbench-header h1").textContent'),
         '今天'
       )
-      await click(main, '.primary-button')
-      await input(main, '[data-testid=task-new]', '取消的任务', null)
       await js(
         main,
-        `(() => { const button = Array.from(document.querySelectorAll('.workbench-add button')).find(x => x.textContent === '取消'); button.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); button.click() })()`
+        `(async () => {
+        const button = document.querySelector('.composer-toggle');
+        const icon = button.querySelector('svg');
+        const angle = () => {
+          const matrix = new DOMMatrixReadOnly(getComputedStyle(icon).transform);
+          return Math.atan2(matrix.b, matrix.a) * 180 / Math.PI;
+        };
+        const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+        for (const expanding of [true, false]) {
+          button.click();
+          await frame(); await frame();
+          const animation = icon.getAnimations().find(item => item.transitionProperty === 'transform');
+          if (!animation) throw new Error('新增图标缺少连续旋转过渡');
+          await new Promise(resolve => setTimeout(resolve, 70));
+          const middle = angle();
+          if (middle <= 0 || middle >= 45) throw new Error('新增图标旋转方向或中间角度错误');
+          await animation.finished;
+          if (Math.abs(angle() - (expanding ? 45 : 0)) > 0.01) throw new Error('旋转结束角度错误');
+        }
+        const header = document.querySelector('.workbench-header');
+        const width = header.getBoundingClientRect().width;
+        const spacer = document.createElement('div');
+        spacer.style.height = '200vh';
+        document.querySelector('.workbench-main').append(spacer);
+        try {
+          await frame();
+          if (document.scrollingElement.scrollHeight <= document.scrollingElement.clientHeight)
+            throw new Error('未触发页面滚动');
+          if (header.getBoundingClientRect().width !== width)
+            throw new Error('页面滚动条出现后内容宽度变化');
+        } finally { spacer.remove(); }
+      })()`
       )
-      await count(note, 0)
+      assert.equal(
+        await js(main, `document.querySelector('[data-testid=task-new]').checkVisibility()`),
+        false
+      )
       await click(main, '.primary-button')
+      await waitFor(
+        () => js(main, `document.activeElement.dataset.testid === 'task-new'`),
+        '展开后聚焦任务输入'
+      )
+      await input(main, '[data-testid=task-new]', '任务待继续草稿', null)
+      await click(main, '.primary-button')
+      assert.equal(
+        await js(main, `document.querySelector('[data-testid=task-new]').checkVisibility()`),
+        false
+      )
+      await click(main, '.primary-button')
+      assert.equal(
+        await js(main, `document.querySelector('[data-testid=task-new]').value`),
+        '任务待继续草稿',
+        '任务新增切换展开收起并保留草稿'
+      )
       const lock = new DatabaseSync(resolve(process.env.MYTODO_SMOKE_DATA, 'mytodo.sqlite'))
       try {
         lock.exec('BEGIN IMMEDIATE')
@@ -1240,6 +1370,25 @@ async function runSmoke() {
         resolve(output, 'workbench-tasks.png'),
         (await main.webContents.capturePage()).toPNG()
       )
+      main.focus()
+      await js(main, `document.querySelector('[aria-label="更多操作：工作台任务"]').focus()`)
+      main.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Down' })
+      main.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Down' })
+      await waitFor(
+        () => js(main, `Boolean(document.querySelector('[role="menu"]'))`),
+        '键盘打开任务操作菜单'
+      )
+      await captureDesign('workbench-task-menu.png')
+      main.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' })
+      main.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' })
+      await waitFor(
+        () =>
+          js(
+            main,
+            `!document.querySelector('[role="menu"]') && document.activeElement?.getAttribute('aria-label') === '更多操作：工作台任务'`
+          ),
+        'Escape关闭菜单并返回操作按钮'
+      )
       await click(main, '[data-testid=task-description]')
       await input(main, '[data-testid=task-edit]', '更新工作台任务', null)
       await click(main, '.detail-back')
@@ -1254,6 +1403,17 @@ async function runSmoke() {
         `Array.from(document.querySelectorAll('.workbench-nav button')).find(x => x.textContent === '习惯').click()`
       )
       await click(main, '.primary-button')
+      await input(main, '[data-testid=habit-new]', '习惯待继续草稿', null)
+      await click(main, '.primary-button')
+      assert.equal(
+        await js(main, `document.querySelector('[data-testid=habit-new]').checkVisibility()`),
+        false
+      )
+      await click(main, '.primary-button')
+      assert.equal(
+        await js(main, `document.querySelector('[data-testid=habit-new]').value`),
+        '习惯待继续草稿'
+      )
       await input(main, '[data-testid=habit-new]', '每天检查')
       await waitFor(
         () =>
@@ -1263,21 +1423,31 @@ async function runSmoke() {
           ),
         '习惯保存'
       )
+      await waitFor(
+        () => js(main, `document.activeElement?.dataset.testid === 'habit-new'`),
+        '保存后保留习惯输入焦点，支持连续新增'
+      )
       await js(
         main,
         `Array.from(document.querySelectorAll('.workbench-nav button')).find(x => x.textContent === '灵感').click()`
       )
-      await click(main, '[aria-label="新增灵感"]')
-      await input(main, '[aria-label="新增灵感内容"]', '取消的灵感', null)
-      await click(main, '[aria-label="取消新增灵感"]')
-      await click(main, '[aria-label="新增灵感"]')
-      assert.equal(
-        await js(main, `document.querySelector('[aria-label="新增灵感内容"]').value`),
-        ''
-      )
       writeFileSync(
         resolve(output, 'inspiration-new.png'),
         (await main.webContents.capturePage()).toPNG()
+      )
+      await click(main, '[aria-label="新增灵感"]')
+      await input(main, '[aria-label="新增灵感内容"]', '待继续的草稿', null)
+      await click(main, '[aria-label="新增灵感"]')
+      assert.equal(
+        await js(main, `Boolean(document.querySelector('[aria-label="新增灵感内容"]'))`),
+        false,
+        '再次点击加号收起灵感输入框'
+      )
+      await click(main, '[aria-label="新增灵感"]')
+      assert.equal(
+        await js(main, `document.querySelector('[aria-label="新增灵感内容"]').value`),
+        '待继续的草稿',
+        '收起后展开保留灵感草稿'
       )
       await input(main, '[aria-label="新增灵感内容"]', '新的灵感')
       await waitFor(
@@ -1288,20 +1458,85 @@ async function runSmoke() {
           ),
         '页内新增灵感'
       )
+      assert.equal(
+        await js(main, `document.activeElement?.getAttribute('aria-label')`),
+        '新增灵感内容',
+        '新增灵感后保持输入焦点'
+      )
+      const inspirationRowHeight = await js(
+        main,
+        `document.querySelector('.inspiration-row').getBoundingClientRect().height`
+      )
       await click(main, '[data-testid=inspiration-summary]')
-      await input(main, '[data-testid=inspiration-edit]', '编辑后的灵感')
+      assert.equal(
+        await js(main, `document.querySelector('.inspiration-row').getBoundingClientRect().height`),
+        inspirationRowHeight,
+        '进入编辑保持灵感行高'
+      )
+      assert.equal(
+        await js(
+          main,
+          `(() => { const field = document.querySelector('[data-testid=inspiration-edit]'); return document.activeElement === field && field.selectionStart === field.value.length && field.selectionEnd === field.value.length })()`
+        ),
+        true,
+        '进入灵感编辑时光标位于内容末尾'
+      )
+      await input(main, '[data-testid=inspiration-edit]', '编辑后的灵感', null)
+      await js(
+        main,
+        `document.querySelector('[data-testid=inspiration-edit]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true }))`
+      )
+      assert.equal(
+        await js(main, `Boolean(document.querySelector('[data-testid=inspiration-edit]'))`),
+        true,
+        '输入法确认不提交'
+      )
+      main.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter', modifiers: ['control'] })
+      main.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter', modifiers: ['control'] })
+      await waitFor(
+        () =>
+          js(
+            main,
+            `document.querySelector('[data-testid=inspiration-edit]')?.value === ${JSON.stringify('编辑后的灵感\n')}`
+          ),
+        'Ctrl+Enter在编辑内容中换行'
+      )
+      await main.webContents.insertText('保留下一行')
+      assert.equal(
+        await js(main, `document.querySelector('.inspiration-row').getBoundingClientRect().height`),
+        inspirationRowHeight,
+        '编辑多行内容保持灵感行高'
+      )
+      await captureDesign('inspiration-inline-edit.png')
+      main.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' })
+      main.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' })
+      await waitFor(
+        () => js(main, `!document.querySelector('[data-testid=inspiration-edit]')`),
+        'Enter确认编辑并退出'
+      )
+      await captureDesign('inspiration-row-layout.png')
+      await js(
+        main,
+        `(() => {
+        const row = document.querySelector('.inspiration-row');
+        const summary = row.querySelector('.inspiration-summary').getBoundingClientRect();
+        const actions = Array.from(row.querySelectorAll('.inspiration-row-actions button')).map(x => x.getBoundingClientRect());
+        if (actions.length !== 3 || actions.some(x => x.left < summary.right || Math.abs(x.top - actions[0].top) > 1)) throw new Error('灵感操作未在右端同一行');
+      })()`
+      )
+      await captureDesign('inspiration-row-layout.png')
       await click(main, '[data-testid=inspiration-supplement]')
       await waitFor(
         () =>
           js(
             main,
-            'document.querySelector(".inspiration-original")?.textContent === "编辑后的灵感"'
+            'document.querySelector(".inspiration-original")?.textContent === "编辑后的灵感\\n保留下一行"'
           ),
         '原地编辑保存并打开详情'
       )
       assert.equal(
         await js(main, 'document.querySelector(".inspiration-original").textContent'),
-        '编辑后的灵感'
+        '编辑后的灵感\n保留下一行'
       )
       assert.equal(
         await js(
@@ -1367,6 +1602,14 @@ async function runSmoke() {
         () => js(main, `document.querySelectorAll('.inspiration-nav-item').length === 3`),
         '主题导航'
       )
+      assert.equal(
+        await js(
+          main,
+          `document.querySelector('.inspiration-nav-item .inspiration-heading').textContent`
+        ),
+        '未归主题',
+        '未归主题排在第一项'
+      )
       await chooseGroup('产品构想')
       await waitFor(
         () => js(main, `document.querySelectorAll('[data-inspiration-id]').length === 1`),
@@ -1398,7 +1641,7 @@ async function runSmoke() {
           js(main, `document.querySelector('.inspiration-group-title')?.textContent === '今天'`),
         '返回日期'
       )
-      main.setContentSize(1100, 800)
+      main.setContentSize(1280, 800)
       await chooseView('主题')
       await waitFor(
         () =>
@@ -1422,6 +1665,20 @@ async function runSmoke() {
         main,
         `Array.from(document.querySelectorAll('.inspiration-nav-item .inspiration-heading')).map(x => x.textContent)`
       )
+      await js(
+        main,
+        `(() => {
+        for (const selector of ['.inspiration-navigation', '.inspiration-list']) {
+          const element = document.querySelector(selector);
+          const width = element.clientWidth;
+          const overflow = element.style.overflowY;
+          element.style.overflowY = 'scroll';
+          try {
+            if (element.clientWidth !== width) throw new Error(selector + '滚动条改变了可用宽度');
+          } finally { element.style.overflowY = overflow; }
+        }
+      })()`
+      )
       const localDate = (daysAgo) => {
         const date = new Date()
         date.setDate(date.getDate() - daysAgo)
@@ -1440,6 +1697,22 @@ async function runSmoke() {
       await waitFor(
         () => js(main, `document.querySelectorAll('.inspiration-item').length === 20`),
         '当前组首页'
+      )
+      assert.equal(
+        await js(
+          main,
+          `document.scrollingElement.scrollHeight <= document.scrollingElement.clientHeight`
+        ),
+        true,
+        '灵感页不出现整页滚动条'
+      )
+      assert.equal(
+        await js(
+          main,
+          `(() => { const list = document.querySelector('.inspiration-list'); return list.scrollHeight > list.clientHeight })()`
+        ),
+        true,
+        '长灵感列表在内容区独立滚动'
       )
       await js(
         main,
@@ -1597,6 +1870,47 @@ async function runSmoke() {
       assert.equal(
         await js(main, 'document.querySelector(".workbench-header h1").textContent'),
         '设置'
+      )
+      await captureDesign('workbench-settings.png')
+      await click(main, '[aria-label="习惯"]')
+      await waitFor(
+        () => js(main, `document.querySelector('.workbench-header h1').textContent === '习惯'`),
+        '习惯页面就绪'
+      )
+      await captureDesign('workbench-habits.png')
+      await js(
+        main,
+        `(async () => {
+        await window.myTodo.createTask('整理本周的项目进展');
+        await window.myTodo.createTask('确认下一个版本的交互细节');
+        const result = await window.myTodo.createTask('完善个人工作台');
+        if (result.ok) {
+          await window.myTodo.convertToMultiDay(result.data.id);
+          await window.myTodo.setTaskProgress(result.data.id, 45);
+        }
+      })()`
+      )
+      await click(main, '[aria-label="任务"]')
+      await waitFor(
+        () => js(main, `document.querySelector('.workbench-header h1').textContent === '今天'`),
+        '任务页面就绪'
+      )
+      await waitFor(
+        () => js(main, `document.querySelectorAll('[data-task-id]').length >= 5`),
+        '任务工作台完整状态'
+      )
+      await captureDesign('workbench-overview.png')
+      assert.equal(
+        await js(
+          main,
+          `(() => {
+        const row = document.querySelector('[data-task-kind="multi-day"]');
+        const description = row.querySelector('[data-testid="task-description"]').getBoundingClientRect();
+        return description.width > 180 && description.height < 60 && row.getBoundingClientRect().right <= innerWidth;
+      })()`
+        ),
+        true,
+        '多天任务分组标题不挤压正文'
       )
       console.log('Electron workbench smoke passed')
       menuClick('退出')

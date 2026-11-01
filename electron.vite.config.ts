@@ -1,6 +1,7 @@
 import { resolve } from 'node:path'
 import { defineConfig } from 'electron-vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   main: {
@@ -16,7 +17,9 @@ export default defineConfig({
   },
   renderer: {
     root: resolve('src/renderer'),
+    resolve: { alias: { '@': resolve('src/renderer/src') } },
     plugins: [
+      tailwindcss(),
       react(),
       {
         name: 'development-csp',

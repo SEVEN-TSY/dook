@@ -1,3 +1,5 @@
+import { TaskCheck } from '../../components/TaskCheck'
+import { ClearableInput } from '../../components/ui/clearable-input'
 import { useEffect, useRef, useState } from 'react'
 import type { Subitem, Task } from '../../../../shared/contracts'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
@@ -115,6 +117,7 @@ export function SubitemsPanel({ task, changed, report, onSaveReady, onInteractio
   }
   const inputProps = {
     value: draft.text,
+    onClear: () => changeText(''),
     disabled: busy,
     onChange: (event: React.ChangeEvent<HTMLInputElement>) => changeText(event.target.value),
     onFocus: () => setFocused(true),
@@ -161,8 +164,7 @@ export function SubitemsPanel({ task, changed, report, onSaveReady, onInteractio
               key={item.id}
               data-subitem-id={item.id}
             >
-              <input
-                type="checkbox"
+              <TaskCheck
                 checked={item.completed}
                 disabled={busy}
                 aria-label={`完成子事项：${item.description}`}
@@ -175,7 +177,7 @@ export function SubitemsPanel({ task, changed, report, onSaveReady, onInteractio
                 }
               />
               {draft.id === item.id ? (
-                <input
+                <ClearableInput
                   data-testid="subitem-edit"
                   aria-label="编辑子事项"
                   autoFocus
@@ -207,7 +209,7 @@ export function SubitemsPanel({ task, changed, report, onSaveReady, onInteractio
             </div>
           ))}
           {!draft.id && (
-            <input
+            <ClearableInput
               className="subitem-new"
               data-testid="subitem-new"
               aria-label="新增子事项"

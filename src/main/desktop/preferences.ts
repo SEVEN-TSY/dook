@@ -11,6 +11,7 @@ export interface DesktopPreferences {
 export function readPreferences(directory: string): DesktopPreferences {
   const defaults: DesktopPreferences = {
     settings: {
+      themeColor: '#526fc4',
       launchAtLogin: true,
       defaultAlwaysOnTop: true,
       edgeAutoHide: true,
@@ -20,6 +21,11 @@ export function readPreferences(directory: string): DesktopPreferences {
   }
   try {
     const saved = JSON.parse(readFileSync(resolve(directory, 'desktop-settings.json'), 'utf8'))
+    if (
+      typeof saved.settings?.themeColor === 'string' &&
+      /^#[0-9a-f]{6}$/i.test(saved.settings.themeColor)
+    )
+      defaults.settings.themeColor = saved.settings.themeColor.toLowerCase()
     if (typeof saved.settings?.launchAtLogin === 'boolean')
       defaults.settings.launchAtLogin = saved.settings.launchAtLogin
     if (typeof saved.settings?.defaultAlwaysOnTop === 'boolean')

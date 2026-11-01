@@ -16,6 +16,7 @@ test('首次使用和旧配置默认开机自启，关闭后重启保留选择',
     )
     const preferences = readPreferences(directory)
     assert.deepEqual(preferences.settings, {
+      themeColor: '#526fc4',
       launchAtLogin: true,
       defaultAlwaysOnTop: false,
       edgeAutoHide: false,
@@ -62,11 +63,28 @@ test('持续推进默认显示，旧配置兼容且关闭后保存重读保留�
     preferences.settings.showMultiDay = false
     writePreferences(directory, preferences)
     assert.deepEqual(readPreferences(directory).settings, {
+      themeColor: '#526fc4',
       launchAtLogin: false,
       defaultAlwaysOnTop: false,
       edgeAutoHide: true,
       showMultiDay: false
     })
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('主题色支持自定义并重读恢复，无效颜色回退到默认主题', () => {
+  const directory = mkdtempSync(resolve(tmpdir(), 'mytodo-theme-'))
+  try {
+    const preferences = readPreferences(directory)
+    assert.equal(preferences.settings.themeColor, '#526fc4')
+    preferences.settings.themeColor = '#257C68'
+    writePreferences(directory, preferences)
+    assert.equal(readPreferences(directory).settings.themeColor, '#257c68')
+    preferences.settings.themeColor = 'invalid'
+    writePreferences(directory, preferences)
+    assert.equal(readPreferences(directory).settings.themeColor, '#526fc4')
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }

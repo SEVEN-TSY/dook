@@ -73,7 +73,16 @@ export function registerIpc(handlers: Handlers): () => void {
       typeof settings.edgeAutoHide !== 'boolean'
     )
       throw new Error('窗口设置无效。')
+    if (
+      'themeColor' in settings &&
+      (typeof settings.themeColor !== 'string' || !/^#[0-9a-f]{6}$/i.test(settings.themeColor))
+    )
+      throw new Error('主题色必须为六位十六进制颜色。')
     return handlers.desktop.updateSettings({
+      themeColor:
+        'themeColor' in settings
+          ? String(settings.themeColor).toLowerCase()
+          : handlers.desktop.state().settings.themeColor,
       launchAtLogin: settings.launchAtLogin,
       defaultAlwaysOnTop: settings.defaultAlwaysOnTop,
       edgeAutoHide: settings.edgeAutoHide,

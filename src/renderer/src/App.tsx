@@ -15,6 +15,22 @@ export function App() {
   const summary = total ? `总进度${progress}%，已完成${completed}/${total}项任务` : '暂无任务'
   const [error, setError] = useState('')
   useEffect(() => {
+    const color = desktop?.settings.themeColor ?? '#526fc4'
+    const channels = color
+      .slice(1)
+      .match(/.{2}/g)!
+      .map((part) => {
+        const value = parseInt(part, 16) / 255
+        return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+      })
+    const luminance = channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
+    document.documentElement.style.setProperty('--app-accent', color)
+    document.documentElement.style.setProperty(
+      '--app-accent-foreground',
+      luminance > 0.179 ? '#202734' : '#ffffff'
+    )
+  }, [desktop?.settings.themeColor])
+  useEffect(() => {
     const api = getDesktopApi()
     let receivedChange = false
     const applyState = (state: DesktopState) => {
@@ -48,12 +64,7 @@ export function App() {
     <>
       {error && <p role="alert">{error}</p>}
       {desktop?.exitPending && <div className="exit-pending">正在保存并退出…</div>}
-      <TasksPage
-        kind={kind}
-        desktop={desktop}
-        hidden={collapsed}
-        tasks={tasks}
-      />
+      <TasksPage kind={kind} desktop={desktop} hidden={collapsed} tasks={tasks} />
       {kind === 'note' && desktop?.noteMotion && (
         <NoteTransition desktop={desktop} completed={completed} total={total} />
       )}

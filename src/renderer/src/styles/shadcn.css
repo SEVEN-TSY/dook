@@ -1,0 +1,56 @@
+/* Omit Preflight: the desktop note owns its geometry and native window motion.
+   Utilities take priority over legacy unlayered selectors only on migrated controls. */
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities) important;
+@source '../components/ui';
+@source '../features';
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--ui-background);
+  --color-foreground: var(--ui-foreground);
+  --color-popover: #ffffff;
+  --color-popover-foreground: var(--ui-foreground);
+  --color-primary: var(--ui-primary);
+  --color-primary-hover: var(--app-primary-hover);
+  --color-accent-hover: var(--app-hover);
+  --color-primary-foreground: var(--app-accent-foreground);
+  --color-secondary: var(--app-accent-soft);
+  --color-secondary-foreground: #303744;
+  --color-accent: var(--app-accent-soft);
+  --color-accent-foreground: var(--app-accent-ink);
+  --color-muted-foreground: #6a7588;
+  --color-destructive: #c74b55;
+  --color-border: var(--app-input-border);
+  --color-input: var(--app-input-border);
+  --color-ring: var(--app-accent);
+}
+
+:root {
+  --ui-background: #fafbfe;
+  --ui-foreground: #303744;
+  --ui-primary: var(--app-accent);
+}
+
+[data-slot='button'],
+[data-slot='switch'] {
+  border: 0 solid var(--color-border);
+  padding: 0;
+  background: transparent;
+  color: var(--ui-foreground);
+  font-family: inherit;
+}
+
+[data-slot='input'],
+[data-slot='textarea'] {
+  border-style: solid;
+  color: var(--ui-foreground);
+  font-family: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-slot] {
+    transition-duration: 0s !important;
+  }
+}

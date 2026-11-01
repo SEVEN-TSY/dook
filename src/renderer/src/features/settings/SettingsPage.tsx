@@ -1,18 +1,25 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Check, Palette, Monitor, StickyNote } from 'lucide-react'
+import { Button } from '../../components/ui/button'
+import { Input } from '../../components/ui/input'
+import { Switch } from '../../components/ui/switch'
 import type { DesktopState, WindowSettings } from '../../../../shared/contracts'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
 
-export function SettingsPage({
-  state,
-  close,
-  hidden
-}: {
-  state: DesktopState | null
-  close: () => void
-  hidden: boolean
-}) {
+export function SettingsPage({ state, hidden }: { state: DesktopState | null; hidden: boolean }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const color = state?.settings.themeColor ?? '#526fc4'
+  const [customColor, setCustomColor] = useState(color)
+  useEffect(() => setCustomColor(color), [color])
+  const presets = [
+    ['雾蓝', '#526fc4'],
+    ['青绿', '#257c68'],
+    ['鸢紫', '#7955b3'],
+    ['玫瑰', '#b34f71'],
+    ['琥珀', '#9a6b20'],
+    ['石墨', '#526071']
+  ] as const
   const update = async (settings: WindowSettings) => {
     setBusy(true)
     setError('')
@@ -26,44 +33,123 @@ export function SettingsPage({
   }
   return (
     <section className="settings-page" hidden={hidden}>
-      <button className="back-button" onClick={close}>
-        ← 返回今天任务
-      </button>
-      <h1>设置</h1>
-      <section className="settings-group" aria-label="系统偏好">
-        <h2 className="settings-intro">系统偏好</h2>
+      <section className="settings-group settings-personalization" aria-label="个性化">
+        <h2 className="settings-intro">
+          <span className="settings-category-icon">
+            <Palette size={17} />
+          </span>
+          个性化
+        </h2>
+        <div className="theme-setting">
+          <div className="theme-setting-label">
+            <strong>主题色</strong>
+            <span>应用到主界面和桌面便签</span>
+          </div>
+          <div className="theme-presets" role="group" aria-label="预设主题色">
+            {presets.map(([name, value]) => (
+              <button
+                type="button"
+                key={value}
+                className="theme-preset"
+                aria-label={`${name}主题`}
+                aria-pressed={color === value}
+                disabled={!state || busy}
+                onClick={() => state && void update({ ...state.settings, themeColor: value })}
+              >
+                <span className="theme-swatch" style={{ backgroundColor: value }}>
+                  {color === value && <Check size={15} />}
+                </span>
+                <span>{name}</span>
+              </button>
+            ))}
+          </div>
+          <div className="theme-custom">
+            <span className="theme-custom-label">自定义</span>
+            <label className="theme-color-picker" title="选择自定义颜色">
+              <input
+                type="color"
+                aria-label="自定义主题色"
+                value={/^#[0-9a-f]{6}$/i.test(customColor) ? customColor : color}
+                disabled={!state || busy}
+                onChange={(event) => setCustomColor(event.target.value)}
+              />
+            </label>
+            <Input
+              aria-label="主题色十六进制值"
+              className="theme-hex w-28"
+              value={customColor}
+              onClear={() => setCustomColor('')}
+              maxLength={7}
+              disabled={!state || busy}
+              onChange={(event) => setCustomColor(event.target.value)}
+            />
+            <Button
+              data-testid="theme-apply"
+              size="sm"
+              variant="outline"
+              disabled={
+                !state ||
+                busy ||
+                !/^#[0-9a-f]{6}$/i.test(customColor) ||
+                customColor.toLowerCase() === color
+              }
+              onClick={() =>
+                state && void update({ ...state.settings, themeColor: customColor.toLowerCase() })
+              }
+            >
+              应用颜色
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={!state || busy || color === '#526fc4'}
+              onClick={() => state && void update({ ...state.settings, themeColor: '#526fc4' })}
+            >
+              恢复默认
+            </Button>
+          </div>
+        </div>
+      </section>
+      <section className="settings-group settings-system" aria-label="系统偏好">
+        <h2 className="settings-intro">
+          <span className="settings-category-icon">
+            <Monitor size={17} />
+          </span>
+          系统偏好
+        </h2>
         <label className="setting-row">
           <span>
             <strong>开机自启</strong>
             <small>登录Windows后自动启动myTodo，安装版生效。</small>
           </span>
-          <input
+          <Switch
             data-testid="launch-at-login"
-            type="checkbox"
-            role="switch"
             checked={state?.settings.launchAtLogin ?? true}
             disabled={!state || busy}
-            onChange={(event) =>
-              state && void update({ ...state.settings, launchAtLogin: event.target.checked })
+            onCheckedChange={(checked) =>
+              state && void update({ ...state.settings, launchAtLogin: checked })
             }
           />
         </label>
       </section>
-      <section className="settings-group" aria-label="便签偏好">
-        <h2 className="settings-intro">便签偏好</h2>
+      <section className="settings-group settings-note" aria-label="便签偏好">
+        <h2 className="settings-intro">
+          <span className="settings-category-icon">
+            <StickyNote size={17} />
+          </span>
+          便签偏好
+        </h2>
         <label className="setting-row">
           <span>
             <strong>默认是否置顶</strong>
             <small>立即应用到便签并记住。贴边时保持置顶。</small>
           </span>
-          <input
+          <Switch
             data-testid="default-pin"
-            type="checkbox"
-            role="switch"
             checked={state?.settings.defaultAlwaysOnTop ?? true}
             disabled={!state || busy}
-            onChange={(event) =>
-              state && void update({ ...state.settings, defaultAlwaysOnTop: event.target.checked })
+            onCheckedChange={(checked) =>
+              state && void update({ ...state.settings, defaultAlwaysOnTop: checked })
             }
           />
         </label>
@@ -72,14 +158,12 @@ export function SettingsPage({
             <strong>贴边自动隐藏</strong>
             <small>拖近左、右、上外侧边缘后吸附，悬停查看统计，点击展开。</small>
           </span>
-          <input
+          <Switch
             data-testid="edge-auto-hide"
-            type="checkbox"
-            role="switch"
             checked={state?.settings.edgeAutoHide ?? true}
             disabled={!state || busy}
-            onChange={(event) =>
-              state && void update({ ...state.settings, edgeAutoHide: event.target.checked })
+            onCheckedChange={(checked) =>
+              state && void update({ ...state.settings, edgeAutoHide: checked })
             }
           />
         </label>
@@ -88,14 +172,12 @@ export function SettingsPage({
             <strong>显示持续推进</strong>
             <small>关闭后便签只显示这就去做和已归档，任务仍保留在主界面。</small>
           </span>
-          <input
+          <Switch
             data-testid="show-multi-day"
-            type="checkbox"
-            role="switch"
             checked={state?.settings.showMultiDay ?? true}
             disabled={!state || busy}
-            onChange={(event) =>
-              state && void update({ ...state.settings, showMultiDay: event.target.checked })
+            onCheckedChange={(checked) =>
+              state && void update({ ...state.settings, showMultiDay: checked })
             }
           />
         </label>
@@ -105,7 +187,6 @@ export function SettingsPage({
           {error}
         </p>
       )}
-      <p className="settings-hint">关闭窗口后，myTodo继续在系统托盘运行。</p>
     </section>
   )
 }

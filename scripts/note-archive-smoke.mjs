@@ -13,6 +13,45 @@ export async function noteArchiveSmoke({
 }) {
   const tasks = async () => (await js(note, 'window.myTodo.listToday()')).data.tasks
   const archived = async () => (await js(note, 'window.myTodo.listArchivedTasks()')).data
+  const themePaint = async () => {
+    const point = await js(
+      main,
+      `(() => { const rect = document.querySelector('[aria-label="任务"]').getBoundingClientRect(); return { x: Math.round(rect.x + rect.width / 2), y: Math.round(rect.y + rect.height / 2) } })()`
+    )
+    main.focus()
+    main.webContents.sendInputEvent({ type: 'mouseMove', ...point })
+    const mainPaint = await js(
+      main,
+      `(async () => {
+      const field = document.querySelector('[aria-label="主题色十六进制值"]');
+      field.blur();
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const border = getComputedStyle(field).borderColor;
+      const hover = getComputedStyle(document.querySelector('[aria-label="任务"]')).backgroundColor;
+      field.focus();
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const focus = getComputedStyle(field).borderColor;
+      field.blur();
+      return { border, hover, focus };
+    })()`
+    )
+    const notePoint = await js(
+      note,
+      `(() => { const rect = document.querySelector('[data-testid="note-settings"]').getBoundingClientRect(); return { x: Math.round(rect.x + rect.width / 2), y: Math.round(rect.y + rect.height / 2) } })()`
+    )
+    note.focus()
+    note.webContents.sendInputEvent({ type: 'mouseMove', ...notePoint })
+    const noteButtonHover = await js(
+      note,
+      `(async () => {
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const button = document.querySelector('[data-testid="note-settings"]');
+      if (!button.matches(':hover')) throw new Error('便签设置按钮未进入真实悬停状态');
+      return getComputedStyle(button).backgroundColor;
+    })()`
+    )
+    return { ...mainPaint, noteButtonHover }
+  }
   const keyboardActivate = async (selector) => {
     await waitFor(
       () =>
@@ -39,7 +78,13 @@ export async function noteArchiveSmoke({
   )
   if (phase.endsWith('restart')) {
     assert.equal((await state(note)).settings.showMultiDay, false, '重启保留分栏设置')
-    assert.deepEqual(await visibleGroups(), ['today', 'archived'])
+    assert.equal((await state(note)).settings.themeColor, '#467a63', '重启保留自定义主题色')
+    await waitFor(
+      () =>
+        js(note, `document.documentElement.style.getPropertyValue('--app-accent') === '#467a63'`),
+      '便签重启应用主题色'
+    )
+    assert.deepEqual(await visibleGroups(), ['archived'])
     const saved = (await archived()).find((x) => x.description === '保留归档任务')
     assert.ok(saved, '归档任务重启保留')
     await click(note, '[data-note-group=archived]')
@@ -54,7 +99,7 @@ export async function noteArchiveSmoke({
     return
   }
 
-  assert.deepEqual(await visibleGroups(), ['today', 'multi-day', 'archived'])
+  assert.deepEqual(await visibleGroups(), [])
   assert.equal(
     await js(
       note,
@@ -69,6 +114,32 @@ export async function noteArchiveSmoke({
     ),
     '0'
   )
+  const emptyPaint = () =>
+    js(
+      note,
+      `(() => {
+    const empty = document.querySelector('.task-empty');
+    return { icon: getComputedStyle(empty.querySelector('span')).color, text: getComputedStyle(empty).color, background: getComputedStyle(empty).backgroundColor };
+  })()`
+    )
+  const originalEmptyPaint = await emptyPaint()
+  await js(
+    note,
+    `(async () => { const current = (await window.myTodo.getWindowState()).data; await window.myTodo.updateSettings({ ...current.settings, themeColor: '#467a63' }) })()`
+  )
+  await waitFor(
+    async () => (await emptyPaint()).icon !== originalEmptyPaint.icon,
+    '无任务图标同步主题色'
+  )
+  const themedEmptyPaint = await emptyPaint()
+  for (const key of ['icon', 'text', 'background'])
+    assert.notEqual(themedEmptyPaint[key], originalEmptyPaint[key], `无任务提示${key}同步主题色`)
+  await capture(note, 'note-empty-themed.png')
+  await js(
+    note,
+    `(async () => { const current = (await window.myTodo.getWindowState()).data; await window.myTodo.updateSettings({ ...current.settings, themeColor: '#526fc4' }) })()`
+  )
+  await waitFor(async () => (await emptyPaint()).icon === originalEmptyPaint.icon, '恢复默认主题色')
   const task = (await js(note, `window.myTodo.createTask('便签归档验证')`)).data
   await waitFor(
     () => js(note, `Boolean(document.querySelector('[data-task-id="${task.id}"]'))`),
@@ -211,7 +282,7 @@ export async function noteArchiveSmoke({
       main,
       `Array.from(document.querySelectorAll('.settings-group')).map(x => x.getAttribute('aria-label'))`
     ),
-    ['系统偏好', '便签偏好']
+    ['个性化', '系统偏好', '便签偏好']
   )
   assert.equal(
     await js(
@@ -251,14 +322,17 @@ export async function noteArchiveSmoke({
   )
   await click(main, '[data-testid=show-multi-day]')
   await waitFor(async () => !(await state(note)).settings.showMultiDay, '关闭持续推进')
-  assert.deepEqual(await visibleGroups(), ['today', 'archived'])
+  assert.deepEqual(await visibleGroups(), ['archived'])
   assert.equal((await tasks()).length, 1, '隐藏分栏保留任务数据')
   assert.equal(
     await js(note, `document.querySelector('.note-task-summary').getAttribute('aria-label')`),
     '在主界面打开任务，已完成0项，共0项'
   )
   await js(note, `window.myTodo.setTaskCompleted('${multi.id}', true)`)
-  await waitFor(async () => (await tasks()).find((x) => x.id === multi.id)?.completed, '隐藏任务完成')
+  await waitFor(
+    async () => (await tasks()).find((x) => x.id === multi.id)?.completed,
+    '隐藏任务完成'
+  )
   assert.equal(
     await js(note, `document.querySelector('.note-task-summary').getAttribute('aria-label')`),
     '在主界面打开任务，已完成0项，共0项',
@@ -273,5 +347,45 @@ export async function noteArchiveSmoke({
   await capture(note, 'note-archive.png')
   await js(main, `window.myTodo.openWindow('main', 'settings')`)
   await waitFor(() => js(main, `!document.querySelector('.settings-page').hidden`), '设置截图就绪')
+  assert.equal(
+    await js(
+      main,
+      `document.querySelector('.workbench-header').textContent.includes('系统与桌面便签偏好')`
+    ),
+    false
+  )
+  const defaultPaint = await themePaint()
+  await click(main, '[aria-label="鸢紫主题"]')
+  await waitFor(
+    async () => (await state(note)).settings.themeColor === '#7955b3',
+    '预设主题跨窗口同步'
+  )
+  const purplePaint = await themePaint()
+  for (const key of ['border', 'hover', 'focus', 'noteButtonHover'])
+    assert.notEqual(purplePaint[key], defaultPaint[key], `${key}跟随预设主题色`)
+  await input(main, '[aria-label="主题色十六进制值"]', '#467a63', null)
+  await click(main, '[data-testid=theme-apply]')
+  await waitFor(
+    async () => (await state(note)).settings.themeColor === '#467a63',
+    '保存自定义主题色'
+  )
+  for (const window of [main, note]) {
+    await waitFor(
+      () =>
+        js(window, `document.documentElement.style.getPropertyValue('--app-accent') === '#467a63'`),
+      '窗口应用自定义主题'
+    )
+  }
+  const customPaint = await themePaint()
+  for (const key of ['border', 'hover', 'focus', 'noteButtonHover'])
+    assert.notEqual(customPaint[key], purplePaint[key], `${key}跟随自定义主题色`)
+  assert.equal(
+    await js(
+      main,
+      `(async () => { const current = (await window.myTodo.getWindowState()).data; return (await window.myTodo.updateSettings({ ...current.settings, themeColor: 'invalid' })).ok })()`
+    ),
+    false,
+    '拒绝无效主题颜色'
+  )
   await capture(main, 'note-settings.png')
 }

@@ -1,3 +1,19 @@
+import { MoreHorizontal, Sun } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator
+} from '../../components/ui/dropdown-menu'
+import { AppIcon, TaskActionIcon } from '../../components/AppIcon'
+import { SummaryRing } from '../../components/SummaryRing'
+import { TaskCheck } from '../../components/TaskCheck'
+import { Button } from '../../components/ui/button'
+import { Textarea } from '../../components/ui/textarea'
+import { ClearableInput } from '../../components/ui/clearable-input'
+import { useSummaryMotion } from '../shared/useSummaryMotion'
+import { ComposerToggle, InlineComposer } from '../shared/InlineComposer'
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { DesktopState, MainPage, WindowKind, Task } from '../../../../shared/contracts'
@@ -14,134 +30,10 @@ import { taskSummary as summarizeTasks } from './taskSummary'
 
 const INSPIRATION_GOAL = 5
 
-function NavIcon({
-  name,
-  lit = false
-}: {
-  name: 'task' | 'habit' | 'inspiration' | 'settings' | 'note' | 'add'
-  lit?: boolean
-}) {
-  const paths = {
-    add: <path d="M10 4v12M4 10h12" />,
-    task: (
-      <>
-        <rect x="3.5" y="4" width="13" height="13" rx="3" />
-        <path d="m7 10 2 2 4-4" />
-      </>
-    ),
-    habit: (
-      <>
-        <path d="M15.5 7A6 6 0 0 0 5 6L3.5 8M4.5 13A6 6 0 0 0 15 14l1.5-2" />
-        <path d="M3.5 4.5V8H7M16.5 15.5V12H13" />
-      </>
-    ),
-    inspiration: (
-      <>
-        <path
-          d="M7 14c0-1.6-2.5-2.7-2.5-5a5.5 5.5 0 0 1 11 0c0 2.3-2.5 3.4-2.5 5Z"
-          fill={lit ? '#f4ca55' : 'none'}
-        />
-        <path d="M8 17h4" />
-        {lit && <path d="M10 0.5v1M1 8h1m16 0h1M2.5 2.5l1 1m13-1-1 1" />}
-      </>
-    ),
-    settings: (
-      <>
-        <circle cx="10" cy="10" r="3" />
-        <path d="M10 2.5v1.2M10 16.3v1.2M2.5 10h1.2M16.3 10h1.2M4.7 4.7l.9.9m8.8 8.8.9.9m0-10.6-.9.9m-8.8 8.8-.9.9" />
-      </>
-    ),
-    note: (
-      <>
-        <rect x="4" y="3.5" width="12" height="13" rx="2" />
-        <path d="M7 7h6M7 10h6M7 13h3" />
-      </>
-    )
-  }
-  return (
-    <svg
-      className="nav-icon"
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {paths[name]}
-    </svg>
-  )
-}
-
-function TaskActionIcon({
-  name
-}: {
-  name: 'convert' | 'habit' | 'schedule' | 'pin' | 'unpin' | 'delete' | 'restore'
-}) {
-  const paths = {
-    convert: 'M5 5 15 15M5 15h10V5',
-    habit: 'M15.2 7A6 6 0 1 0 16 12M15.2 3.5V7h-3.5',
-    schedule: 'M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0ZM10 6v4l3 2',
-    pin: 'M4 4h12M10 16V7m-4 4 4-4 4 4',
-    unpin: 'M4 16h12M10 4v9m-4-4 4 4 4-4',
-    delete: 'M5 5l10 10M15 5 5 15',
-    restore: 'M7 4 3 8l4 4M3 8h8a5 5 0 0 1 0 10'
-  }
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d={paths[name]} />
-    </svg>
-  )
-}
-
 function focusTaskEditor(element: HTMLTextAreaElement | null) {
   if (!element) return
   element.focus({ preventScroll: true })
   element.setSelectionRange(element.value.length, element.value.length)
-}
-
-function useSummaryMotion(count: number | undefined, shrinkOnDecrease = false) {
-  const element = useRef<HTMLButtonElement>(null)
-  const previousCount = useRef(count)
-  const animation = useRef<Animation | null>(null)
-  useEffect(() => () => animation.current?.cancel(), [])
-  useEffect(() => {
-    const previous = previousCount.current
-    previousCount.current = count
-    if (
-      count === undefined ||
-      previous === undefined ||
-      count === previous ||
-      (count < previous && !shrinkOnDecrease)
-    )
-      return
-    const target = element.current
-    if (!target) return
-    const growing = count > previous
-    const transform = getComputedStyle(target).transform
-    animation.current?.cancel()
-    animation.current = target.animate(
-      [
-        { transform: transform === 'none' ? 'scale(1)' : transform },
-        { transform: `scale(${growing ? 1.18 : 0.82})`, offset: 0.38 },
-        { transform: `scale(${growing ? 0.98 : 1.02})`, offset: 0.72 },
-        { transform: 'scale(1)' }
-      ],
-      { duration: 420, easing: 'ease-out' }
-    )
-  }, [count, shrinkOnDecrease])
-  return element
 }
 
 export function TasksPage({
@@ -176,6 +68,9 @@ export function TasksPage({
   } = tasks
   const [page, setPage] = useState<MainPage>('task')
   const [adding, setAdding] = useState(false)
+  const [taskComposerOpen, setTaskComposerOpen] = useState(false)
+  const [habitComposerOpen, setHabitComposerOpen] = useState(false)
+  const mainTaskInput = useRef<HTMLTextAreaElement>(null)
   const [expandedNoteGroups, setExpandedNoteGroups] = useState({ today: true, 'multi-day': false })
   const [archiveExpanded, setArchiveExpanded] = useState(false)
   const [draggingTask, setDraggingTask] = useState<Task | null>(null)
@@ -381,14 +276,18 @@ export function TasksPage({
       setError('')
     }
     return (
-      <section className="workbench" hidden={hidden}>
+      <section className={`workbench page-${page}`} hidden={hidden}>
         <aside className="workbench-sidebar">
           <div className="workbench-brand">
-            <span className="brand-mark">✓</span>
-            <strong>myTodo</strong>
+            <span className="brand-mark">
+              <AppIcon name="task" />
+            </span>
+            <div>
+              <strong>myTodo</strong>
+              <small>个人工作台</small>
+            </div>
           </div>
           <nav className="workbench-nav" aria-label="主导航">
-            <strong className="space-label">我的空间</strong>
             {(
               [
                 ['task', '任务'],
@@ -398,12 +297,14 @@ export function TasksPage({
             ).map(([id, label]) => (
               <button
                 key={id}
+                className={`nav-category-${id}`}
                 aria-label={label}
                 aria-current={page === id ? 'page' : undefined}
                 onClick={() => void navigate(id)}
               >
-                <NavIcon name={id} />
+                <AppIcon name={id} />
                 <span>{label}</span>
+                {id === 'task' && <span className="nav-count">{total - completed}</span>}
               </button>
             ))}
             <button
@@ -413,7 +314,7 @@ export function TasksPage({
               aria-current={page === 'settings' ? 'page' : undefined}
               onClick={() => void navigate('settings')}
             >
-              <NavIcon name="settings" />
+              <AppIcon name="settings" />
               <span>设置</span>
             </button>
             <button
@@ -421,73 +322,58 @@ export function TasksPage({
               aria-label="打开桌面便签"
               onClick={() => void openOther()}
             >
-              <NavIcon name="note" />
+              <AppIcon name="note" />
               <span>桌面便签</span>
               <span className="nav-arrow">↗</span>
             </button>
           </nav>
         </aside>
-        <main className="workbench-main">
+        <main
+          className={`workbench-main ${page === 'inspiration' ? 'workbench-main-inspiration' : ''}`}
+        >
           <header className="workbench-header">
             <div>
-              {page === 'task' && <p className="workbench-date">{today?.date}</p>}
+              <p className="workbench-date">
+                {page === 'task' && today
+                  ? new Date(`${today.date}T12:00:00`).toLocaleDateString('zh-CN', {
+                      month: 'long',
+                      day: 'numeric',
+                      weekday: 'long'
+                    })
+                  : {
+                      habit: '管理每天自动生成的任务',
+                      inspiration: '',
+                      settings: '',
+                      task: '今天'
+                    }[page]}
+              </p>
               <h1>
                 {{ task: '今天', habit: '习惯', inspiration: '灵感', settings: '设置' }[page]}
               </h1>
             </div>
-            {page !== 'settings' && page !== 'inspiration' && (
-              <button
-                className="primary-button"
-                onClick={() => {
-                  setAdding(true)
-                  setNewKind('task')
-                }}
-              >
-                ＋ 新增{{ task: '任务', habit: '习惯', inspiration: '灵感' }[page]}
-              </button>
-            )}
+            <div className="workbench-header-actions">
+              {page === 'task' && (
+                <span className="workbench-completion">
+                  <strong>{completed}</strong> / {total} 已完成
+                </span>
+              )}
+              {page !== 'settings' && page !== 'inspiration' && (
+                <ComposerToggle
+                  className="primary-button workbench-add"
+                  label={page === 'habit' ? '新增习惯' : '新增任务'}
+                  expanded={page === 'habit' ? habitComposerOpen : taskComposerOpen}
+                  onClick={() => {
+                    if (page === 'habit') setHabitComposerOpen(!habitComposerOpen)
+                    else {
+                      setTaskComposerOpen(!taskComposerOpen)
+                      if (!taskComposerOpen)
+                        requestAnimationFrame(() => mainTaskInput.current?.focus())
+                    }
+                  }}
+                />
+              )}
+            </div>
           </header>
-          {page === 'task' && adding && (
-            <form
-              className="workbench-add"
-              onSubmit={async (event) => {
-                event.preventDefault()
-                if (await added.submit()) setAdding(false)
-              }}
-            >
-              <input
-                autoFocus
-                data-testid="task-new"
-                aria-label={newKind === 'task' ? '新增任务描述' : '新增灵感'}
-                placeholder={newKind === 'task' ? '添加一个今天要做的事…' : '记下一个想法'}
-                value={added.value}
-                onChange={(event) => added.setValue(event.target.value)}
-                onCompositionStart={() => {
-                  added.composing.current = true
-                }}
-                onCompositionEnd={added.endComposition}
-                onKeyDown={(event) => {
-                  if (
-                    event.key === 'Enter' &&
-                    (event.nativeEvent.isComposing || event.keyCode === 229)
-                  )
-                    event.preventDefault()
-                }}
-              />
-              <button type="submit">保存</button>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (newKind === 'task') await taskAdded.cancel()
-                  else inspirationAdded.start()
-                  setAdding(false)
-                  setError('')
-                }}
-              >
-                取消
-              </button>
-            </form>
-          )}
           {error && (
             <p className="task-error" role="alert">
               {error}
@@ -498,23 +384,38 @@ export function TasksPage({
             hidden={page !== 'task'}
           >
             <div className="workbench-list" aria-label="任务">
-              <button
-                className="quick-add"
-                onClick={async () => {
-                  if (newKind !== 'task' && !(await added.save())) return
-                  setNewKind('task')
-                  setAdding(true)
+              <InlineComposer
+                ref={mainTaskInput}
+                expanded={taskComposerOpen}
+                data-testid="task-new"
+                aria-label="新增任务描述"
+                placeholder="添加一个今天要做的事…"
+                value={taskAdded.value}
+                onValueChange={taskAdded.setValue}
+                onSubmit={taskAdded.submit}
+                submitLabel="添加任务"
+                saving={taskAdded.saving}
+                onCompositionStart={() => {
+                  taskAdded.composing.current = true
                 }}
-              >
-                <span>＋</span> 添加一个今天要做的事…
-              </button>
+                onCompositionEnd={taskAdded.endComposition}
+              />
               {today?.tasks.length === 0 && (
                 <div className="workbench-empty">
                   <span className="empty-icon" aria-hidden="true">
                     ✓
                   </span>
                   <strong>给今天留个开始</strong>
-                  <span>点击右上角，记下第一项任务</span>
+                  <span>在上方记下第一项任务，按回车添加</span>
+                </div>
+              )}
+              {Boolean(noteGroups.today.length) && (
+                <div className="task-section-heading">
+                  <span>今天任务</span>
+                  <span>
+                    {noteGroups.today.filter((task) => task.completed).length} /{' '}
+                    {noteGroups.today.length}
+                  </span>
                 </div>
               )}
               {today?.tasks.map((task, index) => (
@@ -525,10 +426,15 @@ export function TasksPage({
                   className={`task-row ${task.completed ? 'completed' : ''} ${task.kind === 'multi-day' && today.tasks[index - 1]?.kind !== 'multi-day' ? 'multi-day-start' : ''} ${selectedTask === task.id ? 'selected' : ''}`}
                 >
                   {task.kind === 'multi-day' && today.tasks[index - 1]?.kind !== 'multi-day' && (
-                    <span className="group-label">持续推进</span>
+                    <span className="group-label">
+                      持续推进
+                      <small>
+                        {noteGroups['multi-day'].filter((item) => item.completed).length} /{' '}
+                        {noteGroups['multi-day'].length}
+                      </small>
+                    </span>
                   )}
-                  <input
-                    type="checkbox"
+                  <TaskCheck
                     checked={task.completed}
                     disabled={busy}
                     aria-label={`完成：${task.description}`}
@@ -552,65 +458,93 @@ export function TasksPage({
                     >
                       {task.description}
                     </button>
+                    {task.habitId && (
+                      <p className="task-meta habit-source">
+                        <AppIcon name="habit" />
+                        来自习惯
+                      </p>
+                    )}
                     {task.kind === 'multi-day' && (
                       <p className="task-meta">
-                        进度 {task.progress}%
+                        <span className="task-mini-progress">
+                          <span style={{ width: `${task.progress}%` }} />
+                        </span>
+                        {task.progress}%
                         {task.subitems?.length
                           ? ` · 子事项 ${task.subitems.filter((item) => item.completed).length}／${task.subitems.length}`
                           : ''}
                       </p>
                     )}
                   </div>
-                  <details
-                    className="task-more"
-                    onKeyDown={(event) => {
-                      if (event.key === 'Escape') {
-                        event.currentTarget.open = false
-                        event.currentTarget.querySelector('summary')?.focus()
-                      }
-                    }}
-                    onClick={(event) => {
-                      if ((event.target as Element).closest('.task-menu button'))
-                        event.currentTarget.open = false
-                    }}
-                  >
-                    <summary aria-label={`更多操作：${task.description}`} title="更多操作">
-                      •••
-                    </summary>
-                    <div className="task-menu">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="task-more"
+                        disabled={busy}
+                        aria-label={`更多操作：${task.description}`}
+                        title="更多操作"
+                      >
+                        <MoreHorizontal />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="task-actions-menu">
                       {task.kind === 'today' && !task.habitId && (
-                        <button
-                          data-testid="task-convert"
-                          onClick={async () => {
-                            if (await flush.current()) await convert(task.id)
-                          }}
-                        >
-                          转为多天任务
-                        </button>
+                        <>
+                          <DropdownMenuItem
+                            data-testid="task-convert"
+                            onSelect={() => {
+                              void (async () => {
+                                if (await flush.current()) await convert(task.id)
+                              })()
+                            }}
+                          >
+                            <TaskActionIcon name="convert" />
+                            转为多天任务
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            data-testid="task-to-habit"
+                            onSelect={() => {
+                              void (async () => {
+                                if (await flush.current()) await addHabit(task.id)
+                              })()
+                            }}
+                          >
+                            <TaskActionIcon name="habit" />
+                            添加为习惯
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                        </>
                       )}
-                      {task.kind === 'today' && !task.habitId && (
-                        <button
-                          data-testid="task-to-habit"
-                          onClick={async () => {
-                            if (await flush.current()) await addHabit(task.id)
-                          }}
-                        >
-                          添加为习惯
-                        </button>
-                      )}
-                      <button
-                        data-testid="task-delete"
-                        onClick={async () => {
-                          if (await flush.current()) {
-                            if (task.habitId) await skipHabit(task.id)
-                            else await remove(task.id)
-                          }
+                      <DropdownMenuItem
+                        onSelect={() => {
+                          void (async () => {
+                            if (await flush.current()) await pin(task)
+                          })()
                         }}
                       >
+                        <TaskActionIcon name={task.pinned ? 'unpin' : 'pin'} />
+                        {task.pinned ? '取消置顶' : '置顶任务'}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        data-testid="task-delete"
+                        variant="destructive"
+                        onSelect={() => {
+                          void (async () => {
+                            if (await flush.current()) {
+                              if (task.habitId) await skipHabit(task.id)
+                              else await remove(task.id)
+                            }
+                          })()
+                        }}
+                      >
+                        <TaskActionIcon name={task.habitId ? 'schedule' : 'delete'} />
                         {task.habitId ? '暂停一次' : '删除任务'}
-                      </button>
-                    </div>
-                  </details>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               ))}
             </div>
@@ -627,7 +561,7 @@ export function TasksPage({
                 <h2>任务详情</h2>
                 <label className="detail-label">任务描述</label>
                 {editing === selected.id ? (
-                  <textarea
+                  <Textarea
                     data-testid="task-edit"
                     aria-label="编辑任务描述"
                     value={edited.value}
@@ -677,11 +611,11 @@ export function TasksPage({
           <div hidden={page !== 'habit'}>
             <HabitsPanel
               onSaveReady={onHabitSaveReady}
-              showAdd={adding}
-              onAddDone={() => setAdding(false)}
+              composerOpen={habitComposerOpen}
+              onComposerOpenChange={setHabitComposerOpen}
             />
           </div>
-          <div hidden={page !== 'inspiration'}>
+          <div className="workbench-inspiration-page" hidden={page !== 'inspiration'}>
             <InspirationPanel
               ref={inspirationPanel}
               report={setError}
@@ -689,11 +623,7 @@ export function TasksPage({
               workbench
             />
           </div>
-          <SettingsPage
-            state={desktop}
-            close={() => void navigate('task')}
-            hidden={page !== 'settings'}
-          />
+          <SettingsPage state={desktop} hidden={page !== 'settings'} />
         </main>
       </section>
     )
@@ -797,11 +727,12 @@ export function TasksPage({
       </header>
 
       <div className="task-list" aria-label="任务">
-        {today?.tasks.length === 0 && (
+        {today && total === 0 && (
           <div className="task-empty">
-            <span aria-hidden="true">☀</span>
+            <span aria-hidden="true">
+              <Sun size={32} strokeWidth={1.4} />
+            </span>
             <p>今天，留一点空间。</p>
-            <small>在下方记下第一项任务</small>
           </div>
         )}
         {(['today', 'multi-day'] as const).map((group) => (
@@ -809,7 +740,7 @@ export function TasksPage({
             <button
               type="button"
               className="note-group-heading"
-              hidden={group === 'multi-day' && !showMultiDay}
+              hidden={total === 0 || (group === 'multi-day' && !showMultiDay)}
               data-note-group={group}
               title={group === 'today' ? '今天需要完成' : '要花几天完成'}
               aria-expanded={expandedNoteGroups[group]}
@@ -898,8 +829,7 @@ export function TasksPage({
                   setDropTarget(null)
                 }}
               >
-                <input
-                  type="checkbox"
+                <TaskCheck
                   checked={task.completed}
                   disabled={busy}
                   aria-label={`完成：${task.description}`}
@@ -988,20 +918,6 @@ export function TasksPage({
                     {task.kind === 'today' && !task.habitId && (
                       <button
                         className="task-convert"
-                        data-testid="task-convert"
-                        title="转为多天任务"
-                        disabled={busy}
-                        aria-label={`转为多天任务：${task.description}`}
-                        onClick={async () => {
-                          if (await flush.current()) await convert(task.id)
-                        }}
-                      >
-                        <TaskActionIcon name="convert" />
-                      </button>
-                    )}
-                    {task.kind === 'today' && !task.habitId && (
-                      <button
-                        className="task-convert"
                         data-testid="task-to-habit"
                         title="添加为习惯"
                         disabled={busy}
@@ -1062,6 +978,7 @@ export function TasksPage({
           type="button"
           className="note-group-heading"
           data-note-group="archived"
+          hidden={total === 0 && archived.length === 0}
           aria-expanded={archiveExpanded}
           onClick={() => setArchiveExpanded((expanded) => !expanded)}
         >
@@ -1155,14 +1072,14 @@ export function TasksPage({
                     }
                   }}
                 >
-                  <NavIcon
+                  <AppIcon
                     name={value}
                     lit={value === 'inspiration' && newKind === 'inspiration'}
                   />
                 </button>
               ))}
             </div>
-            <input
+            <ClearableInput
               data-testid="task-new"
               aria-label={newKind === 'task' ? '新增任务描述' : '新增灵感'}
               placeholder={newKind === 'task' ? '写下任务…' : '写下灵感…'}
@@ -1172,6 +1089,7 @@ export function TasksPage({
               tabIndex={adding ? 0 : -1}
               inert={!adding}
               value={added.value}
+              onClear={() => added.setValue('')}
               disabled={!today}
               onChange={(event) => added.setValue(event.target.value)}
               onCompositionStart={() => {
@@ -1201,7 +1119,7 @@ export function TasksPage({
                 requestAnimationFrame(() => noteInput.current?.focus())
               }}
             >
-              <NavIcon name="add" />
+              <AppIcon name="add" />
             </button>
           </div>
         </form>
@@ -1214,22 +1132,7 @@ export function TasksPage({
           aria-label={`在主界面打开任务，已完成${completed}项，共${total}项`}
           onClick={() => void openMainPage('task')}
         >
-          <svg className="note-progress-ring" viewBox="0 0 36 36" aria-hidden="true">
-            <circle className="note-progress-track" cx="18" cy="18" r="16.5" />
-            <circle
-              className="note-progress-value"
-              cx="18"
-              cy="18"
-              r="16.5"
-              pathLength="100"
-              strokeDasharray={`${total ? (completed / total) * 100 : 0} 100`}
-            />
-          </svg>
-          <span className="note-progress-count">
-            <strong>{completed}</strong>
-            <span>/</span>
-            <span>{total}</span>
-          </span>
+          <SummaryRing value={completed} total={total} />
         </button>
         <button
           type="button"
@@ -1240,18 +1143,7 @@ export function TasksPage({
           aria-label={`今天的灵感，共${inspirationCount}条，目标${INSPIRATION_GOAL}条`}
           onClick={() => void openMainPage('inspiration')}
         >
-          <svg className="note-progress-ring" viewBox="0 0 36 36" aria-hidden="true">
-            <circle className="note-inspiration-track" cx="18" cy="18" r="16" />
-            <circle
-              className="note-progress-value note-inspiration-value"
-              cx="18"
-              cy="18"
-              r="16"
-              pathLength="100"
-              strokeDasharray={`${Math.min(inspirationCount / INSPIRATION_GOAL, 1) * 100} 100`}
-            />
-          </svg>
-          <span className="note-inspiration-count">{inspirationCount}</span>
+          <SummaryRing value={inspirationCount} total={INSPIRATION_GOAL} inspiration />
         </button>
       </div>
       <footer className="task-footer" role="status">
