@@ -651,6 +651,15 @@ h1 {
   margin: 24px 0 8px;
   color: #6a7588;
   font-size: 13px;
+  font-weight: 600;
+}
+.settings-group + .settings-group {
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid #d6deeb;
+}
+.settings-group .setting-row:last-child {
+  border-bottom: 0;
 }
 .setting-row {
   display: flex;
@@ -1770,6 +1779,42 @@ h1 {
 }
 .note-group-heading:hover {
   color: #526fc4;
+}
+.note-group-heading[hidden] {
+  display: none;
+}
+.note-archive-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 3px 2px;
+  border-bottom: 1px solid #e5eaf1;
+}
+.note-archive-description {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #6a7588;
+  font-size: 13px;
+}
+.note-archive-actions {
+  display: flex;
+  align-items: center;
+}
+.note-archive-delete {
+  visibility: hidden;
+}
+.note-archive-row:hover .note-archive-delete,
+.note-archive-actions:focus-within .note-archive-delete {
+  visibility: visible;
+}
+@media (hover: none) {
+  .note-archive-delete {
+    visibility: visible;
+  }
 }
 .note-group-count {
   font-variant-numeric: tabular-nums;

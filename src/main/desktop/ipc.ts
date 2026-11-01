@@ -66,15 +66,18 @@ export function registerIpc(handlers: Handlers): () => void {
       !('defaultAlwaysOnTop' in settings) ||
       !('edgeAutoHide' in settings) ||
       !('launchAtLogin' in settings) ||
+      !('showMultiDay' in settings) ||
+      typeof settings.showMultiDay !== 'boolean' ||
       typeof settings.launchAtLogin !== 'boolean' ||
       typeof settings.defaultAlwaysOnTop !== 'boolean' ||
       typeof settings.edgeAutoHide !== 'boolean'
     )
       throw new Error('窗口设置无效。')
-    handlers.desktop.updateSettings({
+    return handlers.desktop.updateSettings({
       launchAtLogin: settings.launchAtLogin,
       defaultAlwaysOnTop: settings.defaultAlwaysOnTop,
-      edgeAutoHide: settings.edgeAutoHide
+      edgeAutoHide: settings.edgeAutoHide,
+      showMultiDay: settings.showMultiDay
     })
   })
   register(IPC_CHANNELS.toggleNotePin, (window) => handlers.desktop.togglePin(window))
@@ -128,6 +131,33 @@ export function registerIpc(handlers: Handlers): () => void {
     return true
   })
   register(IPC_CHANNELS.listToday, () => handlers.service.listToday())
+  register(IPC_CHANNELS.listArchivedTasks, () => handlers.service.listArchivedTasks())
+  register(IPC_CHANNELS.archiveTask, (_, id) =>
+    mutate(() => handlers.service.archiveTask(text(id)))
+  )
+  register(IPC_CHANNELS.restoreTask, (_, id) =>
+    mutate(() => handlers.service.restoreTask(text(id)))
+  )
+  register(IPC_CHANNELS.deleteArchivedTask, async (window, id) => {
+    const taskId = text(id)
+    const task = handlers.service.listArchivedTasks().find((item) => item.id === taskId)
+    if (!task) throw new Error('归档任务不存在，可能已恢复或删除。')
+    const result = await handlers.desktop.protect(() =>
+      dialog.showMessageBox(window, {
+        type: 'question',
+        title: '删除归档任务',
+        message: '永久删除这项任务？',
+        detail: task.description,
+        buttons: ['取消', '删除'],
+        defaultId: 0,
+        cancelId: 0,
+        noLink: true
+      })
+    )
+    if (result.response !== 1) return false
+    mutate(() => handlers.service.deleteArchivedTask(taskId))
+    return true
+  })
   register(IPC_CHANNELS.listInspirationTopics, () => handlers.service.listInspirationTopics())
   register(IPC_CHANNELS.createInspirationTopic, (_, name, id) =>
     mutate(() =>

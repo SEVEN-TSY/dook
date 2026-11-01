@@ -4,6 +4,7 @@ import { getDesktopApi, unwrap } from '../../platform/desktop'
 
 export function useTasks() {
   const [today, setToday] = useState<TodayTasks | null>(null)
+  const [archived, setArchived] = useState<Task[]>([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const pending = useRef(false)
@@ -11,8 +12,16 @@ export function useTasks() {
   const refresh = useCallback(async () => {
     const request = ++generation.current
     try {
-      const result = unwrap(await getDesktopApi().listToday())
-      if (request === generation.current) setToday(result)
+      const [result, archiveResult] = await Promise.all([
+        getDesktopApi().listToday(),
+        getDesktopApi().listArchivedTasks()
+      ])
+      const nextToday = unwrap(result)
+      const nextArchived = unwrap(archiveResult)
+      if (request === generation.current) {
+        setToday(nextToday)
+        setArchived(nextArchived)
+      }
     } catch (error) {
       if (request === generation.current)
         setError(error instanceof Error ? error.message : '读取任务失败。')
@@ -58,6 +67,7 @@ export function useTasks() {
   }
   return {
     today,
+    archived,
     error,
     busy,
     setError,
@@ -82,6 +92,10 @@ export function useTasks() {
       }
     },
     skipHabit: (id: string) => run(async () => unwrap(await getDesktopApi().skipHabitTask(id))),
+    archive: (id: string) => run(async () => unwrap(await getDesktopApi().archiveTask(id))),
+    restore: (id: string) => run(async () => unwrap(await getDesktopApi().restoreTask(id))),
+    deleteArchived: (id: string) =>
+      run(async () => unwrap(await getDesktopApi().deleteArchivedTask(id))),
     remove: (id: string) => run(async () => unwrap(await getDesktopApi().deleteTask(id)))
   }
 }

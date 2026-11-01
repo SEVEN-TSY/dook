@@ -2,6 +2,10 @@ import type { Task, Subitem } from '../../shared/contracts'
 
 export interface TaskStore {
   list(date: string): Task[]
+  listArchived(): Task[]
+  archive(id: string, date: string, archivedAt: string): void
+  restore(id: string, date: string): Task
+  deleteArchived(id: string): void
   get(id: string, date: string): Task
   create(description: string, date: string): Task
   update(id: string, date: string, change: TaskChange): Task

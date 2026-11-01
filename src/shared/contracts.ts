@@ -65,6 +65,10 @@ export interface DesktopApi {
   updateHabit: (id: string, description: string) => Promise<ApiResult<Habit>>
   deleteHabit: (id: string) => Promise<ApiResult<boolean>>
   listToday: () => Promise<ApiResult<TodayTasks>>
+  listArchivedTasks: () => Promise<ApiResult<Task[]>>
+  archiveTask: (id: string) => Promise<ApiResult<void>>
+  restoreTask: (id: string) => Promise<ApiResult<Task>>
+  deleteArchivedTask: (id: string) => Promise<ApiResult<boolean>>
   archiveInspiration: (id: string) => Promise<ApiResult<void>>
   restoreInspiration: (id: string) => Promise<ApiResult<void>>
   deleteArchivedInspiration: (id: string) => Promise<ApiResult<boolean>>
@@ -125,6 +129,7 @@ export interface WindowSettings {
   launchAtLogin: boolean
   defaultAlwaysOnTop: boolean
   edgeAutoHide: boolean
+  showMultiDay: boolean
 }
 export type MainPage = 'task' | 'habit' | 'inspiration' | 'settings'
 

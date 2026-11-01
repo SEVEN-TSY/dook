@@ -28,7 +28,7 @@ export class HabitRepository implements HabitStore {
     return this.transaction(() => {
       const task = this.database
         .prepare(
-          "SELECT description, habit_id FROM tasks WHERE id = ? AND date = ? AND kind = 'today'"
+          "SELECT description, habit_id FROM tasks WHERE id = ? AND date = ? AND kind = 'today' AND archived_at IS NULL"
         )
         .get(taskId, date)
       if (!task) throw new Error('今天任务不存在，可能已删除或日期已切换。')

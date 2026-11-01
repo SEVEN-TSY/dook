@@ -36,7 +36,7 @@
 - `renderer/src/features/tasks/NoteTransition.tsx`以独立共享表面完成胶囊与便签的FLIP投影、圆角校正及内容交接；动画完成后按版本向主进程握手，避免过早收缩原生窗口。
 - `renderer/src/features/tasks/useTaskInput.ts`串行协调同一轮输入的创建和更新，不阻塞继续输入；任务组件在设置页和收起状态保持挂载。
 - `renderer/src/features/shared/useSerialSave.ts`统一管理草稿串行保存、组合输入延后和失败保留；任务、灵感及子事项各自保留领域校验和持久化动作。
-- `renderer/src/features/settings/SettingsPage.tsx`提供开机自启、默认置顶及贴边自动隐藏设置。
+- `renderer/src/features/settings/SettingsPage.tsx`按系统偏好和便签偏好分组，提供开机自启、默认置顶、贴边自动隐藏及显示持续推进设置。隐藏持续推进前由桌面保存屏障提交便签草稿，失败时保持原设置。
 - `main/desktop/login-item.ts`通过Electron登录项API应用开机自启偏好，仅Windows安装版注册，开发及集成验证不注册临时程序。
 - `renderer/src/styles/global.css`定义两种布局的共同蓝白样式。
 
@@ -69,6 +69,9 @@
 - v8：习惯任务单次暂停日期；保留任务和生成记录，只从当天列表排除。
 - v9～v10：灵感记录时间及主题归集。
 - v11：灵感归档状态，旧记录默认保持普通状态。
+- v12：任务归档时间及排序索引，旧任务默认未归档。
+
+任务归档独立于完成和习惯暂停状态；日常任务查询及修改均排除归档任务。归档列表按归档时间、创建次序倒序展示，跨日及重启保留。恢复今天任务时归入当天，已完成多天任务的完成日期更新为当天，保留进度和子事项。永久删除级联清理子事项，桌面入口使用一次原生确认。习惯任务只提供暂停一次，不参与归档。
 
 日常列表先返回当天的今天任务，再返回未完成或当天完成的多天任务，各组置顶优先，再按手动顺序展示；尚未排序时保持创建顺序。多天任务完成次日起隐藏，历史数据不自动清理。无子事项时进度由用户调整；有子事项时进度由完成比例计算，整条勾选与子事项在事务中同步。
 
@@ -87,6 +90,8 @@
 | `updateTask(id, description)`                  | 编辑可见任务，拒绝空白                                 |
 | `setTaskCompleted(id, completed)`              | 完成或取消完成                                         |
 | `deleteTask(id)`                               | 原生确认后删除，返回是否删除                           |
+| `listArchivedTasks()` / `archiveTask(id)`        | 查询全部归档任务或直接归档普通任务                     |
+| `restoreTask(id)` / `deleteArchivedTask(id)`      | 恢复归档任务，或经原生确认永久删除                     |
 | `openWindow(kind, page?)`                             | 打开或唤出现有窗口，可定位主界面页面                   |
 | `onTasksChanged(listener)`                     | 订阅失效通知，返回取消订阅函数                         |
 | `getBootstrap()` / `runDiagnostics()`          | 保留基础设施诊断接口                                   |

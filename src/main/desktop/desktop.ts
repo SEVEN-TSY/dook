@@ -130,8 +130,13 @@ export class Desktop {
       if (!window.isDestroyed()) window.webContents.send(WINDOW_STATE, this.state())
   }
 
-  updateSettings(settings: Parameters<NoteController['updateSettings']>[0]) {
+  async updateSettings(settings: Parameters<NoteController['updateSettings']>[0]) {
     if (!this.note) throw new Error('桌面便签尚未就绪。')
+    const noteWindow = this.windows.get('note')
+    if (this.note.state().settings.showMultiDay && !settings.showMultiDay && noteWindow) {
+      if (!(await this.saves.flush(noteWindow)))
+        throw new Error('请先保存便签中的输入，再隐藏持续推进。')
+    }
     const previous = this.note.state().settings.launchAtLogin
     if (settings.launchAtLogin !== previous) this.setLaunchAtLogin(settings.launchAtLogin)
     try {

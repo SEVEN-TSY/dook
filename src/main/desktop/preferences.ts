@@ -10,7 +10,12 @@ export interface DesktopPreferences {
 
 export function readPreferences(directory: string): DesktopPreferences {
   const defaults: DesktopPreferences = {
-    settings: { launchAtLogin: true, defaultAlwaysOnTop: true, edgeAutoHide: true },
+    settings: {
+      launchAtLogin: true,
+      defaultAlwaysOnTop: true,
+      edgeAutoHide: true,
+      showMultiDay: true
+    },
     edge: null
   }
   try {
@@ -21,6 +26,8 @@ export function readPreferences(directory: string): DesktopPreferences {
       defaults.settings.defaultAlwaysOnTop = saved.settings.defaultAlwaysOnTop
     if (typeof saved.settings?.edgeAutoHide === 'boolean')
       defaults.settings.edgeAutoHide = saved.settings.edgeAutoHide
+    if (typeof saved.settings?.showMultiDay === 'boolean')
+      defaults.settings.showMultiDay = saved.settings.showMultiDay
     if (['left', 'right', 'top'].includes(saved.edge)) defaults.edge = saved.edge
     if (Number.isInteger(saved.position?.x) && Number.isInteger(saved.position?.y))
       defaults.position = saved.position

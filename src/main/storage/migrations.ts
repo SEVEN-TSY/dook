@@ -116,5 +116,11 @@ export const migrations = [
     version: 11,
     name: 'inspiration_archive',
     sql: `ALTER TABLE inspirations ADD COLUMN archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0, 1));`
+  },
+  {
+    version: 12,
+    name: 'task_archive',
+    sql: `ALTER TABLE tasks ADD COLUMN archived_at TEXT;
+      CREATE INDEX tasks_archive_order ON tasks(archived_at DESC, sequence DESC);`
   }
 ] as const

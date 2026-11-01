@@ -18,7 +18,8 @@ test('首次使用和旧配置默认开机自启，关闭后重启保留选择',
     assert.deepEqual(preferences.settings, {
       launchAtLogin: true,
       defaultAlwaysOnTop: false,
-      edgeAutoHide: false
+      edgeAutoHide: false,
+      showMultiDay: true
     })
     preferences.settings.launchAtLogin = false
     writePreferences(directory, preferences)
@@ -44,4 +45,29 @@ test('Windows安装版将开启和关闭选择传给系统，开发版和其他�
     { openAtLogin: true, enabled: true },
     { openAtLogin: false, enabled: false }
   ])
+})
+
+test('持续推进默认显示，旧配置兼容且关闭后保存重读保留选择', () => {
+  const directory = mkdtempSync(resolve(tmpdir(), 'mytodo-sections-'))
+  try {
+    assert.equal(readPreferences(directory).settings.showMultiDay, true)
+    writeFileSync(
+      resolve(directory, 'desktop-settings.json'),
+      JSON.stringify({
+        settings: { launchAtLogin: false, defaultAlwaysOnTop: false, edgeAutoHide: true }
+      })
+    )
+    const preferences = readPreferences(directory)
+    assert.equal(preferences.settings.showMultiDay, true)
+    preferences.settings.showMultiDay = false
+    writePreferences(directory, preferences)
+    assert.deepEqual(readPreferences(directory).settings, {
+      launchAtLogin: false,
+      defaultAlwaysOnTop: false,
+      edgeAutoHide: true,
+      showMultiDay: false
+    })
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
 })

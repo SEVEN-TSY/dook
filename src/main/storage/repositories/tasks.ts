@@ -3,8 +3,8 @@ import type { DatabaseSync, SQLOutputValue } from 'node:sqlite'
 import type { Task, Subitem } from '../../../shared/contracts'
 import type { TaskStore, TaskChange } from '../../core/tasks'
 
-const visible = `(kind = 'today' AND date = ? AND skipped_on IS NULL) OR
-  (kind = 'multi-day' AND (completed = 0 OR completed_on = ?))`
+const visible = `archived_at IS NULL AND ((kind = 'today' AND date = ? AND skipped_on IS NULL) OR
+  (kind = 'multi-day' AND (completed = 0 OR completed_on = ?)))`
 const fields = 'id, description, date, completed, kind, progress, completed_on, habit_id, pinned'
 const taskFromRow = (row: Record<string, SQLOutputValue>): Task => ({
   ...(row.pinned === 1 ? { pinned: true } : {}),
@@ -94,6 +94,44 @@ export class TaskRepository implements TaskStore {
       )
       .all(date, date)
       .map((row) => this.taskWithSubitems(row))
+  }
+
+  listArchived(): Task[] {
+    return this.database
+      .prepare(
+        `SELECT ${fields} FROM tasks WHERE archived_at IS NOT NULL ORDER BY archived_at DESC, sequence DESC`
+      )
+      .all()
+      .map((row) => this.taskWithSubitems(row))
+  }
+
+  archive(id: string, date: string, archivedAt: string): void {
+    const result = this.database
+      .prepare(
+        `UPDATE tasks SET archived_at = ? WHERE id = ? AND habit_id IS NULL AND (${visible})`
+      )
+      .run(archivedAt, id, date, date)
+    if (!result.changes) throw new Error('任务不存在，可能已归档或日期已切换。')
+  }
+
+  restore(id: string, date: string): Task {
+    const row = this.database
+      .prepare(
+        `UPDATE tasks SET archived_at = NULL,
+      date = CASE WHEN kind = 'today' THEN ? ELSE date END,
+      completed_on = CASE WHEN kind = 'multi-day' AND completed = 1 THEN ? ELSE completed_on END
+      WHERE id = ? AND archived_at IS NOT NULL RETURNING ${fields}`
+      )
+      .get(date, date, id)
+    if (!row) throw new Error('归档任务不存在，可能已恢复或删除。')
+    return this.taskWithSubitems(row)
+  }
+
+  deleteArchived(id: string): void {
+    const result = this.database
+      .prepare('DELETE FROM tasks WHERE id = ? AND archived_at IS NOT NULL')
+      .run(id)
+    if (!result.changes) throw new Error('归档任务不存在，可能已恢复或删除。')
   }
 
   get(id: string, date: string): Task {

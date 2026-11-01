@@ -164,6 +164,27 @@ export class AppService {
     return { date, tasks: this.taskStore().list(date) }
   }
 
+  listArchivedTasks(): Task[] {
+    return this.taskStore().listArchived()
+  }
+
+  archiveTask(id: string): void {
+    const now = this.now()
+    const date = localDate(now)
+    const store = this.taskStore()
+    const task = store.get(this.taskId(id), date)
+    if (task.habitId) throw new Error('习惯任务请使用暂停一次。')
+    store.archive(task.id, date, now.toISOString())
+  }
+
+  restoreTask(id: string): Task {
+    return this.taskStore().restore(this.taskId(id), localDate(this.now()))
+  }
+
+  deleteArchivedTask(id: string): void {
+    this.taskStore().deleteArchived(this.taskId(id))
+  }
+
   createTask(description: string, expectedDate?: string): Task {
     if (typeof description !== 'string' || !description.trim())
       throw new Error('任务描述不能为空。')

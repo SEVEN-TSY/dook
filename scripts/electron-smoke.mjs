@@ -1,4 +1,5 @@
 import { subitemsSmoke } from './subitems-smoke.mjs'
+import { noteArchiveSmoke } from './note-archive-smoke.mjs'
 import { habitsSmoke } from './smoke-habits.mjs'
 import { app, BrowserWindow, dialog, Tray, screen } from 'electron'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -776,6 +777,25 @@ async function runSmoke() {
     menuClick('打开主界面')
     let main = await waitFor(() => findWindow('main'), '托盘打开主界面')
     assert.ok(main && note)
+    if (phase.startsWith('note-archive-')) {
+      await noteArchiveSmoke({
+        phase,
+        main,
+        note,
+        js,
+        click,
+        input,
+        waitFor,
+        assert,
+        dialog,
+        state,
+        capture: async (window, name) =>
+          writeFileSync(resolve(output, name), (await window.webContents.capturePage()).toPNG())
+      })
+      console.log(`Electron note archive smoke passed: ${phase}`)
+      menuClick('退出')
+      return
+    }
     if (phase.startsWith('topic-management-')) {
       await waitFor(
         () => js(main, 'Boolean(document.querySelector(".workbench-header h1"))'),
@@ -1923,17 +1943,24 @@ async function runSmoke() {
           confirmations++
           return { response: 0, checkboxChecked: false }
         }
-        await click(window, '[data-testid=task-delete]')
-        await waitFor(() => confirmations === 1, '删除确认取消')
-        await count(other, 2)
-        await click(other, '[data-testid=task-description]')
-        dialog.showMessageBox = async () => {
-          confirmations++
-          return { response: 1, checkboxChecked: false }
+        if (window === note) {
+          await click(other, '[data-testid=task-description]')
+          await click(window, '[data-testid=task-delete]')
+          await count(other, 1)
+          assert.equal(confirmations, 0, '便签归档直接执行')
+        } else {
+          await click(window, '[data-testid=task-delete]')
+          await waitFor(() => confirmations === 1, '删除确认取消')
+          await count(other, 2)
+          await click(other, '[data-testid=task-description]')
+          dialog.showMessageBox = async () => {
+            confirmations++
+            return { response: 1, checkboxChecked: false }
+          }
+          await click(window, '[data-testid=task-delete]')
+          await count(other, 1)
+          assert.equal(confirmations, 2)
         }
-        await click(window, '[data-testid=task-delete]')
-        await count(other, 1)
-        assert.equal(confirmations, 2)
         assert.equal(
           await js(other, 'Boolean(document.querySelector("[data-testid=task-edit]"))'),
           false
