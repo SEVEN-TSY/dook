@@ -609,6 +609,7 @@ export function InspirationPanel({
                           ↶
                         </button>
                         <button
+                          className="inspiration-supplement"
                           title="永久删除灵感"
                           aria-label="永久删除灵感"
                           onClick={async () => {
@@ -768,6 +769,7 @@ export function InspirationPanel({
                           )}
                         </div>
                         <button
+                          className="inspiration-supplement"
                           title="归档灵感"
                           aria-label="归档灵感"
                           onClick={async () => {
