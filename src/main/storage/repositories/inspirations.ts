@@ -96,7 +96,9 @@ export class InspirationRepository implements InspirationStore {
       additions.set(id, items)
     }
     return this.database
-      .prepare('SELECT id, description, created_at FROM inspirations ORDER BY sequence')
+      .prepare(
+        'SELECT id, description, created_at FROM inspirations WHERE archived = 0 ORDER BY sequence'
+      )
       .all()
       .map((row) => ({
         id: String(row.id),
@@ -124,6 +126,9 @@ export class InspirationRepository implements InspirationStore {
           : 'WHERE created_at IS NULL OR created_at < ? OR created_at >= ?'
       parameters = [group.start, group.end]
     }
+    where = where
+      ? `WHERE archived = 0 AND (${where.slice(6)})`
+      : `WHERE archived = ${group?.kind === 'archive' ? 1 : 0}`
     const rows = this.database
       .prepare(
         `SELECT id, description, created_at FROM inspirations ${where} ORDER BY created_at IS NULL, created_at DESC, sequence DESC LIMIT ? OFFSET ?`
@@ -158,9 +163,31 @@ export class InspirationRepository implements InspirationStore {
     return idea
   }
 
+  archive(id: string): void {
+    this.changeArchive(id, 0, 1)
+  }
+  restore(id: string): void {
+    this.changeArchive(id, 1, 0)
+  }
+  private changeArchive(id: string, from: number, to: number): void {
+    if (
+      !this.database
+        .prepare('UPDATE inspirations SET archived = ? WHERE id = ? AND archived = ?')
+        .run(to, id, from).changes
+    )
+      throw new Error('灵感状态已变化或不存在。')
+  }
+  deleteArchived(id: string): void {
+    if (
+      !this.database.prepare('DELETE FROM inspirations WHERE id = ? AND archived = 1').run(id)
+        .changes
+    )
+      throw new Error('已归档灵感不存在。')
+  }
+
   update(id: string, description: string): Inspiration {
     const result = this.database
-      .prepare('UPDATE inspirations SET description = ? WHERE id = ?')
+      .prepare('UPDATE inspirations SET description = ? WHERE id = ? AND archived = 0')
       .run(description, id)
     if (!result.changes) throw new Error('灵感不存在。')
     return this.get(id)

@@ -65,6 +65,9 @@ export interface DesktopApi {
   updateHabit: (id: string, description: string) => Promise<ApiResult<Habit>>
   deleteHabit: (id: string) => Promise<ApiResult<boolean>>
   listToday: () => Promise<ApiResult<TodayTasks>>
+  archiveInspiration: (id: string) => Promise<ApiResult<void>>
+  restoreInspiration: (id: string) => Promise<ApiResult<void>>
+  deleteArchivedInspiration: (id: string) => Promise<ApiResult<boolean>>
   listInspirations: () => Promise<ApiResult<Inspiration[]>>
   listInspirationTopics: () => Promise<ApiResult<InspirationTopic[]>>
   createInspirationTopic: (
@@ -174,6 +177,7 @@ export interface InspirationAddition {
 export type InspirationGroup =
   | { kind: 'topic'; topicId: string }
   | { kind: 'unassigned' }
+  | { kind: 'archive' }
   | { kind: 'date'; start: string; end: string }
   | { kind: 'history'; start: string; end: string }
 

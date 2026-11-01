@@ -109,6 +109,16 @@ export class AppService {
     this.inspirationStore().setTopic(inspirationId, topicId, included)
   }
 
+  archiveInspiration(id: string) {
+    this.inspirationStore().archive(id)
+  }
+  restoreInspiration(id: string) {
+    this.inspirationStore().restore(id)
+  }
+  deleteArchivedInspiration(id: string) {
+    this.inspirationStore().deleteArchived(id)
+  }
+
   listInspirations(): Inspiration[] {
     return this.inspirationStore().list()
   }

@@ -157,6 +157,30 @@ export function registerIpc(handlers: Handlers): () => void {
     if (typeof included !== 'boolean') throw new Error('主题关联无效。')
     return mutate(() => handlers.service.setInspirationTopic(text(id), text(topicId), included))
   })
+  register(IPC_CHANNELS.archiveInspiration, (_, id) =>
+    mutate(() => handlers.service.archiveInspiration(text(id)))
+  )
+  register(IPC_CHANNELS.restoreInspiration, (_, id) =>
+    mutate(() => handlers.service.restoreInspiration(text(id)))
+  )
+  register(IPC_CHANNELS.deleteArchivedInspiration, async (window, id) => {
+    const ideaId = text(id)
+    const result = await handlers.desktop.protect(() =>
+      dialog.showMessageBox(window, {
+        type: 'question',
+        title: '永久删除灵感',
+        message: '永久删除这条灵感？',
+        detail: '灵感及其补充将被永久删除。',
+        buttons: ['取消', '删除'],
+        defaultId: 0,
+        cancelId: 0,
+        noLink: true
+      })
+    )
+    if (result.response !== 1) return false
+    mutate(() => handlers.service.deleteArchivedInspiration(ideaId))
+    return true
+  })
   register(IPC_CHANNELS.listInspirations, () => handlers.service.listInspirations())
   register(IPC_CHANNELS.listInspirationPage, (_, offset, limit, group) => {
     if (typeof offset !== 'number' || typeof limit !== 'number') throw new Error('分页参数无效。')
@@ -166,6 +190,7 @@ export function registerIpc(handlers: Handlers): () => void {
       const g = group as Record<string, unknown>
       if (!(
         g.kind === 'unassigned' ||
+        g.kind === 'archive' ||
         (g.kind === 'topic' && typeof g.topicId === 'string' && g.topicId) ||
         ((g.kind === 'date' || g.kind === 'history') &&
           typeof g.start === 'string' &&

@@ -43,6 +43,9 @@ const api: DesktopApi = {
     ipcRenderer.invoke(IPC_CHANNELS.renameInspirationTopic, id, name),
   setInspirationTopic: (id, topicId, included) =>
     ipcRenderer.invoke(IPC_CHANNELS.setInspirationTopic, id, topicId, included),
+  archiveInspiration: (id) => ipcRenderer.invoke(IPC_CHANNELS.archiveInspiration, id),
+  restoreInspiration: (id) => ipcRenderer.invoke(IPC_CHANNELS.restoreInspiration, id),
+  deleteArchivedInspiration: (id) => ipcRenderer.invoke(IPC_CHANNELS.deleteArchivedInspiration, id),
   listInspirations: () => ipcRenderer.invoke(IPC_CHANNELS.listInspirations),
   listInspirationPage: (offset, limit, group) =>
     ipcRenderer.invoke(IPC_CHANNELS.listInspirationPage, offset, limit, group),

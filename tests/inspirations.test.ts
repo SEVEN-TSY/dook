@@ -227,3 +227,33 @@ test('主题可独立创建，删除后保留灵感及其他主题', () => {
     database.close()
   }
 })
+
+test('归档保留内容和主题，禁止旧编辑，恢复后可删除已归档记录', () => {
+  const database = new AppDatabase(':memory:')
+  const service = new AppService(database, undefined, undefined, {
+    inspirations: new InspirationRepository(database.connection)
+  })
+  try {
+    const idea = service.createInspiration('想法')
+    const topic = service.createInspirationTopic('主题', idea.id)
+    service.appendInspiration(idea.id, '补充')
+    service.archiveInspiration(idea.id)
+    assert.deepEqual(service.listInspirations(), [])
+    assert.equal(
+      service.listInspirationPage(0, 20, { kind: 'archive' }).items[0]?.additions[0]?.content,
+      '补充'
+    )
+    assert.throws(() => service.updateInspiration(idea.id, '旧编辑'))
+    assert.throws(() => service.appendInspiration(idea.id, '旧补充'))
+    assert.throws(() => service.setInspirationTopic(idea.id, topic.id, false))
+    service.restoreInspiration(idea.id)
+    assert.deepEqual(service.listInspirations()[0]?.topicIds, [topic.id])
+    assert.throws(() => service.deleteArchivedInspiration(idea.id))
+    service.archiveInspiration(idea.id)
+    service.deleteArchivedInspiration(idea.id)
+    assert.deepEqual(service.listInspirationPage(0, 20, { kind: 'archive' }).items, [])
+    assert.throws(() => service.restoreInspiration(idea.id))
+  } finally {
+    database.close()
+  }
+})

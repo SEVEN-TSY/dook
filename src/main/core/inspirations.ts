@@ -12,6 +12,9 @@ export interface InspirationStore {
   deleteTopic(id: string): void
   renameTopic(id: string, name: string): void
   setTopic(inspirationId: string, topicId: string, included: boolean): void
+  archive(id: string): void
+  restore(id: string): void
+  deleteArchived(id: string): void
   list(): Inspiration[]
   page(offset: number, limit: number, group?: InspirationGroup): InspirationPage
   create(description: string, createdAt: string): Inspiration

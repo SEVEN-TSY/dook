@@ -111,5 +111,10 @@ export const migrations = [
       CREATE TABLE inspiration_topic_members (inspiration_id TEXT NOT NULL REFERENCES inspirations(id) ON DELETE CASCADE, topic_id TEXT NOT NULL REFERENCES inspiration_topics(id) ON DELETE CASCADE, PRIMARY KEY(inspiration_id, topic_id)) STRICT;
       CREATE INDEX inspiration_topic_members_topic ON inspiration_topic_members(topic_id, inspiration_id);
     `
+  },
+  {
+    version: 11,
+    name: 'inspiration_archive',
+    sql: `ALTER TABLE inspirations ADD COLUMN archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0, 1));`
   }
 ] as const
