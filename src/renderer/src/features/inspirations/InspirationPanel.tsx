@@ -1,7 +1,7 @@
 const dateKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 
-import { useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import type { Ref } from 'react'
 import type { Inspiration, InspirationTopic } from '../../../../shared/contracts'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
@@ -67,12 +67,15 @@ export function InspirationPanel({
     topic: null
   })
   const listRef = useRef<HTMLDivElement>(null)
+  const restoringScroll = useRef(false)
+  const pendingScroll = useRef<number | null>(null)
   const loading = useRef(false)
   const loadedCount = useRef(20)
   const [opened, setOpened] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
   const [focused, setFocused] = useState(false)
   const version = useRef(0)
+  const groupNavigation = useRef(0)
   const dates = Array.from({ length: 7 }, (_, index) => {
     const date = new Date()
     date.setHours(0, 0, 0, 0)
@@ -130,6 +133,7 @@ export function InspirationPanel({
           hasMore = result.hasMore
         }
         if (version.current === request) {
+          pendingScroll.current = scrollPositions.current[view]
           setIdeas(items)
           if (opened && !items.some((item) => item.id === opened)) {
             setOpened(null)
@@ -140,9 +144,6 @@ export function InspirationPanel({
             setOpened(selected)
             setOpenedGroup(groupKey)
           }
-          requestAnimationFrame(() => {
-            if (listRef.current) listRef.current.scrollTop = scrollPositions.current[view]
-          })
           setTopics(topicList)
           setHasMore(hasMore)
         }
@@ -187,6 +188,12 @@ export function InspirationPanel({
     window.addEventListener('scroll', onScroll, true)
     return () => window.removeEventListener('scroll', onScroll, true)
   }, [workbench, hasMore, ideas])
+  useLayoutEffect(() => {
+    if (pendingScroll.current === null) return
+    if (listRef.current) listRef.current.scrollTop = pendingScroll.current
+    pendingScroll.current = null
+    restoringScroll.current = false
+  }, [ideas])
   const newIdea = useInspirationInput(
     async (text, id, key) => {
       const result = id
@@ -333,6 +340,7 @@ export function InspirationPanel({
                   loadedByView.current[view] = loadedCount.current
                   selectedByView.current[view] = opened
                   ++version.current
+                  restoringScroll.current = true
                   setIdeas([])
                   loadedCount.current = loadedByView.current[option]
                   setOpened(null)
@@ -404,7 +412,9 @@ export function InspirationPanel({
                 className="inspiration-heading"
                 aria-current={group.key === groupKey ? 'true' : undefined}
                 onClick={async () => {
+                  const navigation = ++groupNavigation.current
                   if (group.key === groupKey || !(await save())) return
+                  if (navigation !== groupNavigation.current) return
                   ++version.current
                   setIdeas([])
                   loadedCount.current = 20
@@ -500,7 +510,7 @@ export function InspirationPanel({
           ref={listRef}
           onScroll={(event) => {
             const target = event.currentTarget
-            scrollPositions.current[view] = target.scrollTop
+            if (!restoringScroll.current) scrollPositions.current[view] = target.scrollTop
             if (target.scrollTop + target.clientHeight >= target.scrollHeight - 80) void loadMore()
           }}
           onWheel={(event) => {

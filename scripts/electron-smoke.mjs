@@ -826,6 +826,63 @@ async function runSmoke() {
             ),
           '创建主题后切组'
         )
+        await click(main, '[aria-label="新增灵感"]')
+        for (const text of ['连续新增一', '连续新增二']) {
+          await input(main, '[aria-label="新增灵感内容"]', text)
+          await waitFor(
+            () => js(main, `document.querySelector('[aria-label="新增灵感内容"]')?.value === ''`),
+            `主题内保存${text}`
+          )
+        }
+        const topicIdeas = (await js(main, 'window.myTodo.listInspirations()')).data
+        const currentTopic = (await js(main, 'window.myTodo.listInspirationTopics()')).data.find(
+          (topic) => topic.name === '新主题'
+        )
+        for (const text of ['连续新增一', '连续新增二']) {
+          assert.deepEqual(topicIdeas.find((idea) => idea.description === text).topicIds, [
+            currentTopic.id
+          ])
+        }
+        const db = new DatabaseSync(resolve(process.env.MYTODO_SMOKE_DATA, 'mytodo.sqlite'))
+        try {
+          db.exec(
+            `CREATE TRIGGER fail_inspiration BEFORE INSERT ON inspirations WHEN NEW.description = '失败后重试' BEGIN SELECT RAISE(ABORT, '测试保存失败'); END`
+          )
+          await input(main, '[aria-label="新增灵感内容"]', '失败后重试')
+          await waitFor(
+            () => js(main, `document.body.textContent.includes('测试保存失败')`),
+            '主题新增失败提示'
+          )
+          assert.equal(
+            await js(main, `document.querySelector('[aria-label="新增灵感内容"]').value`),
+            '失败后重试'
+          )
+          db.exec('DROP TRIGGER fail_inspiration')
+          await input(main, '[aria-label="新增灵感内容"]', '失败后重试')
+          await waitFor(
+            () => js(main, `document.querySelector('[aria-label="新增灵感内容"]')?.value === ''`),
+            '主题新增失败后重试'
+          )
+        } finally {
+          db.exec('DROP TRIGGER IF EXISTS fail_inspiration')
+          db.close()
+        }
+        const retry = (await js(main, 'window.myTodo.listInspirations()')).data.filter(
+          (i) => i.description === '失败后重试'
+        )
+        assert.equal(retry.length, 1)
+        assert.deepEqual(retry[0].topicIds, [currentTopic.id])
+        const archivedId = await js(
+          main,
+          `(async () => {
+          const topic = (await window.myTodo.createInspirationTopic('归档持久主题')).data;
+          const idea = (await window.myTodo.createInspiration('跨重启归档', topic.id)).data;
+          await window.myTodo.appendInspiration(idea.id, '归档持久补充');
+          await window.myTodo.archiveInspiration(idea.id);
+          return idea.id;
+        })()`
+        )
+        assert.ok(archivedId)
         const draft = (await js(main, 'window.myTodo.listInspirations()')).data.find(
           (idea) => idea.description === '切组前草稿'
         )
@@ -890,6 +947,43 @@ async function runSmoke() {
         assert.equal(idea.additions[0].content, '保留补充')
         assert.equal(idea.topicIds.length, 1)
       } else {
+        await js(
+          main,
+          `Array.from(document.querySelectorAll('.inspiration-views button')).find(x => x.textContent === '日期').click()`
+        )
+        await js(
+          main,
+          `Array.from(document.querySelectorAll('.inspiration-nav-item .inspiration-heading')).find(x => x.textContent === '已归档灵感').click()`
+        )
+        await waitFor(
+          () =>
+            js(
+              main,
+              `document.querySelector('.inspiration-summary')?.textContent === '跨重启归档'`
+            ),
+          'Electron重启后归档可见'
+        )
+        await click(main, '.inspiration-summary')
+        await waitFor(
+          () =>
+            js(
+              main,
+              `document.querySelector('.inspiration-additions')?.textContent.includes('归档持久补充')`
+            ),
+          '重启后归档补充可见'
+        )
+        await click(main, '[aria-label="恢复灵感"]')
+        await waitFor(
+          () => js(main, `!document.querySelector('.inspiration-item')`),
+          '重启后恢复归档'
+        )
+        const restored = (await js(main, 'window.myTodo.listInspirations()')).data.find(
+          (i) => i.description === '跨重启归档'
+        )
+        const archiveTopic = (await js(main, 'window.myTodo.listInspirationTopics()')).data.find(
+          (t) => t.name === '归档持久主题'
+        )
+        assert.deepEqual(restored.topicIds, [archiveTopic.id], '重启后恢复主题关联')
         const topics = (await js(note, 'window.myTodo.listInspirationTopics()')).data
         assert.ok(topics.some((t) => t.name === '其他主题'))
         assert.ok(!topics.some((t) => t.name === '改名主题'))
@@ -1369,6 +1463,51 @@ async function runSmoke() {
         ),
         26,
         '主题分页无遗漏和重复'
+      )
+      const topicScroll = await js(main, `document.querySelector('.inspiration-list').scrollTop`)
+      assert.ok(topicScroll > 0, '主题列表可滚动')
+      await chooseView('日期')
+      await waitFor(
+        () =>
+          js(main, `document.querySelector('.inspiration-group-title')?.textContent === '今天'`),
+        '切到日期视角'
+      )
+      await chooseView('主题')
+      await waitFor(
+        () =>
+          js(
+            main,
+            `document.querySelector('.inspiration-group-title')?.textContent === '工作流' && document.querySelector('.inspiration-list').scrollTop > 0`
+          ),
+        '恢复主题滚动位置'
+      )
+      assert.equal(
+        await js(main, `document.querySelector('.inspiration-list').scrollTop`),
+        topicScroll
+      )
+      await js(
+        main,
+        `(() => {
+        const headings = Array.from(document.querySelectorAll('.inspiration-nav-item .inspiration-heading'));
+        headings.find(x => x.textContent === '产品构想').click();
+        headings.find(x => x.textContent === '工作流').click();
+      })()`
+      )
+      await waitFor(
+        () =>
+          js(
+            main,
+            `document.querySelector('.inspiration-group-title')?.textContent === '工作流' && document.querySelectorAll('.inspiration-item').length === 26`
+          ),
+        '快速切组显示最后选择的主题'
+      )
+      await js(
+        main,
+        `document.querySelector('.inspiration-list').scrollTop = document.querySelector('.inspiration-list').scrollHeight`
+      )
+      await waitFor(
+        () => js(main, `document.querySelectorAll('.inspiration-item').length === 26`),
+        '快速切组后分页'
       )
       await click(main, '[aria-label="归档灵感"]')
       await waitFor(
