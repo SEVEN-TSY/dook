@@ -109,6 +109,39 @@ function focusTaskEditor(element: HTMLTextAreaElement | null) {
   element.setSelectionRange(element.value.length, element.value.length)
 }
 
+function useSummaryMotion(count: number | undefined, shrinkOnDecrease = false) {
+  const element = useRef<HTMLButtonElement>(null)
+  const previousCount = useRef(count)
+  const animation = useRef<Animation | null>(null)
+  useEffect(() => () => animation.current?.cancel(), [])
+  useEffect(() => {
+    const previous = previousCount.current
+    previousCount.current = count
+    if (
+      count === undefined ||
+      previous === undefined ||
+      count === previous ||
+      (count < previous && !shrinkOnDecrease)
+    )
+      return
+    const target = element.current
+    if (!target) return
+    const growing = count > previous
+    const transform = getComputedStyle(target).transform
+    animation.current?.cancel()
+    animation.current = target.animate(
+      [
+        { transform: transform === 'none' ? 'scale(1)' : transform },
+        { transform: `scale(${growing ? 1.18 : 0.82})`, offset: 0.38 },
+        { transform: `scale(${growing ? 0.98 : 1.02})`, offset: 0.72 },
+        { transform: 'scale(1)' }
+      ],
+      { duration: 420, easing: 'ease-out' }
+    )
+  }, [count, shrinkOnDecrease])
+  return element
+}
+
 export function TasksPage({
   kind,
   desktop,
@@ -144,7 +177,10 @@ export function TasksPage({
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
   const [newKind, setNewKind] = useState<'task' | 'inspiration'>('task')
   const taskAdded = useTaskInput(today?.date, refresh, setError)
-  const [inspirationCount, setInspirationCount] = useState(0)
+  const [loadedInspirationCount, setInspirationCount] = useState<number>()
+  const inspirationCount = loadedInspirationCount ?? 0
+  const taskSummary = useSummaryMotion(kind === 'note' ? today?.tasks.length : undefined, true)
+  const inspirationSummary = useSummaryMotion(kind === 'note' ? loadedInspirationCount : undefined)
   const inspirationCountVersion = useRef(0)
   const refreshInspirationCount = useCallback(async () => {
     if (kind !== 'note') return
@@ -288,10 +324,8 @@ export function TasksPage({
   }, [today, editing])
   const add = async (event: FormEvent) => {
     event.preventDefault()
-    if (await added.submit()) {
-      setAdding(false)
-      noteInput.current?.blur()
-    }
+    noteInput.current?.focus({ preventScroll: true })
+    await added.submit()
   }
   const save = async (event: FormEvent) => {
     event.preventDefault()
@@ -1008,6 +1042,15 @@ export function TasksPage({
         <form
           className={`task-add ${adding ? 'is-editing' : ''}`}
           onSubmit={(event) => void add(event)}
+          onFocus={() => setInputFocused(true)}
+          onBlur={(event) => {
+            const form = event.currentTarget
+            if (form.contains(event.relatedTarget)) return
+            setInputFocused(false)
+            void added.save().then((saved) => {
+              if (saved && !form.contains(document.activeElement)) setAdding(false)
+            })
+          }}
         >
           <div className={`note-add-controls ${newKind === 'inspiration' ? 'is-inspiration' : ''}`}>
             <div className="new-kind-switch" aria-label="新增类别">
@@ -1052,18 +1095,6 @@ export function TasksPage({
               value={added.value}
               disabled={!today}
               onChange={(event) => added.setValue(event.target.value)}
-              onFocus={() => setInputFocused(true)}
-              onBlur={(event) => {
-                setInputFocused(false)
-                if (
-                  event.relatedTarget instanceof Element &&
-                  event.relatedTarget.closest('.new-kind-switch')
-                )
-                  return
-                void added.save().then((saved) => {
-                  if (saved) setAdding(false)
-                })
-              }}
               onCompositionStart={() => {
                 added.composing.current = true
               }}
@@ -1081,7 +1112,12 @@ export function TasksPage({
               title={newKind === 'task' ? '添加任务' : '添加灵感'}
               aria-label={newKind === 'task' ? '添加任务' : '添加灵感'}
               aria-expanded={adding}
-              onClick={() => {
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={(event) => {
+                if (adding) {
+                  void add(event)
+                  return
+                }
                 setAdding(true)
                 requestAnimationFrame(() => noteInput.current?.focus())
               }}
@@ -1094,6 +1130,7 @@ export function TasksPage({
         <button
           type="button"
           className="note-summary note-task-summary"
+          ref={taskSummary}
           title="在主界面打开任务"
           aria-label={`在主界面打开任务，已完成${completed}项，共${today?.tasks.length ?? 0}项`}
           onClick={() => void openMainPage('task')}
@@ -1118,6 +1155,7 @@ export function TasksPage({
         <button
           type="button"
           className="note-summary note-inspiration-summary"
+          ref={inspirationSummary}
           data-testid="note-inspiration-count"
           title="在主界面打开灵感"
           aria-label={`查看灵感，共${inspirationCount}条，目标${INSPIRATION_GOAL}条`}
@@ -1137,8 +1175,8 @@ export function TasksPage({
           <span className="note-inspiration-count">{inspirationCount}</span>
         </button>
       </div>
-      <footer className="task-footer" hidden={!added.saving && !edited.saving}>
-        正在保存…
+      <footer className="task-footer" role="status">
+        {added.saving || edited.saving ? '正在保存…' : ''}
       </footer>
     </section>
   )
