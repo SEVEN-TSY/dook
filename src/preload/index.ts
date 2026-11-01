@@ -43,8 +43,8 @@ const api: DesktopApi = {
   setInspirationTopic: (id, topicId, included) =>
     ipcRenderer.invoke(IPC_CHANNELS.setInspirationTopic, id, topicId, included),
   listInspirations: () => ipcRenderer.invoke(IPC_CHANNELS.listInspirations),
-  listInspirationPage: (offset, limit) =>
-    ipcRenderer.invoke(IPC_CHANNELS.listInspirationPage, offset, limit),
+  listInspirationPage: (offset, limit, group) =>
+    ipcRenderer.invoke(IPC_CHANNELS.listInspirationPage, offset, limit, group),
   createInspiration: (description) =>
     ipcRenderer.invoke(IPC_CHANNELS.createInspiration, description),
   updateInspiration: (id, description) =>

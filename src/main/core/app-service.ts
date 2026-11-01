@@ -4,7 +4,8 @@ import type {
   Task,
   TodayTasks,
   Habit,
-  Inspiration
+  Inspiration,
+  InspirationGroup
 } from '../../shared/contracts'
 import { localDate } from './tasks'
 import type { TaskStore } from './tasks'
@@ -101,7 +102,7 @@ export class AppService {
     return this.inspirationStore().list()
   }
 
-  listInspirationPage(offset: number, limit: number) {
+  listInspirationPage(offset: number, limit: number, group?: InspirationGroup) {
     if (
       !Number.isSafeInteger(offset) ||
       offset < 0 ||
@@ -110,7 +111,7 @@ export class AppService {
       limit > 100
     )
       throw new Error('分页参数无效。')
-    return this.inspirationStore().page(offset, limit)
+    return this.inspirationStore().page(offset, limit, group)
   }
 
   createInspiration(description: string): Inspiration {

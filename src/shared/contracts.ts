@@ -77,7 +77,11 @@ export interface DesktopApi {
     topicId: string,
     included: boolean
   ) => Promise<ApiResult<void>>
-  listInspirationPage: (offset: number, limit: number) => Promise<ApiResult<InspirationPage>>
+  listInspirationPage: (
+    offset: number,
+    limit: number,
+    group?: InspirationGroup
+  ) => Promise<ApiResult<InspirationPage>>
   createInspiration: (description: string) => Promise<ApiResult<Inspiration>>
   updateInspiration: (id: string, description: string) => Promise<ApiResult<Inspiration>>
   appendInspiration: (
@@ -165,6 +169,12 @@ export interface InspirationAddition {
   id: string
   content: string
 }
+
+export type InspirationGroup =
+  | { kind: 'topic'; topicId: string }
+  | { kind: 'unassigned' }
+  | { kind: 'date'; start: string; end: string }
+  | { kind: 'history'; start: string; end: string }
 
 export interface InspirationPage {
   items: Inspiration[]

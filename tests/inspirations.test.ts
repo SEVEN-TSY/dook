@@ -153,3 +153,57 @@ test('旧灵感迁移保留原文补充并在分页中排在新灵感之后', ()
     rmSync(directory, { recursive: true, force: true })
   }
 })
+
+test('按主题分页只返回该主题的灵感', () => {
+  const database = new AppDatabase(':memory:')
+  const service = new AppService(database, undefined, undefined, {
+    inspirations: new InspirationRepository(database.connection)
+  })
+  try {
+    const first = service.createInspiration('第一条')
+    const topic = service.createInspirationTopic('主题', first.id)
+    service.createInspiration('其他灵感')
+    const second = service.createInspiration('第二条')
+    service.setInspirationTopic(second.id, topic.id, true)
+    const page = service.listInspirationPage(0, 1, { kind: 'topic', topicId: topic.id })
+    assert.equal(page.items[0]?.id, second.id)
+    assert.equal(page.hasMore, true)
+    assert.equal(
+      service.listInspirationPage(1, 1, { kind: 'topic', topicId: topic.id }).items[0]?.id,
+      first.id
+    )
+  } finally {
+    database.close()
+  }
+})
+
+test('日期分页按本地自然日区分今天和历史', () => {
+  const database = new AppDatabase(':memory:')
+  let now = new Date(2026, 9, 20, 12)
+  const service = new AppService(database, undefined, () => now, {
+    inspirations: new InspirationRepository(database.connection)
+  })
+  try {
+    const old = service.createInspiration('历史')
+    now = new Date(2026, 9, 28, 12)
+    const today = service.createInspiration('今天')
+    const start = new Date(2026, 9, 28).toISOString()
+    const end = new Date(2026, 9, 29).toISOString()
+    assert.deepEqual(
+      service.listInspirationPage(0, 20, { kind: 'date', start, end }).items.map((item) => item.id),
+      [today.id]
+    )
+    assert.deepEqual(
+      service
+        .listInspirationPage(0, 20, {
+          kind: 'history',
+          start: new Date(2026, 9, 22).toISOString(),
+          end
+        })
+        .items.map((item) => item.id),
+      [old.id]
+    )
+  } finally {
+    database.close()
+  }
+})

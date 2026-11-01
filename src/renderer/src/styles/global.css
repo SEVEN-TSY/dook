@@ -2185,3 +2185,119 @@ h1 {
   min-width: 0;
   width: 110px;
 }
+
+/* 灵感单组导航 */
+.inspiration-workbench {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.inspiration-navigation {
+  min-width: 0;
+  border-right: 1px solid #e9edf2;
+  padding-right: 16px;
+}
+.inspiration-nav-item {
+  display: flex;
+  align-items: center;
+}
+.inspiration-nav-item .inspiration-heading {
+  flex: 1;
+  text-align: left;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+}
+.inspiration-nav-item .inspiration-heading[aria-current] {
+  color: #326bce;
+  background: #eef4ff;
+  font-weight: 600;
+}
+.inspiration-nav-item > button:not(.inspiration-heading) {
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+.inspiration-workbench .inspiration-list,
+.inspiration-workbench.has-detail .inspiration-list {
+  width: 100%;
+  min-width: 0;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+}
+.inspiration-group-title {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+.inspiration-workbench .inspiration-row time {
+  margin: 18px 8px 0;
+  color: #8792a4;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.inspiration-workbench .inspiration-supplement {
+  visibility: hidden;
+}
+.inspiration-workbench .inspiration-row:hover .inspiration-supplement,
+.inspiration-workbench .inspiration-row:focus-within .inspiration-supplement {
+  visibility: visible;
+}
+.inspiration-notice {
+  position: fixed;
+  z-index: 30;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  border-radius: 8px;
+  color: #286048;
+  background: #eaf8f0;
+  box-shadow: 0 4px 18px #24344a20;
+}
+.inspiration-notice.is-error {
+  color: #9b3434;
+  background: #fff0ef;
+}
+.inspiration-notice button {
+  margin-left: 12px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+@media (max-width: 760px) {
+  .inspiration-workbench {
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: 12px;
+  }
+  .inspiration-workbench.has-detail .inspiration-navigation {
+    display: none;
+  }
+  .inspiration-workbench.has-detail {
+    display: block;
+  }
+}
+@media (min-width: 761px) {
+  .inspiration-workbench.has-detail .inspiration-list {
+    width: 57%;
+  }
+  .inspiration-workbench .inspiration-detail {
+    position: fixed;
+    left: auto;
+    right: 28px;
+    top: 130px;
+    width: 30%;
+    max-height: calc(100vh - 150px);
+    overflow-y: auto;
+  }
+}
+.inspiration-workbench.has-detail .inspiration-row {
+  flex-wrap: wrap;
+}
+.inspiration-workbench.has-detail .inspiration-summary,
+.inspiration-workbench.has-detail .inspiration-inline-edit {
+  flex-basis: 100%;
+}

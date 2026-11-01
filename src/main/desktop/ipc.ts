@@ -137,9 +137,28 @@ export function registerIpc(handlers: Handlers): () => void {
     return mutate(() => handlers.service.setInspirationTopic(text(id), text(topicId), included))
   })
   register(IPC_CHANNELS.listInspirations, () => handlers.service.listInspirations())
-  register(IPC_CHANNELS.listInspirationPage, (_, offset, limit) => {
+  register(IPC_CHANNELS.listInspirationPage, (_, offset, limit, group) => {
     if (typeof offset !== 'number' || typeof limit !== 'number') throw new Error('分页参数无效。')
-    return handlers.service.listInspirationPage(offset, limit)
+    if (group !== undefined) {
+      if (!group || typeof group !== 'object' || !('kind' in group))
+        throw new Error('分组参数无效。')
+      const g = group as Record<string, unknown>
+      if (!(
+        g.kind === 'unassigned' ||
+        (g.kind === 'topic' && typeof g.topicId === 'string' && g.topicId) ||
+        ((g.kind === 'date' || g.kind === 'history') &&
+          typeof g.start === 'string' &&
+          typeof g.end === 'string' &&
+          !Number.isNaN(Date.parse(g.start)) &&
+          !Number.isNaN(Date.parse(g.end)))
+      ))
+        throw new Error('分组参数无效。')
+    }
+    return handlers.service.listInspirationPage(
+      offset,
+      limit,
+      group as import('../../shared/contracts').InspirationGroup | undefined
+    )
   })
   register(IPC_CHANNELS.createInspiration, (_, description) =>
     mutate(() => handlers.service.createInspiration(text(description)))

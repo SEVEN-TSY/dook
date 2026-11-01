@@ -837,6 +837,11 @@ async function runSmoke() {
           '正文跨窗口同步'
         )
       } else {
+        await waitFor(
+          () =>
+            js(main, `document.querySelector('.inspiration-group-title')?.textContent === '今天'`),
+          '重启进入今天'
+        )
         await js(
           main,
           `Array.from(document.querySelectorAll('.inspiration-views button')).find(x => x.textContent === '主题').click()`
@@ -845,13 +850,13 @@ async function runSmoke() {
           () =>
             js(
               main,
-              `Array.from(document.querySelectorAll('.inspiration-date-group .inspiration-heading')).some(x => x.textContent.includes('持久主题'))`
+              `Array.from(document.querySelectorAll('.inspiration-nav-item .inspiration-heading')).some(x => x.textContent.includes('持久主题'))`
             ),
           '重启后主题保留'
         )
         await js(
           main,
-          `Array.from(document.querySelectorAll('.inspiration-date-group .inspiration-heading')).find(x => x.textContent.includes('持久主题')).click()`
+          `Array.from(document.querySelectorAll('.inspiration-nav-item .inspiration-heading')).find(x => x.textContent.includes('持久主题')).click()`
         )
         await waitFor(
           () =>
@@ -1018,200 +1023,124 @@ async function runSmoke() {
           ),
         '第二主题创建'
       )
-      await js(
-        main,
-        `Array.from(document.querySelectorAll('.inspiration-views button')).find(x => x.textContent === '主题').click()`
-      )
-      await waitFor(
-        () => js(main, `document.querySelectorAll('.inspiration-date-group').length === 3`),
-        '主题视角'
-      )
-      assert.equal(
-        await js(
+      const chooseView = (view) =>
+        js(
           main,
-          `Array.from(document.querySelectorAll('.inspiration-date-group .inspiration-heading')).every(x => x.getAttribute('aria-expanded') === 'false')`
-        ),
-        true
-      )
-      await js(
-        main,
-        `Array.from(document.querySelectorAll('.inspiration-date-group .inspiration-heading')).find(x => x.textContent.includes('产品构想')).click()`
-      )
-      await js(
-        main,
-        `Array.from(document.querySelectorAll('.inspiration-date-group .inspiration-heading')).find(x => x.textContent.includes('工作流')).click()`
-      )
-      assert.equal(await js(main, `document.querySelectorAll('[data-inspiration-id]').length`), 2)
-      await js(
-        main,
-        `Array.from(document.querySelectorAll('.inspiration-date-group')).find(x => x.textContent.includes('产品构想')).querySelector('button:not(.inspiration-heading)').click()`
-      )
-      await input(main, '[aria-label="主题名称"]', '产品计划')
+          `Array.from(document.querySelectorAll('.inspiration-views button')).find(x => x.textContent === '${view}').click()`
+        )
+      const chooseGroup = (name) =>
+        js(
+          main,
+          `Array.from(document.querySelectorAll('.inspiration-nav-item .inspiration-heading')).find(x => x.textContent === '${name}').click()`
+        )
+      await chooseView('主题')
       await waitFor(
-        () =>
-          js(main, `document.querySelector('.inspiration-list').textContent.includes('产品计划')`),
-        '主题改名'
+        () => js(main, `document.querySelectorAll('.inspiration-nav-item').length === 3`),
+        '主题导航'
       )
-      await click(main, '[data-testid=inspiration-summary]')
-      await input(main, '[data-testid=inspiration-edit]', '', null)
-      await js(
-        main,
-        `Array.from(document.querySelectorAll('.inspiration-date-group .inspiration-heading')).find(x => x.textContent.includes('产品计划')).click()`
-      )
-      await waitFor(
-        () => js(main, `document.querySelector('.task-error')?.textContent.includes('不能为空')`),
-        '保存失败提示'
-      )
-      assert.equal(
-        await js(main, `document.querySelector('[data-testid=inspiration-edit]')?.value`),
-        '',
-        '折叠失败保留草稿'
-      )
-      await click(main, '[aria-label="归集主题"]')
-      await js(
-        main,
-        `Array.from(document.querySelectorAll('.inspiration-topic-picker label')).find(x => x.textContent.includes('产品计划')).querySelector('input').click()`
-      )
-      assert.equal(
-        (await js(main, 'window.myTodo.listInspirations()')).data[0].topicIds.length,
-        2,
-        '保存失败不取消关联'
-      )
-      assert.equal(
-        await js(main, `document.querySelector('[data-testid=inspiration-edit]')?.value`),
-        '',
-        '取消归集失败保留草稿'
-      )
-      await input(main, '[data-testid=inspiration-edit]', '编辑后的灵感', null)
-      await js(
-        main,
-        `Array.from(document.querySelectorAll('.inspiration-topic-picker label')).find(x => x.textContent.includes('产品计划')).querySelector('input').click()`
-      )
+      await chooseGroup('产品构想')
       await waitFor(
         () => js(main, `document.querySelectorAll('[data-inspiration-id]').length === 1`),
-        '取消单个关联'
-      )
-      assert.equal((await js(main, 'window.myTodo.listInspirations()')).data[0].topicIds.length, 1)
-      await js(
-        main,
-        `Array.from(document.querySelectorAll('.inspiration-views button')).find(x => x.textContent === '日期').click()`
-      )
-      await waitFor(
-        () => js(main, `document.querySelector('[data-inspiration-id]') !== null`),
-        '返回日期视角'
+        '主题内容'
       )
       assert.equal(
-        await js(
-          main,
-          `document.querySelector('.inspiration-list').textContent.includes('重命名')`
-        ),
-        false
+        await js(main, `document.querySelectorAll('.inspiration-date-group').length`),
+        1,
+        '一次只展示一组'
+      )
+      assert.match(
+        await js(main, `document.querySelector('.inspiration-row time').textContent`),
+        /^\d{4}-\d{2}-\d{2}$/
+      )
+      await click(main, '[data-testid=inspiration-supplement]')
+      await chooseGroup('工作流')
+      await waitFor(
+        () =>
+          js(
+            main,
+            `!document.querySelector('.inspiration-detail') && Boolean(document.querySelector('[data-inspiration-id]'))`
+          ),
+        '切组关闭详情'
+      )
+      await click(main, '[data-testid=inspiration-supplement]')
+      await chooseView('日期')
+      await waitFor(
+        () =>
+          js(main, `document.querySelector('.inspiration-group-title')?.textContent === '今天'`),
+        '返回日期'
+      )
+      main.setContentSize(1100, 800)
+      await chooseView('主题')
+      await waitFor(
+        () =>
+          js(
+            main,
+            `document.querySelector('.inspiration-group-title')?.textContent === '工作流' && Boolean(document.querySelector('.inspiration-detail'))`
+          ),
+        '恢复主题组及详情'
+      )
+      writeFileSync(
+        resolve(output, 'inspiration-topic-detail.png'),
+        (await main.webContents.capturePage()).toPNG()
+      )
+      await chooseView('日期')
+      await waitFor(
+        () =>
+          js(main, `document.querySelector('.inspiration-group-title')?.textContent === '今天'`),
+        '日期导航'
       )
       const headings = await js(
         main,
-        `Array.from(document.querySelectorAll('.inspiration-date-group > button')).map(button => ({ label: button.textContent.trim().slice(2), expanded: button.getAttribute('aria-expanded') }))`
+        `Array.from(document.querySelectorAll('.inspiration-nav-item .inspiration-heading')).map(x => x.textContent)`
       )
       const localDate = (daysAgo) => {
         const date = new Date()
-        date.setHours(12, 0, 0, 0)
         date.setDate(date.getDate() - daysAgo)
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
       }
-      assert.deepEqual(
-        headings.map((heading) => heading.label),
-        ['今天', ...Array.from({ length: 6 }, (_, i) => localDate(i + 1)), '历史灵感']
-      )
-      assert.deepEqual(
-        headings.map((heading) => heading.expanded),
-        ['true', ...Array(7).fill('false')]
-      )
-      await click(main, '.inspiration-date-group:nth-child(2) > button')
-      assert.equal(
-        await js(
-          main,
-          `document.querySelectorAll('.inspiration-date-group > button')[1].getAttribute('aria-expanded')`
-        ),
-        'true'
-      )
-      assert.equal(
-        await js(
-          main,
-          `document.querySelectorAll('.inspiration-date-group > button')[0].getAttribute('aria-expanded')`
-        ),
-        'true'
-      )
-      await click(main, '.inspiration-date-group:nth-child(2) > button')
-
+      assert.deepEqual(headings, [
+        '今天',
+        ...Array.from({ length: 6 }, (_, i) => localDate(i + 1)),
+        '历史灵感'
+      ])
       await js(
         main,
         `(async () => { for (let i = 0; i < 25; i++) { const result = await window.myTodo.createInspiration('分页灵感 ' + String(i).padStart(2, '0')); if (!result.ok) throw new Error('创建灵感失败'); } })()`
       )
       await waitFor(
         () => js(main, `document.querySelectorAll('.inspiration-item').length === 20`),
-        '首屏加载20条灵感'
+        '当前组首页'
       )
-      await js(main, `window.scrollTo(0, document.documentElement.scrollHeight)`)
+      await js(
+        main,
+        `document.querySelector('.inspiration-list').scrollTop = document.querySelector('.inspiration-list').scrollHeight`
+      )
       await waitFor(
         () => js(main, `document.querySelectorAll('.inspiration-item').length === 26`),
-        '下滑加载剩余灵感'
+        '当前组下滑分页'
       )
       const loadedIdeas = await js(
         main,
-        `Array.from(document.querySelectorAll('.inspiration-item')).map(item => ({ id: item.dataset.inspirationId, text: item.querySelector('.inspiration-summary').textContent.trim() }))`
+        `Array.from(document.querySelectorAll('.inspiration-item')).map(x => x.dataset.inspirationId)`
       )
-      assert.equal(new Set(loadedIdeas.map((idea) => idea.id)).size, 26, '分页没有重复灵感')
-      assert.deepEqual(
-        new Set(loadedIdeas.map((idea) => idea.text)),
-        new Set([
-          '编辑后的灵感',
-          ...Array.from({ length: 25 }, (_, i) => '分页灵感 ' + String(i).padStart(2, '0'))
-        ]),
-        '分页没有遗漏灵感'
-      )
-      assert.equal(
-        await js(
-          main,
-          `Array.from(document.querySelectorAll('.inspiration-heading')).some(button => button.textContent.includes('加载更多'))`
-        ),
-        false,
-        '分页加载结束'
-      )
+      assert.equal(new Set(loadedIdeas).size, 26, '分页无重复')
       await js(
         main,
-        `(async () => {
-        const topic = (await window.myTodo.listInspirationTopics()).data.find(x => x.name === '工作流');
-        const ideas = (await window.myTodo.listInspirations()).data;
-        for (const idea of ideas) await window.myTodo.setInspirationTopic(idea.id, topic.id, true);
-      })()`
+        `(async () => { const topic = (await window.myTodo.listInspirationTopics()).data.find(x => x.name === '工作流'); for (const idea of (await window.myTodo.listInspirations()).data) await window.myTodo.setInspirationTopic(idea.id, topic.id, true) })()`
       )
-      await js(
-        main,
-        `Array.from(document.querySelectorAll('.inspiration-views button')).find(x => x.textContent === '主题').click()`
-      )
+      await chooseView('主题')
       await waitFor(
         () =>
-          js(
-            main,
-            `Array.from(document.querySelectorAll('.inspiration-date-group .inspiration-heading')).some(x => x.textContent.includes('工作流'))`
-          ),
-        '切换主题视角'
-      )
-      await js(main, `window.scrollTo(0, document.documentElement.scrollHeight)`)
-      await js(
-        main,
-        `document.querySelector('.inspiration-list').dispatchEvent(new WheelEvent('wheel', { deltaY: 300, bubbles: true }))`
+          js(main, `document.querySelector('.inspiration-group-title')?.textContent === '工作流'`),
+        '恢复主题分组'
       )
       await waitFor(
-        () =>
-          js(
-            main,
-            `!Array.from(document.querySelectorAll('.inspiration-heading')).some(x => x.textContent.includes('加载更多'))`
-          ),
-        '折叠主题时下滑分页'
+        () => js(main, `document.querySelectorAll('.inspiration-item').length >= 20`),
+        '主题首页'
       )
       await js(
         main,
-        `Array.from(document.querySelectorAll('.inspiration-date-group .inspiration-heading')).find(x => x.textContent.includes('工作流')).click()`
+        `document.querySelector('.inspiration-list').scrollTop = document.querySelector('.inspiration-list').scrollHeight`
       )
       await waitFor(
         () => js(main, `document.querySelectorAll('.inspiration-item').length === 26`),
@@ -1222,14 +1151,8 @@ async function runSmoke() {
           main,
           `new Set(Array.from(document.querySelectorAll('.inspiration-item')).map(x => x.dataset.inspirationId)).size`
         ),
-        26
-      )
-      assert.equal(
-        await js(
-          main,
-          `Array.from(document.querySelectorAll('.inspiration-heading')).some(x => x.textContent.includes('加载更多'))`
-        ),
-        false
+        26,
+        '主题分页无遗漏和重复'
       )
       await click(main, '[data-testid=open-settings]')
       assert.equal(

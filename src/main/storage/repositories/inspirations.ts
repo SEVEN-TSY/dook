@@ -4,6 +4,7 @@ import type {
   Inspiration,
   InspirationAddition,
   InspirationPage,
+  InspirationGroup,
   InspirationTopic
 } from '../../../shared/contracts'
 import type { InspirationStore } from '../../core/inspirations'
@@ -90,12 +91,28 @@ export class InspirationRepository implements InspirationStore {
       }))
   }
 
-  page(offset: number, limit: number): InspirationPage {
+  page(offset: number, limit: number, group?: InspirationGroup): InspirationPage {
+    let where = ''
+    let parameters: string[] = []
+    if (group?.kind === 'topic') {
+      where =
+        'WHERE EXISTS (SELECT 1 FROM inspiration_topic_members m WHERE m.inspiration_id = inspirations.id AND m.topic_id = ?)'
+      parameters = [group.topicId]
+    } else if (group?.kind === 'unassigned') {
+      where =
+        'WHERE NOT EXISTS (SELECT 1 FROM inspiration_topic_members m WHERE m.inspiration_id = inspirations.id)'
+    } else if (group?.kind === 'date' || group?.kind === 'history') {
+      where =
+        group.kind === 'date'
+          ? 'WHERE created_at >= ? AND created_at < ?'
+          : 'WHERE created_at IS NULL OR created_at < ? OR created_at >= ?'
+      parameters = [group.start, group.end]
+    }
     const rows = this.database
       .prepare(
-        `SELECT id, description, created_at FROM inspirations ORDER BY created_at IS NULL, created_at DESC, sequence DESC LIMIT ? OFFSET ?`
+        `SELECT id, description, created_at FROM inspirations ${where} ORDER BY created_at IS NULL, created_at DESC, sequence DESC LIMIT ? OFFSET ?`
       )
-      .all(limit + 1, offset)
+      .all(...parameters, limit + 1, offset)
     const items = rows.slice(0, limit).map((row) => ({
       id: String(row.id),
       description: String(row.description),
