@@ -187,7 +187,11 @@ export function TasksPage({
     const version = ++inspirationCountVersion.current
     try {
       const ideas = unwrap(await getDesktopApi().listInspirations())
-      if (version === inspirationCountVersion.current) setInspirationCount(ideas.length)
+      const date = new Date().toDateString()
+      const count = ideas.filter(
+        (idea) => idea.createdAt && new Date(idea.createdAt).toDateString() === date
+      ).length
+      if (version === inspirationCountVersion.current) setInspirationCount(count)
     } catch (error) {
       if (version === inspirationCountVersion.current)
         setError(error instanceof Error ? error.message : '读取灵感数量失败。')
@@ -1157,8 +1161,8 @@ export function TasksPage({
           className="note-summary note-inspiration-summary"
           ref={inspirationSummary}
           data-testid="note-inspiration-count"
-          title="在主界面打开灵感"
-          aria-label={`查看灵感，共${inspirationCount}条，目标${INSPIRATION_GOAL}条`}
+          title="今天的灵感，点击在主界面查看"
+          aria-label={`今天的灵感，共${inspirationCount}条，目标${INSPIRATION_GOAL}条`}
           onClick={() => void openMainPage('inspiration')}
         >
           <svg className="note-progress-ring" viewBox="0 0 36 36" aria-hidden="true">
