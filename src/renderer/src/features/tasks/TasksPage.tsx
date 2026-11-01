@@ -423,19 +423,19 @@ export function TasksPage({
                 {{ task: '今天', habit: '习惯', inspiration: '灵感', settings: '设置' }[page]}
               </h1>
             </div>
-            {page !== 'settings' && (
+            {page !== 'settings' && page !== 'inspiration' && (
               <button
                 className="primary-button"
                 onClick={() => {
                   setAdding(true)
-                  setNewKind(page === 'inspiration' ? 'inspiration' : 'task')
+                  setNewKind('task')
                 }}
               >
                 ＋ 新增{{ task: '任务', habit: '习惯', inspiration: '灵感' }[page]}
               </button>
             )}
           </header>
-          {page !== 'settings' && page !== 'habit' && adding && (
+          {page === 'task' && adding && (
             <form
               className="workbench-add"
               onSubmit={async (event) => {

@@ -206,8 +206,14 @@ export function registerIpc(handlers: Handlers): () => void {
       group as import('../../shared/contracts').InspirationGroup | undefined
     )
   })
-  register(IPC_CHANNELS.createInspiration, (_, description) =>
-    mutate(() => handlers.service.createInspiration(text(description)))
+  register(IPC_CHANNELS.createInspiration, (_, description, topicId, creationId) =>
+    mutate(() =>
+      handlers.service.createInspiration(
+        text(description),
+        topicId === undefined ? undefined : text(topicId),
+        creationId === undefined ? undefined : text(creationId)
+      )
+    )
   )
   register(IPC_CHANNELS.updateInspiration, (_, id, description) =>
     mutate(() => handlers.service.updateInspiration(text(id), text(description)))

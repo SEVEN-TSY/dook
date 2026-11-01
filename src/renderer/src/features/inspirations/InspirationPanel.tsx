@@ -39,6 +39,7 @@ export function InspirationPanel({
     const timer = window.setTimeout(() => setNotice(null), 3000)
     return () => window.clearTimeout(timer)
   }, [notice])
+  const [adding, setAdding] = useState(false)
   const [ideas, setIdeas] = useState<Inspiration[]>([])
   const [view, setView] = useState<'date' | 'topic'>('date')
   const [topics, setTopics] = useState<InspirationTopic[]>([])
@@ -46,6 +47,10 @@ export function InspirationPanel({
   const [newTopic, setNewTopic] = useState('')
   const [creatingTopic, setCreatingTopic] = useState(false)
   const [topicName, setTopicName] = useState('')
+  const [topicSearch, setTopicSearch] = useState('')
+  const pendingTopics = useRef(0)
+  const topicQueue = useRef<Promise<void>>(Promise.resolve())
+  const refreshCurrent = useRef<() => Promise<void>>(async () => {})
   const [renameId, setRenameId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [openedGroup, setOpenedGroup] = useState<string | null>(null)
@@ -90,6 +95,7 @@ export function InspirationPanel({
     }
   }
   const refresh = async () => {
+    if (pendingTopics.current) return
     const request = ++version.current
     try {
       if (workbench) {
@@ -148,6 +154,7 @@ export function InspirationPanel({
       notifyError(error instanceof Error ? error.message : '读取灵感失败。')
     }
   }
+  refreshCurrent.current = refresh
   const loadMore = async () => {
     if (loading.current || !hasMore) return
     loading.current = true
@@ -180,6 +187,23 @@ export function InspirationPanel({
     window.addEventListener('scroll', onScroll, true)
     return () => window.removeEventListener('scroll', onScroll, true)
   }, [workbench, hasMore, ideas])
+  const newIdea = useInspirationInput(
+    async (text, id, key) => {
+      const result = id
+        ? unwrap(await getDesktopApi().updateInspiration(id, text))
+        : unwrap(
+            await getDesktopApi().createInspiration(
+              text,
+              view === 'topic' && groupKey !== 'unassigned' ? groupKey : undefined,
+              key
+            )
+          )
+      return result
+    },
+    refresh,
+    notifyError,
+    () => notifySuccess('灵感已保存')
+  )
   const original = useInspirationInput(
     async (text, id) => {
       if (!id) throw new Error('灵感不存在。')
@@ -201,7 +225,22 @@ export function InspirationPanel({
     refresh,
     notifyError
   )
-  const save = async () => (await Promise.all([original.save(), addition.save()])).every(Boolean)
+  const save = async () =>
+    (await Promise.all([original.save(), addition.save(), newIdea.save()])).every(Boolean)
+  const queueTopicChange = (action: () => Promise<void>) => {
+    ++pendingTopics.current
+    ++version.current
+    topicQueue.current = topicQueue.current.then(async () => {
+      try {
+        if (!(await save())) return
+        await action()
+      } catch (error) {
+        notifyError(error instanceof Error ? error.message : '归集失败。')
+      } finally {
+        if (--pendingTopics.current === 0) void refreshCurrent.current()
+      }
+    })
+  }
   useImperativeHandle(ref, () => ({ save }))
   useEffect(() => {
     void refresh()
@@ -298,6 +337,7 @@ export function InspirationPanel({
                   loadedCount.current = loadedByView.current[option]
                   setOpened(null)
                   setPicker(null)
+                  setAdding(false)
                   setView(option)
                 }}
               >
@@ -372,6 +412,7 @@ export function InspirationPanel({
                   setPicker(null)
                   scrollPositions.current[view] = 0
                   if (listRef.current) listRef.current.scrollTop = 0
+                  setAdding(false)
                   if (view === 'date') setDateGroup(group.key)
                   else setTopicGroup(group.key)
                 }}
@@ -469,18 +510,77 @@ export function InspirationPanel({
               void loadMore()
           }}
         >
-          {ideas.length === 0 && (
-            <p className="inspiration-empty">
-              {workbench
-                ? '还没有灵感，点击“新增灵感”记录想法。'
-                : '在下方切换为灵感，记下新的想法。'}
-            </p>
-          )}
           {groups
             .filter((group) => !workbench || group.key === groupKey)
             .map((group) => (
               <div key={group.key} className="inspiration-date-group">
-                {workbench && <h2 className="inspiration-group-title">{group.label}</h2>}
+                {workbench && (
+                  <>
+                    <div className="inspiration-group-header">
+                      <h2 className="inspiration-group-title">{group.label}</h2>
+                      {(view === 'topic' || groupKey === dates[0]) && (
+                        <button
+                          type="button"
+                          aria-label="新增灵感"
+                          title="新增灵感"
+                          onClick={() => setAdding(true)}
+                        >
+                          ＋
+                        </button>
+                      )}
+                    </div>
+                    {adding && (view === 'topic' || groupKey === dates[0]) && (
+                      <form
+                        className="inspiration-new"
+                        onSubmit={(event) => {
+                          event.preventDefault()
+                          void newIdea.submit()
+                        }}
+                      >
+                        <textarea
+                          autoFocus
+                          aria-label="新增灵感内容"
+                          placeholder="记下一个想法"
+                          value={newIdea.value}
+                          onChange={(event) => newIdea.setValue(event.target.value)}
+                          onCompositionStart={() => {
+                            newIdea.composing.current = true
+                          }}
+                          onCompositionEnd={newIdea.endComposition}
+                          onKeyDown={(event) => {
+                            if (
+                              event.key === 'Enter' &&
+                              !event.shiftKey &&
+                              !event.nativeEvent.isComposing &&
+                              event.keyCode !== 229
+                            ) {
+                              event.preventDefault()
+                              void newIdea.submit()
+                            }
+                          }}
+                        />
+                        <button type="submit">保存</button>
+                        <button
+                          type="button"
+                          aria-label="取消新增灵感"
+                          title="取消"
+                          onClick={() => {
+                            newIdea.start()
+                            setAdding(false)
+                            setNotice(null)
+                          }}
+                        >
+                          ×
+                        </button>
+                      </form>
+                    )}
+                  </>
+                )}
+                {group.items.length === 0 && (
+                  <p className="inspiration-empty">
+                    {workbench ? '还没有灵感。' : '在下方切换为灵感，记下新的想法。'}
+                  </p>
+                )}
                 {group.items.map((idea) => (
                   <article key={idea.id} data-inspiration-id={idea.id} className="inspiration-item">
                     {workbench && group.key === 'archive' ? (
@@ -571,59 +671,89 @@ export function InspirationPanel({
                                   : `${group.key}:${idea.id}`
                               )
                               setNewTopic('')
+                              setTopicSearch('')
                             }}
                           >
                             ⊞ 归主题
                           </button>
                           {picker === `${group.key}:${idea.id}` && (
-                            <div className="inspiration-topic-picker">
-                              {topics.map((topic) => (
-                                <label key={topic.id}>
-                                  <input
-                                    type="checkbox"
-                                    checked={idea.topicIds.includes(topic.id)}
-                                    onChange={async (event) => {
-                                      const checked = event.target.checked
-                                      if (!(await save())) return
-                                      try {
-                                        unwrap(
-                                          await getDesktopApi().setInspirationTopic(
-                                            idea.id,
-                                            topic.id,
-                                            checked
+                            <div
+                              className="inspiration-topic-picker"
+                              role="group"
+                              aria-label="选择主题"
+                              onKeyDown={(event) => {
+                                if (event.key === 'Escape') {
+                                  event.stopPropagation()
+                                  setPicker(null)
+                                  event.currentTarget.parentElement
+                                    ?.querySelector('button')
+                                    ?.focus()
+                                }
+                              }}
+                            >
+                              <input
+                                aria-label="搜索主题"
+                                placeholder="搜索主题"
+                                value={topicSearch}
+                                onChange={(event) => setTopicSearch(event.target.value)}
+                                autoFocus
+                              />
+                              {topics
+                                .filter((topic) =>
+                                  topic.name
+                                    .toLocaleLowerCase()
+                                    .includes(topicSearch.trim().toLocaleLowerCase())
+                                )
+                                .map((topic) => (
+                                  <label key={topic.id}>
+                                    <input
+                                      type="checkbox"
+                                      checked={idea.topicIds.includes(topic.id)}
+                                      onChange={(event) => {
+                                        const checked = event.target.checked
+                                        setIdeas((current) =>
+                                          current.map((item) =>
+                                            item.id !== idea.id
+                                              ? item
+                                              : {
+                                                  ...item,
+                                                  topicIds: checked
+                                                    ? [
+                                                        ...item.topicIds.filter(
+                                                          (id) => id !== topic.id
+                                                        ),
+                                                        topic.id
+                                                      ]
+                                                    : item.topicIds.filter((id) => id !== topic.id)
+                                                }
                                           )
                                         )
-                                        notifySuccess('主题已更新')
-                                        void refresh()
-                                      } catch (error) {
-                                        notifyError(
-                                          error instanceof Error ? error.message : '归集失败。'
-                                        )
-                                      }
-                                    }}
-                                  />
-                                  {topic.name}
-                                </label>
-                              ))}
+                                        queueTopicChange(async () => {
+                                          unwrap(
+                                            await getDesktopApi().setInspirationTopic(
+                                              idea.id,
+                                              topic.id,
+                                              checked
+                                            )
+                                          )
+                                          notifySuccess('主题已更新')
+                                        })
+                                      }}
+                                    />
+                                    {topic.name}
+                                  </label>
+                                ))}
                               <form
-                                onSubmit={async (event) => {
+                                onSubmit={(event) => {
                                   event.preventDefault()
-                                  if (!(await save())) return
-                                  try {
+                                  const name = newTopic
+                                  queueTopicChange(async () => {
                                     unwrap(
-                                      await getDesktopApi().createInspirationTopic(
-                                        newTopic,
-                                        idea.id
-                                      )
+                                      await getDesktopApi().createInspirationTopic(name, idea.id)
                                     )
                                     setNewTopic('')
                                     notifySuccess('主题已创建')
-                                    void refresh()
-                                  } catch (error) {
-                                    notifyError(
-                                      error instanceof Error ? error.message : '创建主题失败。'
-                                    )
-                                  }
+                                  })
                                 }}
                               >
                                 <input

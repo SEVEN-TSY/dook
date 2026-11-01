@@ -17,7 +17,7 @@ export interface InspirationStore {
   deleteArchived(id: string): void
   list(): Inspiration[]
   page(offset: number, limit: number, group?: InspirationGroup): InspirationPage
-  create(description: string, createdAt: string): Inspiration
+  create(description: string, createdAt: string, topicId?: string, creationId?: string): Inspiration
   update(id: string, description: string): Inspiration
   append(id: string, content: string, additionId?: string): Inspiration
 }

@@ -135,9 +135,14 @@ export class AppService {
     return this.inspirationStore().page(offset, limit, group)
   }
 
-  createInspiration(description: string): Inspiration {
+  createInspiration(description: string, topicId?: string, creationId?: string): Inspiration {
     if (typeof description !== 'string' || !description.trim()) throw new Error('灵感不能为空。')
-    return this.inspirationStore().create(description.trim(), this.now().toISOString())
+    return this.inspirationStore().create(
+      description.trim(),
+      this.now().toISOString(),
+      topicId,
+      creationId
+    )
   }
 
   updateInspiration(id: string, description: string): Inspiration {

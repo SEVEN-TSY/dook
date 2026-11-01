@@ -149,12 +149,42 @@ export class InspirationRepository implements InspirationStore {
     return { items, hasMore: rows.length > limit }
   }
 
-  create(description: string, createdAt: string): Inspiration {
-    const inspiration = { id: randomUUID(), description, additions: [], createdAt, topicIds: [] }
-    this.database
-      .prepare('INSERT INTO inspirations (id, description, created_at) VALUES (?, ?, ?)')
-      .run(inspiration.id, description, createdAt)
-    return inspiration
+  create(
+    description: string,
+    createdAt: string,
+    topicId?: string,
+    creationId?: string
+  ): Inspiration {
+    if (
+      creationId &&
+      this.database.prepare('SELECT id FROM inspirations WHERE id = ?').get(creationId)
+    )
+      return this.get(creationId)
+    const inspiration: Inspiration = {
+      id: creationId || randomUUID(),
+      description,
+      additions: [],
+      createdAt,
+      topicIds: topicId ? [topicId] : []
+    }
+    this.database.exec('BEGIN')
+    try {
+      this.database
+        .prepare('INSERT INTO inspirations (id, description, created_at) VALUES (?, ?, ?)')
+        .run(inspiration.id, description, createdAt)
+      if (topicId) {
+        if (!this.database.prepare('SELECT id FROM inspiration_topics WHERE id = ?').get(topicId))
+          throw new Error('主题不存在。')
+        this.database
+          .prepare('INSERT INTO inspiration_topic_members (inspiration_id, topic_id) VALUES (?, ?)')
+          .run(inspiration.id, topicId)
+      }
+      this.database.exec('COMMIT')
+      return inspiration
+    } catch (error) {
+      this.database.exec('ROLLBACK')
+      throw error
+    }
   }
 
   private get(id: string): Inspiration {

@@ -208,6 +208,29 @@ test('日期分页按本地自然日区分今天和历史', () => {
   }
 })
 
+test('主题内创建灵感同时归集，主题失效时不留下灵感', () => {
+  const database = new AppDatabase(':memory:')
+  const service = new AppService(database, undefined, () => new Date('2026-10-28T12:00:00Z'), {
+    inspirations: new InspirationRepository(database.connection)
+  })
+  try {
+    const seed = service.createInspiration('已有灵感')
+    const topic = service.createInspirationTopic('主题', seed.id)
+    const created = service.createInspiration('新灵感', topic.id)
+    assert.deepEqual(created.topicIds, [topic.id])
+    assert.equal(created.createdAt, '2026-10-28T12:00:00.000Z')
+    const retried = service.createInspiration('重试灵感', topic.id, 'stable-id')
+    assert.equal(service.createInspiration('重试灵感', topic.id, 'stable-id').id, retried.id)
+    assert.throws(() => service.createInspiration('失败灵感', 'missing'), /主题/)
+    assert.deepEqual(
+      service.listInspirations().map((item) => item.description),
+      ['已有灵感', '新灵感', '重试灵感']
+    )
+  } finally {
+    database.close()
+  }
+})
+
 test('主题可独立创建，删除后保留灵感及其他主题', () => {
   const database = new AppDatabase(':memory:')
   const service = new AppService(database, new TaskRepository(database.connection), undefined, {
