@@ -45,6 +45,12 @@ export function InspirationPanel({
   const [topics, setTopics] = useState<InspirationTopic[]>([])
   const [picker, setPicker] = useState<string | null>(null)
   const [newTopic, setNewTopic] = useState('')
+  const [creatingTopic, setCreatingTopic] = useState(false)
+  const [topicName, setTopicName] = useState('')
+  const [topicSearch, setTopicSearch] = useState('')
+  const pendingTopics = useRef(0)
+  const topicQueue = useRef<Promise<void>>(Promise.resolve())
+  const refreshCurrent = useRef<() => Promise<void>>(async () => {})
   const [renameId, setRenameId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [openedGroup, setOpenedGroup] = useState<string | null>(null)
@@ -88,10 +94,27 @@ export function InspirationPanel({
     }
   }
   const refresh = async () => {
+    if (pendingTopics.current) return
     const request = ++version.current
     try {
       if (workbench) {
         const topicList = unwrap(await getDesktopApi().listInspirationTopics())
+        if (
+          view === 'topic' &&
+          groupKey !== 'unassigned' &&
+          !topicList.some((topic) => topic.id === groupKey)
+        ) {
+          if (version.current === request) {
+            ++version.current
+            selectedByView.current.topic = null
+            setOpened(null)
+            setPicker(null)
+            setIdeas([])
+            setTopics(topicList)
+            setTopicGroup('unassigned')
+          }
+          return
+        }
         const items: Inspiration[] = []
         let hasMore = true
         while (items.length < loadedCount.current && hasMore) {
@@ -126,6 +149,7 @@ export function InspirationPanel({
       notifyError(error instanceof Error ? error.message : '读取灵感失败。')
     }
   }
+  refreshCurrent.current = refresh
   const loadMore = async () => {
     if (loading.current || !hasMore) return
     loading.current = true
@@ -198,6 +222,20 @@ export function InspirationPanel({
   )
   const save = async () =>
     (await Promise.all([original.save(), addition.save(), newIdea.save()])).every(Boolean)
+  const queueTopicChange = (action: () => Promise<void>) => {
+    ++pendingTopics.current
+    ++version.current
+    topicQueue.current = topicQueue.current.then(async () => {
+      try {
+        if (!(await save())) return
+        await action()
+      } catch (error) {
+        notifyError(error instanceof Error ? error.message : '归集失败。')
+      } finally {
+        if (--pendingTopics.current === 0) void refreshCurrent.current()
+      }
+    })
+  }
   useImperativeHandle(ref, () => ({ save }))
   useEffect(() => {
     void refresh()
@@ -301,6 +339,57 @@ export function InspirationPanel({
               </button>
             ))}
           </div>
+          {view === 'topic' && (
+            <div className="inspiration-topic-create">
+              {creatingTopic ? (
+                <form
+                  onSubmit={async (event) => {
+                    event.preventDefault()
+                    try {
+                      const topic = unwrap(await getDesktopApi().createInspirationTopic(topicName))
+                      setCreatingTopic(false)
+                      setTopicName('')
+                      ++version.current
+                      setOpened(null)
+                      setPicker(null)
+                      selectedByView.current.topic = null
+                      setIdeas([])
+                      setTopicGroup(topic.id)
+                      notifySuccess('主题已创建')
+                      void refresh()
+                    } catch (error) {
+                      notifyError(error instanceof Error ? error.message : '创建主题失败。')
+                    }
+                  }}
+                >
+                  <input
+                    aria-label="新增主题名称"
+                    value={topicName}
+                    onChange={(event) => setTopicName(event.target.value)}
+                    autoFocus
+                  />
+                  <button type="submit">创建</button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreatingTopic(false)
+                      setTopicName('')
+                    }}
+                  >
+                    取消
+                  </button>
+                </form>
+              ) : (
+                <button
+                  aria-label="新增主题"
+                  title="新增主题"
+                  onClick={() => setCreatingTopic(true)}
+                >
+                  ＋
+                </button>
+              )}
+            </div>
+          )}
           {groups.map((group) => (
             <div className="inspiration-nav-item" key={group.key}>
               <button
@@ -351,16 +440,45 @@ export function InspirationPanel({
                     </button>
                   </form>
                 ) : (
-                  <button
-                    aria-label={`重命名${group.label}`}
-                    title="重命名"
-                    onClick={() => {
-                      setRenameId(group.key)
-                      setRenameValue(group.label)
-                    }}
-                  >
-                    ✎
-                  </button>
+                  <>
+                    <button
+                      aria-label={`重命名${group.label}`}
+                      title="重命名"
+                      onClick={() => {
+                        setRenameId(group.key)
+                        setRenameValue(group.label)
+                      }}
+                    >
+                      ✎
+                    </button>
+                    <button
+                      aria-label={`删除${group.label}`}
+                      title="删除主题"
+                      onClick={async () => {
+                        try {
+                          const deleted = unwrap(
+                            await getDesktopApi().deleteInspirationTopic(group.key)
+                          )
+                          if (!deleted) return
+                          if (topicGroup === group.key) {
+                            ++version.current
+                            setIdeas([])
+                            setOpened(null)
+                            setPicker(null)
+                            selectedByView.current.topic = null
+                            setTopicGroup('unassigned')
+                          }
+                          setRenameId(null)
+                          notifySuccess('主题已删除')
+                          void refresh()
+                        } catch (error) {
+                          notifyError(error instanceof Error ? error.message : '删除主题失败。')
+                        }
+                      }}
+                    >
+                      ×
+                    </button>
+                  </>
                 ))}
             </div>
           ))}
@@ -503,59 +621,89 @@ export function InspirationPanel({
                                   : `${group.key}:${idea.id}`
                               )
                               setNewTopic('')
+                              setTopicSearch('')
                             }}
                           >
                             ⊞ 归主题
                           </button>
                           {picker === `${group.key}:${idea.id}` && (
-                            <div className="inspiration-topic-picker">
-                              {topics.map((topic) => (
-                                <label key={topic.id}>
-                                  <input
-                                    type="checkbox"
-                                    checked={idea.topicIds.includes(topic.id)}
-                                    onChange={async (event) => {
-                                      const checked = event.target.checked
-                                      if (!(await save())) return
-                                      try {
-                                        unwrap(
-                                          await getDesktopApi().setInspirationTopic(
-                                            idea.id,
-                                            topic.id,
-                                            checked
+                            <div
+                              className="inspiration-topic-picker"
+                              role="group"
+                              aria-label="选择主题"
+                              onKeyDown={(event) => {
+                                if (event.key === 'Escape') {
+                                  event.stopPropagation()
+                                  setPicker(null)
+                                  event.currentTarget.parentElement
+                                    ?.querySelector('button')
+                                    ?.focus()
+                                }
+                              }}
+                            >
+                              <input
+                                aria-label="搜索主题"
+                                placeholder="搜索主题"
+                                value={topicSearch}
+                                onChange={(event) => setTopicSearch(event.target.value)}
+                                autoFocus
+                              />
+                              {topics
+                                .filter((topic) =>
+                                  topic.name
+                                    .toLocaleLowerCase()
+                                    .includes(topicSearch.trim().toLocaleLowerCase())
+                                )
+                                .map((topic) => (
+                                  <label key={topic.id}>
+                                    <input
+                                      type="checkbox"
+                                      checked={idea.topicIds.includes(topic.id)}
+                                      onChange={(event) => {
+                                        const checked = event.target.checked
+                                        setIdeas((current) =>
+                                          current.map((item) =>
+                                            item.id !== idea.id
+                                              ? item
+                                              : {
+                                                  ...item,
+                                                  topicIds: checked
+                                                    ? [
+                                                        ...item.topicIds.filter(
+                                                          (id) => id !== topic.id
+                                                        ),
+                                                        topic.id
+                                                      ]
+                                                    : item.topicIds.filter((id) => id !== topic.id)
+                                                }
                                           )
                                         )
-                                        notifySuccess('主题已更新')
-                                        void refresh()
-                                      } catch (error) {
-                                        notifyError(
-                                          error instanceof Error ? error.message : '归集失败。'
-                                        )
-                                      }
-                                    }}
-                                  />
-                                  {topic.name}
-                                </label>
-                              ))}
+                                        queueTopicChange(async () => {
+                                          unwrap(
+                                            await getDesktopApi().setInspirationTopic(
+                                              idea.id,
+                                              topic.id,
+                                              checked
+                                            )
+                                          )
+                                          notifySuccess('主题已更新')
+                                        })
+                                      }}
+                                    />
+                                    {topic.name}
+                                  </label>
+                                ))}
                               <form
-                                onSubmit={async (event) => {
+                                onSubmit={(event) => {
                                   event.preventDefault()
-                                  if (!(await save())) return
-                                  try {
+                                  const name = newTopic
+                                  queueTopicChange(async () => {
                                     unwrap(
-                                      await getDesktopApi().createInspirationTopic(
-                                        newTopic,
-                                        idea.id
-                                      )
+                                      await getDesktopApi().createInspirationTopic(name, idea.id)
                                     )
                                     setNewTopic('')
                                     notifySuccess('主题已创建')
-                                    void refresh()
-                                  } catch (error) {
-                                    notifyError(
-                                      error instanceof Error ? error.message : '创建主题失败。'
-                                    )
-                                  }
+                                  })
                                 }}
                               >
                                 <input

@@ -7,7 +7,9 @@ import type {
 
 export interface InspirationStore {
   listTopics(): InspirationTopic[]
-  createTopic(name: string, inspirationId: string): InspirationTopic
+  createTopic(name: string, inspirationId?: string): InspirationTopic
+  topicDetails(id: string): { name: string; count: number }
+  deleteTopic(id: string): void
   renameTopic(id: string, name: string): void
   setTopic(inspirationId: string, topicId: string, included: boolean): void
   list(): Inspiration[]

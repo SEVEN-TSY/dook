@@ -16,6 +16,7 @@ export const IPC_CHANNELS = {
   listInspirations: 'inspirations:list',
   listInspirationTopics: 'inspirations:topics:list',
   createInspirationTopic: 'inspirations:topics:create',
+  deleteInspirationTopic: 'inspirations:topics:delete',
   renameInspirationTopic: 'inspirations:topics:rename',
   setInspirationTopic: 'inspirations:topics:set',
   listInspirationPage: 'inspirations:page',

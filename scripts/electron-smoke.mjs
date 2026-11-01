@@ -776,6 +776,78 @@ async function runSmoke() {
     menuClick('打开主界面')
     let main = await waitFor(() => findWindow('main'), '托盘打开主界面')
     assert.ok(main && note)
+    if (phase.startsWith('topic-management-')) {
+      await waitFor(
+        () => js(main, 'Boolean(document.querySelector(".workbench-header h1"))'),
+        '工作台就绪'
+      )
+      await js(
+        main,
+        `Array.from(document.querySelectorAll('.workbench-nav button')).find(x => x.textContent === '灵感').click()`
+      )
+      await js(
+        main,
+        `Array.from(document.querySelectorAll('.inspiration-views button')).find(x => x.textContent === '主题').click()`
+      )
+      if (phase === 'topic-management-create') {
+        await click(main, '[aria-label="新增主题"]')
+        await input(main, '[aria-label="新增主题名称"]', '独立主题')
+        await waitFor(
+          () => js(main, `Boolean(document.querySelector('[aria-label="重命名独立主题"]'))`),
+          '独立创建主题'
+        )
+        await click(main, '[aria-label="重命名独立主题"]')
+        await input(main, '[aria-label="主题名称"]', '改名主题')
+        await waitFor(
+          () => js(main, `Boolean(document.querySelector('[aria-label="删除改名主题"]'))`),
+          '主题改名'
+        )
+        const created = await js(
+          main,
+          `(async () => { const idea = (await window.myTodo.createInspiration('保留想法')).data; await window.myTodo.appendInspiration(idea.id, '保留补充'); const topics = (await window.myTodo.listInspirationTopics()).data; const topic = topics.find(t => t.name === '改名主题'); await window.myTodo.setInspirationTopic(idea.id, topic.id, true); await window.myTodo.createInspirationTopic('其他主题', idea.id); return idea.id })()`
+        )
+        let detail = ''
+        dialog.showMessageBox = async (_window, options) => {
+          detail = options.detail
+          return { response: 0, checkboxChecked: false }
+        }
+        await click(main, '[aria-label="删除改名主题"]')
+        await waitFor(() => detail !== '', '删除确认')
+        assert.match(detail, /1条灵感/)
+        assert.ok(
+          (await js(note, 'window.myTodo.listInspirationTopics()')).data.some(
+            (t) => t.name === '改名主题'
+          )
+        )
+        dialog.showMessageBox = async () => ({ response: 1, checkboxChecked: false })
+        await click(main, '[aria-label="删除改名主题"]')
+        await waitFor(
+          async () =>
+            !(await js(note, 'window.myTodo.listInspirationTopics()')).data.some(
+              (t) => t.name === '改名主题'
+            ),
+          '删除同步'
+        )
+        const idea = (await js(note, 'window.myTodo.listInspirations()')).data.find(
+          (i) => i.id === created
+        )
+        assert.equal(idea.description, '保留想法')
+        assert.equal(idea.additions[0].content, '保留补充')
+        assert.equal(idea.topicIds.length, 1)
+      } else {
+        const topics = (await js(note, 'window.myTodo.listInspirationTopics()')).data
+        assert.ok(topics.some((t) => t.name === '其他主题'))
+        assert.ok(!topics.some((t) => t.name === '改名主题'))
+        const idea = (await js(note, 'window.myTodo.listInspirations()')).data.find(
+          (i) => i.description === '保留想法'
+        )
+        assert.equal(idea.additions[0].content, '保留补充')
+        assert.equal(idea.topicIds.length, 1)
+      }
+      console.log(`Electron topic management smoke passed: ${phase}`)
+      menuClick('退出')
+      return
+    }
     if (phase.startsWith('topics-')) {
       await waitFor(
         () => js(main, 'Boolean(document.querySelector(".workbench-header h1"))'),
@@ -805,6 +877,75 @@ async function runSmoke() {
               `document.querySelector('.inspiration-topic-picker')?.textContent.includes('持久主题')`
             ),
           '创建主题'
+        )
+        await input(main, '[aria-label="搜索主题"]', '不存在', '')
+        assert.equal(
+          await js(
+            main,
+            `Boolean(document.querySelector('.inspiration-topic-picker input[type=checkbox]'))`
+          ),
+          false
+        )
+        await input(main, '[aria-label="搜索主题"]', '持久', '')
+        assert.equal(
+          await js(
+            main,
+            `document.querySelector('.inspiration-topic-picker input[type=checkbox]').checked`
+          ),
+          true
+        )
+        await input(main, '[aria-label="搜索主题"]', '', '')
+        await input(main, '[aria-label="新主题名称"]', '另一个主题')
+        await waitFor(
+          () =>
+            js(
+              main,
+              `document.querySelectorAll('.inspiration-topic-picker input[type=checkbox]').length === 2`
+            ),
+          '多主题创建'
+        )
+        await js(
+          main,
+          `(() => { const box = Array.from(document.querySelectorAll('.inspiration-topic-picker label')).find(label => label.textContent.includes('另一个主题')).querySelector('input'); box.click(); box.click(); box.click(); })()`
+        )
+        await waitFor(
+          () =>
+            js(
+              main,
+              `(async () => (await window.myTodo.listInspirations()).data[0].topicIds.length === 1)()`
+            ),
+          '连续切换后的关联'
+        )
+        await waitFor(
+          () =>
+            js(
+              main,
+              `document.querySelectorAll('.inspiration-topic-picker input[type=checkbox]:checked').length === 1`
+            ),
+          '连续切换后的选中状态'
+        )
+        await input(main, '[aria-label="新主题名称"]', '   ')
+        await waitFor(
+          () =>
+            js(
+              main,
+              `document.querySelector('[role=alert]')?.textContent.includes('主题名称不能为空')`
+            ),
+          '创建失败提示'
+        )
+        await click(main, '[aria-label="关闭提示"]')
+        await input(main, '[aria-label="新主题名称"]', '持久主题二')
+        await waitFor(
+          () =>
+            js(
+              main,
+              `document.querySelectorAll('.inspiration-topic-picker input[type=checkbox]:checked').length === 2`
+            ),
+          '失败后继续创建'
+        )
+        writeFileSync(
+          resolve(output, 'inspiration-topic-picker.png'),
+          (await main.webContents.capturePage()).toPNG()
         )
         await click(main, '[data-testid=inspiration-supplement]')
         await input(main, '[data-testid=inspiration-addition]', '持久补充')

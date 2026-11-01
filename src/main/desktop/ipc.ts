@@ -127,8 +127,29 @@ export function registerIpc(handlers: Handlers): () => void {
   register(IPC_CHANNELS.listToday, () => handlers.service.listToday())
   register(IPC_CHANNELS.listInspirationTopics, () => handlers.service.listInspirationTopics())
   register(IPC_CHANNELS.createInspirationTopic, (_, name, id) =>
-    mutate(() => handlers.service.createInspirationTopic(text(name), text(id)))
+    mutate(() =>
+      handlers.service.createInspirationTopic(text(name), id === undefined ? undefined : text(id))
+    )
   )
+  register(IPC_CHANNELS.deleteInspirationTopic, async (window, id) => {
+    const topicId = text(id)
+    const topic = handlers.service.inspirationTopicDetails(topicId)
+    const result = await handlers.desktop.protect(() =>
+      dialog.showMessageBox(window, {
+        type: 'question',
+        title: '删除主题',
+        message: `删除主题“${topic.name}”？`,
+        detail: `关联的${topic.count}条灵感及其内容会保留。`,
+        buttons: ['取消', '删除'],
+        defaultId: 0,
+        cancelId: 0,
+        noLink: true
+      })
+    )
+    if (result.response !== 1) return false
+    mutate(() => handlers.service.deleteInspirationTopic(topicId))
+    return true
+  })
   register(IPC_CHANNELS.renameInspirationTopic, (_, id, name) =>
     mutate(() => handlers.service.renameInspirationTopic(text(id), text(name)))
   )

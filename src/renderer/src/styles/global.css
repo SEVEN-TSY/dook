@@ -2169,6 +2169,20 @@ h1 {
   border: 1px solid #e5eaf1;
   border-radius: 6px;
   box-shadow: 0 4px 16px #30374420;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.inspiration-workbench .inspiration-list:has(.inspiration-topic-picker) {
+  overflow: visible;
+  max-height: none;
+}
+.inspiration-topic-picker > input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid #dce4ef;
+  border-radius: 5px;
+  font: inherit;
 }
 .inspiration-topic-picker label {
   display: flex;

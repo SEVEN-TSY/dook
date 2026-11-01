@@ -230,3 +230,23 @@ test('主题内创建灵感同时归集，主题失效时不留下灵感', () =>
     database.close()
   }
 })
+
+test('主题可独立创建，删除后保留灵感及其他主题', () => {
+  const database = new AppDatabase(':memory:')
+  const service = new AppService(database, new TaskRepository(database.connection), undefined, {
+    inspirations: new InspirationRepository(database.connection)
+  })
+  try {
+    const first = service.createInspiration('想法')
+    service.appendInspiration(first.id, '补充')
+    const topic = service.createInspirationTopic('独立主题')
+    const other = service.createInspirationTopic('其他主题', first.id)
+    service.setInspirationTopic(first.id, topic.id, true)
+    assert.equal(service.inspirationTopicDetails(topic.id).count, 1)
+    service.deleteInspirationTopic(topic.id)
+    assert.deepEqual(service.listInspirations()[0]?.topicIds, [other.id])
+    assert.equal(service.listInspirations()[0]?.additions[0]?.content, '补充')
+  } finally {
+    database.close()
+  }
+})
