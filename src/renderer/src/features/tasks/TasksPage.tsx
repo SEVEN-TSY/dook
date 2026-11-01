@@ -10,6 +10,7 @@ import { InspirationPanel } from '../inspirations/InspirationPanel'
 import type { InspirationPanelHandle } from '../inspirations/InspirationPanel'
 import { useInspirationInput } from '../inspirations/useInspirationInput'
 import { SettingsPage } from '../settings/SettingsPage'
+import { taskSummary as summarizeTasks } from './taskSummary'
 
 const INSPIRATION_GOAL = 5
 
@@ -185,7 +186,9 @@ export function TasksPage({
   const taskAdded = useTaskInput(today?.date, refresh, setError)
   const [loadedInspirationCount, setInspirationCount] = useState<number>()
   const inspirationCount = loadedInspirationCount ?? 0
-  const taskSummary = useSummaryMotion(kind === 'note' ? today?.tasks.length : undefined, true)
+  const showMultiDay = desktop?.settings.showMultiDay ?? true
+  const { total, completed } = summarizeTasks(today?.tasks, kind !== 'note' || showMultiDay)
+  const taskSummary = useSummaryMotion(kind === 'note' && today ? total : undefined, true)
   const inspirationSummary = useSummaryMotion(kind === 'note' ? loadedInspirationCount : undefined)
   const inspirationCountVersion = useRef(0)
   const refreshInspirationCount = useCallback(async () => {
@@ -255,7 +258,6 @@ export function TasksPage({
     setSubitemEditing(subitemInteractions.current.size > 0)
   }, [])
   const flush = useRef(async () => true)
-  const showMultiDay = desktop?.settings.showMultiDay ?? true
   useEffect(() => {
     if (kind !== 'main' || !desktop?.mainNavigation) return
     let active = true
@@ -357,7 +359,6 @@ export function TasksPage({
       setError(error instanceof Error ? error.message : '打开页面失败。')
     }
   }
-  const completed = today?.tasks.filter((task) => task.completed).length ?? 0
   const noteGroups = {
     today: today?.tasks.filter((task) => task.kind === 'today') ?? [],
     'multi-day': today?.tasks.filter((task) => task.kind === 'multi-day') ?? []
@@ -704,6 +705,7 @@ export function TasksPage({
     >
       <header
         className="task-heading"
+        title={kind === 'note' ? '拖动到桌面边缘吸附' : undefined}
         onPointerDown={(event) => {
           if (kind !== 'note' || event.button !== 0 || (event.target as Element).closest('button'))
             return
@@ -1209,7 +1211,7 @@ export function TasksPage({
           className="note-summary note-task-summary"
           ref={taskSummary}
           title="在主界面打开任务"
-          aria-label={`在主界面打开任务，已完成${completed}项，共${today?.tasks.length ?? 0}项`}
+          aria-label={`在主界面打开任务，已完成${completed}项，共${total}项`}
           onClick={() => void openMainPage('task')}
         >
           <svg className="note-progress-ring" viewBox="0 0 36 36" aria-hidden="true">
@@ -1220,13 +1222,13 @@ export function TasksPage({
               cy="18"
               r="16.5"
               pathLength="100"
-              strokeDasharray={`${today?.tasks.length ? (completed / today.tasks.length) * 100 : 0} 100`}
+              strokeDasharray={`${total ? (completed / total) * 100 : 0} 100`}
             />
           </svg>
           <span className="note-progress-count">
             <strong>{completed}</strong>
             <span>/</span>
-            <span>{today?.tasks.length ?? 0}</span>
+            <span>{total}</span>
           </span>
         </button>
         <button

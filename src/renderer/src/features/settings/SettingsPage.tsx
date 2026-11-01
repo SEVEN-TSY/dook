@@ -40,6 +40,7 @@ export function SettingsPage({
           <input
             data-testid="launch-at-login"
             type="checkbox"
+            role="switch"
             checked={state?.settings.launchAtLogin ?? true}
             disabled={!state || busy}
             onChange={(event) =>
@@ -58,6 +59,7 @@ export function SettingsPage({
           <input
             data-testid="default-pin"
             type="checkbox"
+            role="switch"
             checked={state?.settings.defaultAlwaysOnTop ?? true}
             disabled={!state || busy}
             onChange={(event) =>
@@ -73,6 +75,7 @@ export function SettingsPage({
           <input
             data-testid="edge-auto-hide"
             type="checkbox"
+            role="switch"
             checked={state?.settings.edgeAutoHide ?? true}
             disabled={!state || busy}
             onChange={(event) =>
@@ -88,6 +91,7 @@ export function SettingsPage({
           <input
             data-testid="show-multi-day"
             type="checkbox"
+            role="switch"
             checked={state?.settings.showMultiDay ?? true}
             disabled={!state || busy}
             onChange={(event) =>

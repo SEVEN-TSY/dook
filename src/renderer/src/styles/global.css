@@ -679,11 +679,47 @@ h1 {
   color: #6a7588;
   font-size: 12px;
 }
-.setting-row input {
-  accent-color: #526fc4;
-  width: 18px;
-  height: 18px;
+.setting-row input[role='switch'] {
+  appearance: none;
+  position: relative;
+  width: 40px;
+  height: 24px;
+  margin: 0;
+  border: 1px solid #a5afbf;
+  border-radius: 999px;
+  background: #d5dce7;
   flex-shrink: 0;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+.setting-row input[role='switch']::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px #30374426;
+  transition: transform 160ms ease;
+}
+.setting-row input[role='switch']:checked {
+  border-color: #526fc4;
+  background: #526fc4;
+}
+.setting-row input[role='switch']:checked::before {
+  transform: translateX(16px);
+}
+.setting-row input[role='switch']:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+@media (prefers-reduced-motion: reduce) {
+  .setting-row input[role='switch'],
+  .setting-row input[role='switch']::before {
+    transition: none;
+  }
 }
 .settings-hint {
   color: #8792a4;

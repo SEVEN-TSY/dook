@@ -4,15 +4,15 @@ import type { DesktopState } from '../../shared/contracts'
 import { getDesktopApi, unwrap } from './platform/desktop'
 import { useTasks } from './features/tasks/useTasks'
 import { NoteTransition } from './features/tasks/NoteTransition'
+import { taskSummary } from './features/tasks/taskSummary'
 
 export function App() {
   const tasks = useTasks()
-  const total = tasks.today?.tasks.length ?? 0
-  const completed = tasks.today?.tasks.filter((task) => task.completed).length ?? 0
+  const [desktop, setDesktop] = useState<DesktopState | null>(null)
+  const { total, completed } = taskSummary(tasks.today?.tasks, desktop?.settings.showMultiDay)
   const progress = total ? (completed / total) * 100 : 0
   const edgePress = useRef<{ x: number; y: number; moved: boolean } | null>(null)
   const summary = total ? `总进度${progress}%，已完成${completed}/${total}项任务` : '暂无任务'
-  const [desktop, setDesktop] = useState<DesktopState | null>(null)
   const [error, setError] = useState('')
   useEffect(() => {
     const api = getDesktopApi()

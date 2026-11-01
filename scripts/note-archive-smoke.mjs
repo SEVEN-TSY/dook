@@ -252,11 +252,19 @@ export async function noteArchiveSmoke({
   await click(main, '[data-testid=show-multi-day]')
   await waitFor(async () => !(await state(note)).settings.showMultiDay, '关闭持续推进')
   assert.deepEqual(await visibleGroups(), ['today', 'archived'])
-  assert.equal((await tasks()).length, 1, '隐藏分栏保留日常任务与统计数据')
+  assert.equal((await tasks()).length, 1, '隐藏分栏保留任务数据')
   assert.equal(
     await js(note, `document.querySelector('.note-task-summary').getAttribute('aria-label')`),
-    '在主界面打开任务，已完成0项，共1项'
+    '在主界面打开任务，已完成0项，共0项'
   )
+  await js(note, `window.myTodo.setTaskCompleted('${multi.id}', true)`)
+  await waitFor(async () => (await tasks()).find((x) => x.id === multi.id)?.completed, '隐藏任务完成')
+  assert.equal(
+    await js(note, `document.querySelector('.note-task-summary').getAttribute('aria-label')`),
+    '在主界面打开任务，已完成0项，共0项',
+    '隐藏的持续推进不计入完成数和总数'
+  )
+  await js(note, `window.myTodo.setTaskCompleted('${multi.id}', false)`)
   await js(main, `window.myTodo.openWindow('main', 'task')`)
   await waitFor(
     () => js(main, `Boolean(document.querySelector('[data-task-id="${multi.id}"]'))`),
