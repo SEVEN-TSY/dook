@@ -11,11 +11,16 @@ export function useSerialSave<T>(
   failureMessage: string
 ) {
   const pending = useRef<Promise<boolean> | null>(null)
+  const pendingDraft = useRef<T | null>(null)
   const composing = useRef(false)
   const afterComposition = useRef(false)
   const [saving, setSaving] = useState(false)
   const save = (): Promise<boolean> => {
-    if (pending.current) return pending.current
+    if (pending.current) {
+      return session.current === pendingDraft.current
+        ? pending.current
+        : pending.current.then(() => save())
+    }
     if (composing.current) {
       afterComposition.current = true
       return Promise.resolve(false)
@@ -33,9 +38,11 @@ export function useSerialSave<T>(
       return true
     }
     setSaving(true)
+    pendingDraft.current = draft
     pending.current = run()
       .catch((error: unknown) => {
-        report(error instanceof Error ? error.message : failureMessage)
+        if (session.current === draft)
+          report(error instanceof Error ? error.message : failureMessage)
         return false
       })
       .finally(() => {

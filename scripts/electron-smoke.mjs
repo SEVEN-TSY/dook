@@ -957,8 +957,27 @@ async function runSmoke() {
         main,
         `Array.from(document.querySelectorAll('.workbench-nav button')).find(x => x.textContent === '灵感').click()`
       )
-      await click(main, '.primary-button')
-      await input(main, '[data-testid=task-new]', '新的灵感')
+      await click(main, '[aria-label="新增灵感"]')
+      await input(main, '[aria-label="新增灵感内容"]', '取消的灵感', null)
+      await click(main, '[aria-label="取消新增灵感"]')
+      await click(main, '[aria-label="新增灵感"]')
+      assert.equal(
+        await js(main, `document.querySelector('[aria-label="新增灵感内容"]').value`),
+        ''
+      )
+      writeFileSync(
+        resolve(output, 'inspiration-new.png'),
+        (await main.webContents.capturePage()).toPNG()
+      )
+      await input(main, '[aria-label="新增灵感内容"]', '新的灵感')
+      await waitFor(
+        () =>
+          js(
+            main,
+            `document.querySelector('[data-testid=inspiration-summary]')?.textContent === '新的灵感'`
+          ),
+        '页内新增灵感'
+      )
       await click(main, '[data-testid=inspiration-summary]')
       await input(main, '[data-testid=inspiration-edit]', '编辑后的灵感')
       await click(main, '[data-testid=inspiration-supplement]')

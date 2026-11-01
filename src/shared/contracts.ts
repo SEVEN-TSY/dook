@@ -82,7 +82,11 @@ export interface DesktopApi {
     limit: number,
     group?: InspirationGroup
   ) => Promise<ApiResult<InspirationPage>>
-  createInspiration: (description: string) => Promise<ApiResult<Inspiration>>
+  createInspiration: (
+    description: string,
+    topicId?: string,
+    creationId?: string
+  ) => Promise<ApiResult<Inspiration>>
   updateInspiration: (id: string, description: string) => Promise<ApiResult<Inspiration>>
   appendInspiration: (
     id: string,

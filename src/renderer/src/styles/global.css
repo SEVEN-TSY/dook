@@ -2301,3 +2301,40 @@ h1 {
 .inspiration-workbench.has-detail .inspiration-inline-edit {
   flex-basis: 100%;
 }
+
+.inspiration-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.inspiration-group-header button,
+.inspiration-new button {
+  border: 0;
+  background: transparent;
+  color: #526fc4;
+  cursor: pointer;
+  font-size: 18px;
+}
+.inspiration-new {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  margin: 8px 0 16px;
+  background: #f5f8ff;
+  border: 1px solid #dce5f7;
+  border-radius: 10px;
+}
+.inspiration-new textarea {
+  flex: 1;
+  min-width: 0;
+  min-height: 68px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  resize: vertical;
+  font: inherit;
+}
+.inspiration-new button[type='submit'] {
+  font-size: 13px;
+}
