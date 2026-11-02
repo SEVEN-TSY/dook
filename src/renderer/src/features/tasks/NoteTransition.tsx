@@ -61,7 +61,10 @@ export function NoteTransition({
         transform: `translate3d(${x}px, ${y}px, 0) scale(${scaleX}, ${scaleY})`,
         // 反向修正圆角，使表面由胶囊自然过渡，不拉成长椭圆。
         borderRadius: `${radius / scaleX}px / ${radius / scaleY}px`,
-        backgroundColor: `rgb(${240 + 10 * tone}, ${244 + 7 * tone}, ${252 + 2 * tone})`
+        backgroundColor:
+          desktop.colorScheme === 'dark'
+            ? getComputedStyle(shell).backgroundColor
+            : `rgb(${240 + 10 * tone}, ${244 + 7 * tone}, ${252 + 2 * tone})`
       }
     })
     const shape = shell.animate(keyframes, { duration, easing: 'linear', fill: 'both' })
@@ -93,7 +96,13 @@ export function NoteTransition({
       content.cancel()
       snapshotMotion?.cancel()
     }
-  }, [desktop.edge, desktop.noteMotion, desktop.noteMotionRevision, desktop.noteMotionSource])
+  }, [
+    desktop.edge,
+    desktop.noteMotion,
+    desktop.noteMotionRevision,
+    desktop.noteMotionSource,
+    desktop.colorScheme
+  ])
   return (
     <div className="note-morph" aria-hidden="true">
       <div ref={surface} className="note-morph-surface" />

@@ -10,17 +10,17 @@
 @theme inline {
   --color-background: var(--ui-background);
   --color-foreground: var(--ui-foreground);
-  --color-popover: #ffffff;
+  --color-popover: light-dark(#ffffff, #2b2b2b);
   --color-popover-foreground: var(--ui-foreground);
   --color-primary: var(--ui-primary);
   --color-primary-hover: var(--app-primary-hover);
   --color-accent-hover: var(--app-hover);
   --color-primary-foreground: var(--app-accent-foreground);
   --color-secondary: var(--app-accent-soft);
-  --color-secondary-foreground: #303744;
+  --color-secondary-foreground: light-dark(#303744, #e3e3e3);
   --color-accent: var(--app-accent-soft);
   --color-accent-foreground: var(--app-accent-ink);
-  --color-muted-foreground: #6a7588;
+  --color-muted-foreground: light-dark(#6a7588, #adadad);
   --color-destructive: #c74b55;
   --color-border: var(--app-input-border);
   --color-input: var(--app-input-border);
@@ -28,8 +28,8 @@
 }
 
 :root {
-  --ui-background: #fafbfe;
-  --ui-foreground: #303744;
+  --ui-background: light-dark(#fafbfe, #202020);
+  --ui-foreground: light-dark(#303744, #e3e3e3);
   --ui-primary: var(--app-accent);
 }
 

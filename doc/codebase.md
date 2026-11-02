@@ -10,8 +10,8 @@
 | `renderer/platform/`       | 获取桌面桥接、解析ApiResult                                       |
 | `preload/`                 | 固定IPC方法和变更事件订阅；不暴露ipcRenderer                      |
 | `main/desktop/`            | 双窗口、托盘、贴边与屏幕恢复、保存握手、IPC来源验证及受控删除入口 |
-| `main/core/`               | AppService及存储接口，本地日期、任务、子事项、习惯与灵感用例      |
-| `main/storage/`            | SQLite生命周期、SQL迁移及任务、习惯、灵感仓储                     |
+| `main/core/`               | AppService及存储接口，本地日期、任务、子事项、习惯与小记用例      |
+| `main/storage/`            | SQLite生命周期、SQL迁移及任务、习惯、小记仓储                     |
 | `main/mcp/`                | 官方SDK、本机HTTP端点、鉴权及诊断工具                             |
 | `shared/`                  | 纯数据契约和频道名，不导入Electron、React或Node.js                |
 | `main/index.ts`            | 组合根，创建共享实例、广播变更和管理生命周期                      |
@@ -21,8 +21,8 @@
 ## 2. 源码入口
 
 - `main/index.ts`组装AppDatabase、TaskRepository、AppService、MCP端点和窗口。
-- `main/core/app-service.ts`提供任务、子事项、习惯和灵感用例；通过可注入时钟确定电脑本地日期。多天任务进度、子事项完成联动与当天可见性沿用同一业务入口。
-- `main/core/tasks.ts`定义TaskStore和本地日期转换；习惯及灵感各有独立存储接口，通过AppService的可选features参数注入。
+- `main/core/app-service.ts`提供任务、子事项、习惯和小记用例；通过可注入时钟确定电脑本地日期。多天任务进度、子事项完成联动与当天可见性沿用同一业务入口。
+- `main/core/tasks.ts`定义TaskStore和本地日期转换；习惯及小记各有独立存储接口，通过AppService的可选features参数注入。
 - `main/storage/repositories/tasks.ts`实现任务及子事项持久化；habits仓储以事务写入习惯、任务和每日生成记录，inspirations仓储保存原始想法及按序补充。
 - `main/desktop/window.ts`创建普通主界面与约334px宽、不占任务栏的无标题栏便签。
 - `main/desktop/desktop.ts`管理窗口唯一性、唯一托盘、恢复、隐藏及退出前的保存流程。
@@ -32,11 +32,11 @@
 - `main/desktop/ipc.ts`只接受注册窗口主Frame的请求，校验参数并包装结果；删除由渲染层共用应用内弹窗确认，再经白名单桥接调用AppService，取消不发起删除。`inspirationTopicDetails`复用已有服务查询主题名称及完整关联数量（含归档小记），用于确认提示。
 - `renderer/src/components/BackToList.tsx`统一返回列表按钮，沿用页面的草稿提交及失败保留；`DeleteConfirmation.tsx`使用Radix AlertDialog提供共用应用内确认、取消默认焦点及键盘操作；取消或Esc恢复原操作入口，确认后聚焦稳定的当前页面或任务列表，避免删除行卸载后丢失焦点。TasksPage把两窗口的确认开启状态纳入交互保护，Desktop按窗口合并确认与便签原有输入、拖动等交互状态，最后一个保护结束后恢复自动收起。隐藏或退出仍复用TasksPage每窗口唯一的保存回调：先取消所属窗口的删除确认，再执行原草稿保存，防止隐藏窗口遗留确认保护。
 - `preload/index.ts`显式暴露DesktopApi；订阅返回清理函数。
-- `renderer/src/features/tasks/TasksPage.tsx`是两端共用的分类界面；主界面采用左侧任务、习惯、灵感同级导航及底部设置入口，三个类别均订阅变更并显示当天数量：当天可见任务、当天习惯任务、当天新增灵感；两端共用已归档任务列表，“显示持续推进”同时控制两端可见性与统计。桌面便签以灯泡和当天数量提供灵感页快捷入口；SubitemsPanel、HabitsPanel和InspirationPanel分别承载子事项、主界面习惯管理及灵感编辑。
+- `renderer/src/features/tasks/TasksPage.tsx`是两端共用的分类界面；主界面采用左侧任务、习惯、小记同级导航及底部设置入口，三个类别均订阅变更并显示当天数量：当天可见任务、当天习惯任务、当天新增小记；两端共用已归档任务列表，“显示持续推进”同时控制两端可见性与统计。桌面便签以灯泡和当天数量提供小记页快捷入口；SubitemsPanel、HabitsPanel和InspirationPanel分别承载子事项、主界面习惯管理及小记编辑。
 - `renderer/src/features/tasks/useTasks.ts`读取列表、订阅通知、协调操作及错误，丢弃过时列表响应。
 - `renderer/src/features/tasks/NoteTransition.tsx`以独立共享表面完成胶囊与便签的FLIP投影、圆角校正及内容交接；动画完成后按版本向主进程握手，避免过早收缩原生窗口。
 - `renderer/src/features/tasks/useTaskInput.ts`串行协调同一轮输入的创建和更新，不阻塞继续输入；任务组件在设置页和收起状态保持挂载。
-- `renderer/src/features/shared/useSerialSave.ts`统一管理草稿串行保存、组合输入延后和失败保留；任务、灵感及子事项各自保留领域校验和持久化动作。
+- `renderer/src/features/shared/useSerialSave.ts`统一管理草稿串行保存、组合输入延后和失败保留；任务、小记及子事项各自保留领域校验和持久化动作。
 - `renderer/src/features/settings/SettingsPage.tsx`按系统偏好和便签偏好分组，提供开机自启、默认置顶、贴边自动隐藏及显示持续推进设置。隐藏持续推进前由桌面保存屏障提交便签草稿，失败时保持原设置。
 - `main/desktop/login-item.ts`通过Electron登录项API应用开机自启偏好，仅Windows安装版注册，开发及集成验证不注册临时程序。
 - `renderer/src/styles/global.css`定义两种布局的共同蓝白样式。
@@ -64,12 +64,12 @@
 - v2：`tasks`，保留稳定id、任务描述、所属本地日期、完成状态和自增创建顺序。
 - v3：任务形态、进度及完成日期；既有任务保持为原日期的今天任务。
 - v4：习惯、任务来源及每日生成记录。生成记录独立于任务存活状态，不随任务删除而丢失。
-- v5：灵感及按稳定顺序保存的补充内容。
+- v5：小记及按稳定顺序保存的补充内容。
 - v6：子事项；首项创建、任务转换及进度更新在同一事务中完成。
 - v7：任务排序和置顶；旧任务默认保持创建顺序，分类内置顶优先、再按手动顺序展示。
 - v8：习惯任务单次暂停日期；保留任务和生成记录，只从当天列表排除。
-- v9～v10：灵感记录时间及主题归集。
-- v11：灵感归档状态，旧记录默认保持普通状态。
+- v9～v10：小记记录时间及主题归集。
+- v11：小记归档状态，旧记录默认保持普通状态。
 - v12：任务归档时间及排序索引，旧任务默认未归档。
 
 任务归档独立于完成和习惯暂停状态；日常任务查询及修改均排除归档任务。归档列表按归档时间、创建次序倒序展示，跨日及重启保留。恢复今天任务时归入当天，已完成多天任务的完成日期更新为当天，保留进度和子事项。永久删除级联清理子事项，桌面入口使用一次应用内确认并说明无法恢复。习惯任务只提供暂停一次，不参与归档。
@@ -78,7 +78,7 @@
 
 习惯启动及跨日补齐当天，不补过去日期；习惯与本地日期的唯一生成记录防止重复。当天任务完成、删除或暂停一次后不重建。`skipHabitTask`只允许忽略今天的习惯任务，以skipped_on标记保留原记录，次日照常生成。编辑习惯与当天任务描述在同一事务中更新，保留任务状态及历史记录；删除习惯保留已生成任务和来源。从今天任务添加习惯复用原任务，关联和当天记录原子保存。
 
-灵感独立于任务日期，原始想法和每次补充分开保存。归档记录保留原始内容及主题关联，从普通列表排除；恢复可重新显示，永久删除由数据库级联清理补充和关联。补充输入的一轮保存使用稳定标识追赶连续输入，防止重试产生重复补充。诊断仍使用临时表并回滚，不写入持久业务数据。
+小记独立于任务日期，原始想法和每次补充分开保存。归档记录保留原始内容及主题关联，从普通列表排除；恢复可重新显示，永久删除由数据库级联清理补充和关联。补充输入的一轮保存使用稳定标识追赶连续输入，防止重试产生重复补充。诊断仍使用临时表并回滚，不写入持久业务数据。
 
 ## 5. 跨进程契约与同步
 
@@ -111,15 +111,15 @@
 - `convertToMultiDay`、`setTaskProgress`处理任务转换和手动进度。
 - `addSubitem`、`updateSubitem`、`setSubitemCompleted`、`deleteSubitem`维护子事项。
 - `listHabits`、`createHabit`、`createHabitFromTask`、`updateHabit`、`deleteHabit`管理习惯；`ensureDailyTasks`由主进程调度。
-- `listInspirations`、`createInspiration`、`updateInspiration`、`appendInspiration`读取、编辑及补充灵感。
+- `listInspirations`、`createInspiration`、`updateInspiration`、`appendInspiration`读取、编辑及补充小记。
 
-TasksPage为每个窗口维护唯一的生命周期保存回调，聚合任务、子事项、习惯和灵感草稿；各面板不单独回复同一个保存请求。新增类别切换先保存原类别输入。组合输入未结束或保存失败时返回失败并保留草稿，阻止隐藏或退出。便签编辑和进度交互通过同一个交互状态保护贴边收起。
+TasksPage为每个窗口维护唯一的生命周期保存回调，聚合任务、子事项、习惯和小记草稿；各面板不单独回复同一个保存请求。新增类别切换先保存原类别输入。组合输入未结束或保存失败时返回失败并保留草稿，阻止隐藏或退出。便签编辑和进度交互通过同一个交互状态保护贴边收起。
 
 ## 6. 验证与扩展
 
 主题归集Popover独立于分页行的生命周期，使用当前行按钮作为虚拟锚点；行因即时归集退出分组时保持操作会话，分组查询仍立即刷新。主题写入继续串行经过DesktopApi及AppService；会话和草稿版本阻止较早异步结果关闭或清空新输入。浮层打开时复用listInspirations读取当前记录的最新主题关联，跨窗口通知同时刷新浮层与分页列表。`node scripts/run-smoke.mjs topic-refinement`覆盖主题入口、外部取消、连续多选、失败保留、过时结果保护及双窗口和重启持久化。
 
-- `tests/tasks.test.ts`及多天任务、子事项、习惯、灵感回归均通过AppService公开接口与真实SQLite验证行为，覆盖可控日期、事务回滚、旧库兼容、删除和重启恢复。
+- `tests/tasks.test.ts`及多天任务、子事项、习惯、小记回归均通过AppService公开接口与真实SQLite验证行为，覆盖可控日期、事务回滚、旧库兼容、删除和重启恢复。
 - `tests/storage.test.ts`验证迁移、诊断与凭证，`tests/mcp.test.ts`验证真实SDK与访问限制。
 - `scripts/run-smoke.mjs`按首次操作、重启恢复两阶段启动真实Electron；`electron-smoke.mjs`验证无感保存及并发输入、数据库锁失败恢复、双窗口同步、托盘、隐藏、设置、置顶、贴边与重启持久化，并保存截图。
 - 删除验证操作真实应用内确认按钮，覆盖取消、确认、失败、主题关联数量、归档永久删除及便签保护。`node scripts/run-smoke.mjs delete-confirmation`复用真实Electron→桥接→AppService→SQLite链路；返回失败使用隔离数据库触发器，窗口保存／退出失败的系统错误提示仍可在操作系统边界模拟。
@@ -129,12 +129,20 @@ TasksPage为每个窗口维护唯一的生命周期保存回调，聚合任务�
 
 Electron分类场景还可分别运行node scripts/run-smoke.mjs multiday和node scripts/run-smoke.mjs subitems，隔离首次操作及重启数据，避免与普通回归中的任务数量断言耦合。
 
-便签的设置和灵感快捷入口通过openWindow的可选MainPage参数定位主界面。DesktopState携带带版本号的mainNavigation，确保主界面首次加载和重复唤出均能接收导航；切页前统一保存已有草稿，失败保留原页。
+便签的设置和小记快捷入口通过openWindow的可选MainPage参数定位主界面。DesktopState携带带版本号的mainNavigation，确保主界面首次加载和重复唤出均能接收导航；切页前统一保存已有草稿，失败保留原页。
 
-## 灵感界面细节
+## 小记界面细节
 
 `renderer/src/features/inspirations/InspirationPanel.tsx`只承载分组导航、分页列表、正文原地编辑和主题归集；默认主题视角及未归类。主题和日期在组件生命周期内各自保留分组、加载页数及滚动位置，重启不恢复浏览位置，不再维护详情选中状态。
 
-普通与已归档灵感不渲染详情、历史补充或追加入口。`appendInspiration`、仓储及已有补充数据继续保留，领域仍支持持续补充。新增与原地编辑沿用`useInspirationInput`及`useSerialSave`；`InlineComposer`通过显式`onClear`接入新增清除，`ClearableTextarea`提供正文清除及输入区域内部焦点移动保护，其他类别不自动增加清除操作。
+普通与已归档小记不渲染详情、历史补充或追加入口。`appendInspiration`、仓储及已有补充数据继续保留，领域仍支持持续补充。新增与原地编辑沿用`useInspirationInput`及`useSerialSave`；`InlineComposer`通过显式`onClear`接入新增清除，`ClearableTextarea`提供正文清除及输入区域内部焦点移动保护，其他类别不自动增加清除操作。
 
-便签的任务和灵感继续共用`TasksPage.tsx`的单行`ClearableInput`、展开、提交与失焦收起流程。`node scripts/run-smoke.mjs inspiration-page`通过真实双窗口和SQLite验证输入、分页、两视角位置、双窗口同步及重启默认分组，并保留普通和窄窗口截图。
+便签的任务和小记继续共用`TasksPage.tsx`的单行`ClearableInput`、展开、提交与失焦收起流程。`node scripts/run-smoke.mjs inspiration-page`通过真实双窗口和SQLite验证输入、分页、两视角位置、双窗口同步及重启默认分组，并保留普通和窄窗口截图。
+
+## 外观与便签小记页面
+
+Desktop读取持久外观三态并协调Electron nativeTheme，监听系统变化后广播解析出的colorScheme；渲染入口按系统偏好初始化，再由窗口状态同步最终外观。CSS的light-dark颜色角色保留浅色值并统一适配黑灰外观，主题色仍独立设置。
+
+NotePages使任务和当天小记列表保持挂载，通过横向轨道切页并各自保留滚动位置；非活动页使用inert和aria-hidden退出操作序列。TasksPage沿用现有查询与归档入口，按本地日期筛选并按记录时间倒序呈现，只提供归档。类别切换先通过保存屏障，版本标识阻止较早保存结果覆盖最近的切页意图。小记模型、数据表及业务接口保持。
+
+`node scripts/run-smoke.mjs appearance`验证外观跟随、固定模式、同步及重启；`node scripts/run-smoke.mjs note-jottings`验证当天范围、归档、长列表、输入保护、跨日及横向切页，并保存浅深色截图。

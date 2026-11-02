@@ -38,7 +38,7 @@ const seed: Idea[] = [
   },
   {
     id: '3',
-    text: '为积累了一段时间的灵感做一次回看，看看哪些想法开始有了共同方向。',
+    text: '为积累了一段时间的小记做一次回看，看看哪些想法开始有了共同方向。',
     date: '2026-10-28',
     time: '09:12',
     topics: ['记录体验'],
@@ -56,7 +56,7 @@ const seed: Idea[] = [
   },
   {
     id: '5',
-    text: '灵感可以同时属于多个主题，不用为了分类复制同一段内容。',
+    text: '小记可以同时属于多个主题，不用为了分类复制同一段内容。',
     date: '2026-10-26',
     time: '14:08',
     topics: ['myTodo', '记录体验'],
@@ -85,7 +85,7 @@ const dateLabel = (key: string) =>
   key === '2026-10-28'
     ? '今天'
     : key === 'history'
-      ? '历史灵感'
+      ? '历史小记'
       : key === '2026-10-27'
         ? '昨天 · 10月27日'
         : `${Number(key.slice(5, 7))}月${Number(key.slice(8))}日`
@@ -173,10 +173,10 @@ export function InspirationPrototype() {
   }
   const detail = (inline = false) =>
     selected && (
-      <aside className={`ip-detail ${inline ? 'ip-inline-detail' : ''}`} aria-label="灵感详情">
+      <aside className={`ip-detail ${inline ? 'ip-inline-detail' : ''}`} aria-label="小记详情">
         <header>
-          <span>{inline ? '继续这个想法' : '灵感详情'}</span>
-          <button onClick={() => setSelection(null)} aria-label="返回灵感列表">
+          <span>{inline ? '继续这个想法' : '小记详情'}</span>
+          <button onClick={() => setSelection(null)} aria-label="返回小记列表">
             {inline ? '收起 ↑' : '← 返回列表'}
           </button>
         </header>
@@ -375,7 +375,7 @@ export function InspirationPrototype() {
             {!rail && groupHeading(group)}
             {(rail || expanded.includes(group.key)) && (
               <>
-                {!group.items.length && <p className="ip-empty">这一天还没有灵感</p>}
+                {!group.items.length && <p className="ip-empty">这一天还没有小记</p>}
                 {group.items.map((idea) => row(idea, group.key))}
               </>
             )}
@@ -396,21 +396,21 @@ export function InspirationPrototype() {
           {[
             ['□', '任务'],
             ['↻', '习惯'],
-            ['♧', '灵感']
+            ['♧', '小记']
           ].map(([icon, label]) => (
             <button
               key={label}
-              aria-current={label === '灵感' ? 'page' : undefined}
-              onClick={() => setNotice('当前原型仅探索灵感页')}
+              aria-current={label === '小记' ? 'page' : undefined}
+              onClick={() => setNotice('当前原型仅探索小记页')}
             >
               <span className="ip-nav-icon">{icon}</span>
               <span>{label}</span>
             </button>
           ))}
-          <button className="nav-settings" onClick={() => setNotice('当前原型仅探索灵感页')}>
+          <button className="nav-settings" onClick={() => setNotice('当前原型仅探索小记页')}>
             ⚙ 设置
           </button>
-          <button onClick={() => setNotice('当前原型仅探索灵感页')}>
+          <button onClick={() => setNotice('当前原型仅探索小记页')}>
             ▤ 桌面便签 <span className="nav-arrow">↗</span>
           </button>
         </nav>
@@ -420,11 +420,11 @@ export function InspirationPrototype() {
           <div>
             <p className="ip-eyebrow">留住念头，慢慢展开</p>
             <h1>
-              灵感 <small>{ideas.length}</small>
+              小记 <small>{ideas.length}</small>
             </h1>
           </div>
           <button className="primary-button" onClick={() => capture.current?.focus()}>
-            ＋ 新增灵感
+            ＋ 新增小记
           </button>
         </header>
         <div className="ip-toolbar">
@@ -437,7 +437,7 @@ export function InspirationPrototype() {
             </button>
           </div>
           <span className="ip-muted">
-            {view === 'date' ? '按最初记录的时间' : '同一灵感可归入多个主题'}
+            {view === 'date' ? '按最初记录的时间' : '同一小记可归入多个主题'}
           </span>
         </div>
         <form
@@ -461,14 +461,14 @@ export function InspirationPrototype() {
             setView('date')
             setExpanded((items) => [...items, '2026-10-28'])
             setActiveGroup('2026-10-28')
-            setNotice('新灵感已记录 · 仅本次预览')
+            setNotice('新小记已记录 · 仅本次预览')
             capture.current?.focus()
           }}
         >
           <span>＋</span>
           <input
             ref={capture}
-            aria-label="新灵感"
+            aria-label="新小记"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="记下一个想法…"

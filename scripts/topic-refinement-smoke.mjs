@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export async function topicRefinementSmoke({ main, note, phase, js, click, input, waitFor }) {
-  await click(main, '.workbench-nav [aria-label="灵感"]')
+  await click(main, '.workbench-nav [aria-label="小记"]')
   await js(
     main,
     `Array.from(document.querySelectorAll('.inspiration-views button')).find(x => x.textContent === '主题').click()`

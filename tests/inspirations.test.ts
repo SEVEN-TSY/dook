@@ -10,13 +10,13 @@ import { TaskRepository } from '../src/main/storage/repositories/tasks'
 import { InspirationRepository } from '../src/main/storage/repositories/inspirations'
 import { AppService } from '../src/main/core/app-service'
 
-test('灵感创建后可读取，保留顺序且不产生今天任务', () => {
+test('小记创建后可读取，保留顺序且不产生今天任务', () => {
   const database = new AppDatabase(':memory:')
   const service = new AppService(database, new TaskRepository(database.connection), undefined, {
     inspirations: new InspirationRepository(database.connection)
   })
   try {
-    assert.throws(() => service.createInspiration('  '), /灵感/)
+    assert.throws(() => service.createInspiration('  '), /小记/)
     const first = service.createInspiration('  自动整理需求  ')
     const second = service.createInspiration('探索构建报告')
     assert.equal(first.description, '自动整理需求')
@@ -28,7 +28,7 @@ test('灵感创建后可读取，保留顺序且不产生今天任务', () => {
   }
 })
 
-test('灵感原始想法可编辑，补充内容按追加顺序保留并跨日重启恢复', () => {
+test('小记原始想法可编辑，补充内容按追加顺序保留并跨日重启恢复', () => {
   const directory = mkdtempSync(join(tmpdir(), 'mytodo-inspirations-'))
   const path = join(directory, 'app.sqlite')
   let database = new AppDatabase(path)
@@ -40,7 +40,7 @@ test('灵感原始想法可编辑，补充内容按追加顺序保留并跨日�
   let service = open()
   try {
     const idea = service.createInspiration('需求草稿')
-    assert.throws(() => service.updateInspiration(idea.id, ' '), /灵感/)
+    assert.throws(() => service.updateInspiration(idea.id, ' '), /小记/)
     assert.throws(() => service.appendInspiration(idea.id, ' '), /补充/)
     service.appendInspiration(idea.id, '  第一次探索  ')
     service.updateInspiration(idea.id, '需求整合工具')
@@ -83,7 +83,7 @@ test('同一轮补充保存追赶新输入时复用补充标识，不重复追�
     )
     const other = service.createInspiration('另一个想法')
     assert.throws(
-      () => service.appendInspiration(other.id, '不能覆盖别条灵感', 'input-session-one'),
+      () => service.appendInspiration(other.id, '不能覆盖别条小记', 'input-session-one'),
       /补充/
     )
   } finally {
@@ -91,7 +91,7 @@ test('同一轮补充保存追赶新输入时复用补充标识，不重复追�
   }
 })
 
-test('灵感分页按原始记录时间倒序且跨日编辑保持时间', () => {
+test('小记分页按原始记录时间倒序且跨日编辑保持时间', () => {
   const database = new AppDatabase(':memory:')
   let now = new Date(2026, 9, 28, 12)
   const service = new AppService(database, undefined, () => now, {
@@ -111,7 +111,7 @@ test('灵感分页按原始记录时间倒序且跨日编辑保持时间', () =>
   }
 })
 
-test('旧灵感迁移保留原文补充并在分页中排在新灵感之后', () => {
+test('旧小记迁移保留原文补充并在分页中排在新小记之后', () => {
   const directory = mkdtempSync(join(tmpdir(), 'mytodo-old-inspirations-'))
   const path = join(directory, 'app.sqlite')
   const old = new DatabaseSync(path)
@@ -124,7 +124,7 @@ test('旧灵感迁移保留原文补充并在分页中排在新灵感之后', ()
       .prepare('INSERT INTO schema_migrations VALUES (?, ?, ?)')
       .run(migration.version, migration.name, 'old')
   }
-  old.prepare('INSERT INTO inspirations (id, description) VALUES (?, ?)').run('old', '旧灵感')
+  old.prepare('INSERT INTO inspirations (id, description) VALUES (?, ?)').run('old', '旧小记')
   old
     .prepare('INSERT INTO inspiration_additions (id, inspiration_id, content) VALUES (?, ?, ?)')
     .run('addition', 'old', '旧补充')
@@ -134,7 +134,7 @@ test('旧灵感迁移保留原文补充并在分页中排在新灵感之后', ()
     inspirations: new InspirationRepository(database.connection)
   })
   try {
-    for (let i = 0; i < 25; i++) service.createInspiration(`灵感${i}`)
+    for (let i = 0; i < 25; i++) service.createInspiration(`小记${i}`)
     const first = service.listInspirationPage(0, 20)
     const second = service.listInspirationPage(20, 20)
     const all = [...first.items, ...second.items]
@@ -143,7 +143,7 @@ test('旧灵感迁移保留原文补充并在分页中排在新灵感之后', ()
     assert.equal(new Set(all.map((item) => item.id)).size, 26)
     assert.deepEqual(all.at(-1), {
       id: 'old',
-      description: '旧灵感',
+      description: '旧小记',
       createdAt: null,
       topicIds: [],
       additions: [{ id: 'addition', content: '旧补充' }]
@@ -154,7 +154,7 @@ test('旧灵感迁移保留原文补充并在分页中排在新灵感之后', ()
   }
 })
 
-test('按主题分页只返回该主题的灵感', () => {
+test('按主题分页只返回该主题的小记', () => {
   const database = new AppDatabase(':memory:')
   const service = new AppService(database, undefined, undefined, {
     inspirations: new InspirationRepository(database.connection)
@@ -162,7 +162,7 @@ test('按主题分页只返回该主题的灵感', () => {
   try {
     const first = service.createInspiration('第一条')
     const topic = service.createInspirationTopic('主题', first.id)
-    service.createInspiration('其他灵感')
+    service.createInspiration('其他小记')
     const second = service.createInspiration('第二条')
     service.setInspirationTopic(second.id, topic.id, true)
     const page = service.listInspirationPage(0, 1, { kind: 'topic', topicId: topic.id })
@@ -208,30 +208,30 @@ test('日期分页按本地自然日区分今天和历史', () => {
   }
 })
 
-test('主题内创建灵感同时归集，主题失效时不留下灵感', () => {
+test('主题内创建小记同时归集，主题失效时不留下小记', () => {
   const database = new AppDatabase(':memory:')
   const service = new AppService(database, undefined, () => new Date('2026-10-28T12:00:00Z'), {
     inspirations: new InspirationRepository(database.connection)
   })
   try {
-    const seed = service.createInspiration('已有灵感')
+    const seed = service.createInspiration('已有小记')
     const topic = service.createInspirationTopic('主题', seed.id)
-    const created = service.createInspiration('新灵感', topic.id)
+    const created = service.createInspiration('新小记', topic.id)
     assert.deepEqual(created.topicIds, [topic.id])
     assert.equal(created.createdAt, '2026-10-28T12:00:00.000Z')
-    const retried = service.createInspiration('重试灵感', topic.id, 'stable-id')
-    assert.equal(service.createInspiration('重试灵感', topic.id, 'stable-id').id, retried.id)
-    assert.throws(() => service.createInspiration('失败灵感', 'missing'), /主题/)
+    const retried = service.createInspiration('重试小记', topic.id, 'stable-id')
+    assert.equal(service.createInspiration('重试小记', topic.id, 'stable-id').id, retried.id)
+    assert.throws(() => service.createInspiration('失败小记', 'missing'), /主题/)
     assert.deepEqual(
       service.listInspirations().map((item) => item.description),
-      ['已有灵感', '新灵感', '重试灵感']
+      ['已有小记', '新小记', '重试小记']
     )
   } finally {
     database.close()
   }
 })
 
-test('主题可独立创建，删除后保留灵感及其他主题', () => {
+test('主题可独立创建，删除后保留小记及其他主题', () => {
   const database = new AppDatabase(':memory:')
   const service = new AppService(database, new TaskRepository(database.connection), undefined, {
     inspirations: new InspirationRepository(database.connection)
@@ -292,7 +292,7 @@ test('归档状态、内容和主题跨重启保留，恢复后重新进入主�
   try {
     let service = open()
     const topic = service.createInspirationTopic('持久主题')
-    const idea = service.createInspiration('持久灵感', topic.id)
+    const idea = service.createInspiration('持久小记', topic.id)
     service.appendInspiration(idea.id, '持久补充')
     service.archiveInspiration(idea.id)
     database.close()
@@ -323,7 +323,7 @@ test('归档分页与普通分页隔离，删除失败回滚关联并可恢复',
     const topic = service.createInspirationTopic('主题')
     const ids: string[] = []
     for (let i = 0; i < 25; i++) {
-      const idea = service.createInspiration(`灵感${i}`)
+      const idea = service.createInspiration(`小记${i}`)
       service.setInspirationTopic(idea.id, topic.id, true)
       service.appendInspiration(idea.id, '补充')
       ids.push(idea.id)

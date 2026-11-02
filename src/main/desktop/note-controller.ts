@@ -67,7 +67,7 @@ export class NoteController {
     window.once('closed', () => this.dispose())
   }
 
-  state(): Omit<DesktopState, 'exitPending'> {
+  state(): Omit<DesktopState, 'exitPending' | 'colorScheme'> {
     return {
       settings: { ...this.preferences.settings },
       pinned: this.edge !== null || this.freePinned,

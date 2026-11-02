@@ -66,7 +66,7 @@ export class AppService {
   }
 
   private inspirationStore(): InspirationStore {
-    if (!this.features.inspirations) throw new Error('灵感存储不可用。')
+    if (!this.features.inspirations) throw new Error('小记存储不可用。')
     return this.features.inspirations
   }
 
@@ -77,7 +77,7 @@ export class AppService {
   createInspirationTopic(name: string, inspirationId?: string) {
     if (typeof name !== 'string' || !name.trim()) throw new Error('主题名称不能为空。')
     if (inspirationId !== undefined && (typeof inspirationId !== 'string' || !inspirationId))
-      throw new Error('灵感标识无效。')
+      throw new Error('小记标识无效。')
     return this.inspirationStore().createTopic(name.trim(), inspirationId)
   }
 
@@ -136,7 +136,7 @@ export class AppService {
   }
 
   createInspiration(description: string, topicId?: string, creationId?: string): Inspiration {
-    if (typeof description !== 'string' || !description.trim()) throw new Error('灵感不能为空。')
+    if (typeof description !== 'string' || !description.trim()) throw new Error('小记不能为空。')
     return this.inspirationStore().create(
       description.trim(),
       this.now().toISOString(),
@@ -146,13 +146,13 @@ export class AppService {
   }
 
   updateInspiration(id: string, description: string): Inspiration {
-    if (typeof id !== 'string' || !id) throw new Error('灵感标识无效。')
-    if (typeof description !== 'string' || !description.trim()) throw new Error('灵感不能为空。')
+    if (typeof id !== 'string' || !id) throw new Error('小记标识无效。')
+    if (typeof description !== 'string' || !description.trim()) throw new Error('小记不能为空。')
     return this.inspirationStore().update(id, description.trim())
   }
 
   appendInspiration(id: string, content: string, additionId?: string): Inspiration {
-    if (typeof id !== 'string' || !id) throw new Error('灵感标识无效。')
+    if (typeof id !== 'string' || !id) throw new Error('小记标识无效。')
     if (typeof content !== 'string' || !content.trim()) throw new Error('补充内容不能为空。')
     if (additionId !== undefined && (typeof additionId !== 'string' || !additionId))
       throw new Error('补充标识无效。')

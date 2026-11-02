@@ -1,10 +1,11 @@
-import { dialog, Menu, nativeImage, Tray } from 'electron'
+import { dialog, Menu, nativeImage, nativeTheme, Tray } from 'electron'
 import type { BrowserWindow } from 'electron'
 import type { DesktopState, MainPage, WindowKind } from '../../shared/contracts'
 import { WINDOW_STATE } from '../../shared/channels'
 import { createWindow, loadWindow } from './window'
 import { NoteController } from './note-controller'
 import { SaveBarrier } from './save-barrier'
+import { readPreferences } from './preferences'
 
 function trayImage() {
   const pixels = Buffer.alloc(16 * 16 * 4)
@@ -39,7 +40,12 @@ export class Desktop {
     private readonly directory: string,
     private readonly quit: () => void,
     private readonly setLaunchAtLogin: (enabled: boolean) => void = () => {}
-  ) {}
+  ) {
+    nativeTheme.themeSource = readPreferences(directory).settings.appearance
+    nativeTheme.on('updated', this.onAppearanceChanged)
+  }
+
+  private readonly onAppearanceChanged = () => this.broadcast()
 
   startTray() {
     if (this.tray) return
@@ -123,6 +129,7 @@ export class Desktop {
     if (!this.note) throw new Error('桌面便签尚未就绪。')
     return {
       ...this.note.state(),
+      colorScheme: nativeTheme.shouldUseDarkColors ? ('dark' as const) : ('light' as const),
       exitPending: this.preparingQuit,
       mainNavigation: this.mainNavigation
     }
@@ -130,8 +137,14 @@ export class Desktop {
 
   private broadcast() {
     if (!this.note) return
+    const appearance = this.note.state().settings.appearance
+    if (nativeTheme.themeSource !== appearance) nativeTheme.themeSource = appearance
     for (const window of this.windows.values())
-      if (!window.isDestroyed()) window.webContents.send(WINDOW_STATE, this.state())
+      if (!window.isDestroyed()) {
+        if (window === this.windows.get('main'))
+          window.setBackgroundColor(nativeTheme.shouldUseDarkColors ? '#202020' : '#fafbfe')
+        window.webContents.send(WINDOW_STATE, this.state())
+      }
   }
 
   async updateSettings(settings: Parameters<NoteController['updateSettings']>[0]) {
@@ -229,6 +242,7 @@ export class Desktop {
   }
 
   dispose() {
+    nativeTheme.removeListener('updated', this.onAppearanceChanged)
     this.note?.dispose()
     this.tray?.destroy()
   }

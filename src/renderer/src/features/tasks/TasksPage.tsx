@@ -18,7 +18,14 @@ import { useSummaryMotion } from '../shared/useSummaryMotion'
 import { ComposerToggle, InlineComposer } from '../shared/InlineComposer'
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import type { DesktopState, MainPage, WindowKind, Task } from '../../../../shared/contracts'
+import type {
+  DesktopState,
+  MainPage,
+  WindowKind,
+  Task,
+  Inspiration
+} from '../../../../shared/contracts'
+import { NotePages } from './NotePages'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
 import { SubitemsPanel } from './SubitemsPanel'
 import { useTasks } from './useTasks'
@@ -81,6 +88,8 @@ export function TasksPage({
   const noteInput = useRef<HTMLInputElement>(null)
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
   const [newKind, setNewKind] = useState<'task' | 'inspiration'>('task')
+  const categorySwitch = useRef(0)
+  const [todayIdeas, setTodayIdeas] = useState<Inspiration[]>([])
   const taskAdded = useTaskInput(today?.date, refresh, setError)
   const [loadedInspirationCount, setInspirationCount] = useState<number>()
   const inspirationCount = loadedInspirationCount ?? 0
@@ -97,11 +106,14 @@ export function TasksPage({
     try {
       const ideas = unwrap(await getDesktopApi().listInspirations())
       const date = new Date().toDateString()
-      const count = ideas.filter(
+      const current = ideas.filter(
         (idea) => idea.createdAt && new Date(idea.createdAt).toDateString() === date
-      ).length
+      )
       if (version === categoryCountVersion.current) {
-        setInspirationCount(count)
+        setInspirationCount(current.length)
+        setTodayIdeas(
+          current.reverse().sort((a, b) => Date.parse(b.createdAt!) - Date.parse(a.createdAt!))
+        )
       }
     } catch (error) {
       if (version === categoryCountVersion.current)
@@ -370,7 +382,7 @@ export function TasksPage({
               [
                 ['task', '任务'],
                 ['habit', '习惯'],
-                ['inspiration', '灵感']
+                ['inspiration', '小记']
               ] as const
             ).map(([id, label]) => (
               <button
@@ -430,7 +442,7 @@ export function TasksPage({
                     }[page]}
               </p>
               <h1>
-                {{ task: '今天', habit: '习惯', inspiration: '灵感', settings: '设置' }[page]}
+                {{ task: '今天', habit: '习惯', inspiration: '小记', settings: '设置' }[page]}
               </h1>
             </div>
             <div className="workbench-header-actions">
@@ -748,8 +760,10 @@ export function TasksPage({
       >
         <div>
           <p className="task-eyebrow">TODAY</p>
-          <h1>今天</h1>
-          <p className="task-date">{today?.date ?? '正在读取…'}</p>
+          <h1>{newKind === 'inspiration' ? '小记' : '今天'}</h1>
+          <p className="task-date">
+            {newKind === 'inspiration' ? `${inspirationCount}条` : (today?.date ?? '正在读取…')}
+          </p>
         </div>
         {kind === 'note' && (
           <div className="note-controls">
@@ -820,256 +834,268 @@ export function TasksPage({
         )}
       </header>
 
-      <div className="task-list" aria-label="任务" tabIndex={-1} data-delete-focus-fallback>
-        {today && total === 0 && (
-          <div className="task-empty">
-            <span aria-hidden="true">
-              <Sun size={32} strokeWidth={1.4} />
-            </span>
-            <p>今天，留一点空间。</p>
-          </div>
-        )}
-        {(['today', 'multi-day'] as const).map((group) => (
-          <Fragment key={group}>
-            <button
-              type="button"
-              className="note-group-heading"
-              hidden={total === 0 || (group === 'multi-day' && !showMultiDay)}
-              data-note-group={group}
-              title={group === 'today' ? '今天需要完成' : '要花几天完成'}
-              aria-expanded={expandedNoteGroups[group]}
-              onClick={async () => {
-                if (expandedNoteGroups[group] && !(await flush.current())) return
-                setExpandedNoteGroups((groups) => ({
-                  ...groups,
-                  [group]: !groups[group]
-                }))
-              }}
-            >
-              <svg viewBox="0 0 12 12" width="12" height="12" fill="none" aria-hidden="true">
-                <path
-                  d={expandedNoteGroups[group] ? 'm3 4.5 3 3 3-3' : 'm4.5 3 3 3-3 3'}
-                  stroke="currentColor"
-                  strokeWidth="1.3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              {group === 'today' ? '这就去做' : '持续推进'}
-              <span className="note-group-count">
-                {noteGroups[group].filter((item) => item.completed).length}/
-                {noteGroups[group].length}
+      <NotePages
+        selected={newKind}
+        ideas={todayIdeas}
+        onArchive={(id) =>
+          windowAction(async () => {
+            if (!(await flush.current())) return
+            unwrap(await getDesktopApi().archiveInspiration(id))
+            await refreshCategoryCounts()
+          })
+        }
+      >
+        <div className="task-list" aria-label="任务" tabIndex={-1} data-delete-focus-fallback>
+          {today && total === 0 && (
+            <div className="task-empty">
+              <span aria-hidden="true">
+                <Sun size={32} strokeWidth={1.4} />
               </span>
-            </button>
-            {noteGroups[group].map((task) => (
-              <div
-                key={task.id}
-                className={`task-row ${task.completed ? 'completed' : ''} ${draggingTask?.id === task.id ? 'is-dragging' : ''} ${dropTarget?.id === task.id ? (dropTarget.before ? 'drop-before' : 'drop-after') : ''}`}
-                data-task-id={task.id}
-                data-task-kind={task.kind}
-                data-task-pinned={Boolean(task.pinned)}
-                hidden={
-                  !expandedNoteGroups[task.kind] || (task.kind === 'multi-day' && !showMultiDay)
-                }
-                draggable={!busy && editing === null}
-                onDragStart={(event) => {
-                  if (
-                    (event.target as Element).closest(
-                      'input, textarea, .note-task-actions, .task-pin'
-                    )
-                  ) {
-                    event.preventDefault()
-                    return
-                  }
-                  event.dataTransfer.effectAllowed = 'move'
-                  event.dataTransfer.setData('text/plain', task.id)
-                  setDraggingTask(task)
-                }}
-                onDragOver={(event) => {
-                  if (
-                    !draggingTask ||
-                    draggingTask.id === task.id ||
-                    draggingTask.kind !== task.kind ||
-                    Boolean(draggingTask.pinned) !== Boolean(task.pinned)
-                  ) {
-                    setDropTarget(null)
-                    return
-                  }
-                  event.preventDefault()
-                  event.dataTransfer.dropEffect = 'move'
-                  const bounds = event.currentTarget.getBoundingClientRect()
-                  const before = event.clientY < bounds.top + bounds.height / 2
-                  if (dropTarget?.id !== task.id || dropTarget.before !== before)
-                    setDropTarget({ id: task.id, before })
-                }}
-                onDragLeave={(event) => {
-                  if (!event.currentTarget.contains(event.relatedTarget as Node | null))
-                    setDropTarget(null)
-                }}
-                onDrop={(event) => {
-                  event.preventDefault()
-                  const source = draggingTask
-                  const target = dropTarget
-                  setDraggingTask(null)
-                  setDropTarget(null)
-                  if (source && target?.id === task.id) {
-                    void (async () => {
-                      if (await flush.current()) await move(source.id, task.id, target.before)
-                    })()
-                  }
-                }}
-                onDragEnd={() => {
-                  setDraggingTask(null)
-                  setDropTarget(null)
+              <p>今天，留一点空间。</p>
+            </div>
+          )}
+          {(['today', 'multi-day'] as const).map((group) => (
+            <Fragment key={group}>
+              <button
+                type="button"
+                className="note-group-heading"
+                hidden={total === 0 || (group === 'multi-day' && !showMultiDay)}
+                data-note-group={group}
+                title={group === 'today' ? '今天需要完成' : '要花几天完成'}
+                aria-expanded={expandedNoteGroups[group]}
+                onClick={async () => {
+                  if (expandedNoteGroups[group] && !(await flush.current())) return
+                  setExpandedNoteGroups((groups) => ({
+                    ...groups,
+                    [group]: !groups[group]
+                  }))
                 }}
               >
-                <TaskCheck
-                  checked={task.completed}
-                  disabled={busy}
-                  aria-label={`完成：${task.description}`}
-                  onChange={() => void complete(task)}
-                />
-                <div className="task-content">
-                  {editing === task.id ? (
-                    <form className="task-edit-form" onSubmit={(event) => void save(event)}>
-                      <span className="task-description task-edit-mirror" aria-hidden="true">
-                        {edited.value || '\u200b'}
-                      </span>
-                      <textarea
-                        className="task-description task-edit-input"
-                        data-testid="task-edit"
-                        aria-label="编辑任务描述"
-                        rows={1}
-                        value={edited.value}
-                        ref={focusTaskEditor}
-                        onChange={(event) => edited.setValue(event.target.value)}
-                        onBlur={() => {
-                          void edited.save()
+                <svg viewBox="0 0 12 12" width="12" height="12" fill="none" aria-hidden="true">
+                  <path
+                    d={expandedNoteGroups[group] ? 'm3 4.5 3 3 3-3' : 'm4.5 3 3 3-3 3'}
+                    stroke="currentColor"
+                    strokeWidth="1.3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                {group === 'today' ? '这就去做' : '持续推进'}
+                <span className="note-group-count">
+                  {noteGroups[group].filter((item) => item.completed).length}/
+                  {noteGroups[group].length}
+                </span>
+              </button>
+              {noteGroups[group].map((task) => (
+                <div
+                  key={task.id}
+                  className={`task-row ${task.completed ? 'completed' : ''} ${draggingTask?.id === task.id ? 'is-dragging' : ''} ${dropTarget?.id === task.id ? (dropTarget.before ? 'drop-before' : 'drop-after') : ''}`}
+                  data-task-id={task.id}
+                  data-task-kind={task.kind}
+                  data-task-pinned={Boolean(task.pinned)}
+                  hidden={
+                    !expandedNoteGroups[task.kind] || (task.kind === 'multi-day' && !showMultiDay)
+                  }
+                  draggable={!busy && editing === null}
+                  onDragStart={(event) => {
+                    if (
+                      (event.target as Element).closest(
+                        'input, textarea, .note-task-actions, .task-pin'
+                      )
+                    ) {
+                      event.preventDefault()
+                      return
+                    }
+                    event.dataTransfer.effectAllowed = 'move'
+                    event.dataTransfer.setData('text/plain', task.id)
+                    setDraggingTask(task)
+                  }}
+                  onDragOver={(event) => {
+                    if (
+                      !draggingTask ||
+                      draggingTask.id === task.id ||
+                      draggingTask.kind !== task.kind ||
+                      Boolean(draggingTask.pinned) !== Boolean(task.pinned)
+                    ) {
+                      setDropTarget(null)
+                      return
+                    }
+                    event.preventDefault()
+                    event.dataTransfer.dropEffect = 'move'
+                    const bounds = event.currentTarget.getBoundingClientRect()
+                    const before = event.clientY < bounds.top + bounds.height / 2
+                    if (dropTarget?.id !== task.id || dropTarget.before !== before)
+                      setDropTarget({ id: task.id, before })
+                  }}
+                  onDragLeave={(event) => {
+                    if (!event.currentTarget.contains(event.relatedTarget as Node | null))
+                      setDropTarget(null)
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault()
+                    const source = draggingTask
+                    const target = dropTarget
+                    setDraggingTask(null)
+                    setDropTarget(null)
+                    if (source && target?.id === task.id) {
+                      void (async () => {
+                        if (await flush.current()) await move(source.id, task.id, target.before)
+                      })()
+                    }
+                  }}
+                  onDragEnd={() => {
+                    setDraggingTask(null)
+                    setDropTarget(null)
+                  }}
+                >
+                  <TaskCheck
+                    checked={task.completed}
+                    disabled={busy}
+                    aria-label={`完成：${task.description}`}
+                    onChange={() => void complete(task)}
+                  />
+                  <div className="task-content">
+                    {editing === task.id ? (
+                      <form className="task-edit-form" onSubmit={(event) => void save(event)}>
+                        <span className="task-description task-edit-mirror" aria-hidden="true">
+                          {edited.value || '\u200b'}
+                        </span>
+                        <textarea
+                          className="task-description task-edit-input"
+                          data-testid="task-edit"
+                          aria-label="编辑任务描述"
+                          rows={1}
+                          value={edited.value}
+                          ref={focusTaskEditor}
+                          onChange={(event) => edited.setValue(event.target.value)}
+                          onBlur={() => {
+                            void edited.save()
+                          }}
+                          onCompositionStart={() => {
+                            edited.composing.current = true
+                          }}
+                          onCompositionEnd={edited.endComposition}
+                          onKeyDown={(event) => {
+                            if (event.nativeEvent.isComposing || event.keyCode === 229) return
+                            if (event.key === 'Enter') {
+                              event.preventDefault()
+                              void save(event)
+                            }
+                          }}
+                        />
+                      </form>
+                    ) : (
+                      <button
+                        className="task-description"
+                        data-testid="task-description"
+                        title={
+                          task.habitId ? '双击在主界面打开习惯，或按Enter打开' : task.description
+                        }
+                        disabled={busy}
+                        onDoubleClick={() => {
+                          if (task.habitId) void openMainPage('habit')
                         }}
-                        onCompositionStart={() => {
-                          edited.composing.current = true
-                        }}
-                        onCompositionEnd={edited.endComposition}
                         onKeyDown={(event) => {
-                          if (event.nativeEvent.isComposing || event.keyCode === 229) return
-                          if (event.key === 'Enter') {
+                          if (task.habitId && (event.key === 'Enter' || event.key === ' ')) {
                             event.preventDefault()
-                            void save(event)
+                            if (!event.repeat) void openMainPage('habit')
                           }
                         }}
-                      />
-                    </form>
-                  ) : (
-                    <button
-                      className="task-description"
-                      data-testid="task-description"
-                      title={
-                        task.habitId ? '双击在主界面打开习惯，或按Enter打开' : task.description
-                      }
-                      disabled={busy}
-                      onDoubleClick={() => {
-                        if (task.habitId) void openMainPage('habit')
-                      }}
-                      onKeyDown={(event) => {
-                        if (task.habitId && (event.key === 'Enter' || event.key === ' ')) {
-                          event.preventDefault()
-                          if (!event.repeat) void openMainPage('habit')
-                        }
-                      }}
-                      onClick={async () => {
-                        if (task.habitId) return
-                        if (editing && !(await edited.save())) return
-                        setEditing(task.id)
-                        edited.start(task)
-                        setError('')
-                      }}
-                    >
-                      {task.description}
-                    </button>
-                  )}
-                  {task.kind === 'multi-day' && (
-                    <label className="task-progress">
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        step="1"
-                        data-testid="task-progress"
-                        aria-label={`进度：${task.description}`}
-                        value={task.progress}
-                        disabled={busy || Boolean(task.subitems?.length)}
-                        aria-readonly={Boolean(task.subitems?.length)}
-                        onChange={(event) => void progress(task.id, Number(event.target.value))}
-                        onFocus={() => setProgressFocused(true)}
-                        onBlur={() => setProgressFocused(false)}
-                      />
-                      <span>{task.progress}%</span>
-                    </label>
-                  )}
-                </div>
-                <div className="note-task-actions">
-                  <div className="note-task-secondary">
-                    {task.kind === 'today' && !task.habitId && (
-                      <button
-                        className="task-convert"
-                        data-testid="task-to-habit"
-                        title="添加为习惯"
-                        disabled={busy}
-                        aria-label={`添加为习惯：${task.description}`}
                         onClick={async () => {
-                          if (await flush.current()) await addHabit(task.id)
+                          if (task.habitId) return
+                          if (editing && !(await edited.save())) return
+                          setEditing(task.id)
+                          edited.start(task)
+                          setError('')
                         }}
                       >
-                        <TaskActionIcon name="habit" />
+                        {task.description}
                       </button>
                     )}
+                    {task.kind === 'multi-day' && (
+                      <label className="task-progress">
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          step="1"
+                          data-testid="task-progress"
+                          aria-label={`进度：${task.description}`}
+                          value={task.progress}
+                          disabled={busy || Boolean(task.subitems?.length)}
+                          aria-readonly={Boolean(task.subitems?.length)}
+                          onChange={(event) => void progress(task.id, Number(event.target.value))}
+                          onFocus={() => setProgressFocused(true)}
+                          onBlur={() => setProgressFocused(false)}
+                        />
+                        <span>{task.progress}%</span>
+                      </label>
+                    )}
+                  </div>
+                  <div className="note-task-actions">
+                    <div className="note-task-secondary">
+                      {task.kind === 'today' && !task.habitId && (
+                        <button
+                          className="task-convert"
+                          data-testid="task-to-habit"
+                          title="添加为习惯"
+                          disabled={busy}
+                          aria-label={`添加为习惯：${task.description}`}
+                          onClick={async () => {
+                            if (await flush.current()) await addHabit(task.id)
+                          }}
+                        >
+                          <TaskActionIcon name="habit" />
+                        </button>
+                      )}
+                      <button
+                        className="task-pin"
+                        data-testid="task-pin"
+                        title={task.pinned ? '取消置顶' : '置顶任务'}
+                        aria-label={`${task.pinned ? '取消置顶' : '置顶任务'}：${task.description}`}
+                        aria-pressed={Boolean(task.pinned)}
+                        disabled={busy}
+                        onClick={async () => {
+                          if (await flush.current()) await pin(task)
+                        }}
+                      >
+                        <TaskActionIcon name={task.pinned ? 'unpin' : 'pin'} />
+                      </button>
+                    </div>
                     <button
-                      className="task-pin"
-                      data-testid="task-pin"
-                      title={task.pinned ? '取消置顶' : '置顶任务'}
-                      aria-label={`${task.pinned ? '取消置顶' : '置顶任务'}：${task.description}`}
-                      aria-pressed={Boolean(task.pinned)}
+                      className="task-delete"
+                      data-testid="task-delete"
+                      title={task.habitId ? '暂停一次' : '归档任务'}
                       disabled={busy}
+                      aria-label={`${task.habitId ? '暂停一次' : '归档'}：${task.description}`}
                       onClick={async () => {
-                        if (await flush.current()) await pin(task)
+                        if (await flush.current()) {
+                          if (task.habitId) await skipHabit(task.id)
+                          else await archive(task.id)
+                        }
                       }}
                     >
-                      <TaskActionIcon name={task.pinned ? 'unpin' : 'pin'} />
+                      {task.habitId ? (
+                        <>
+                          <span className="habit-task-clock">
+                            <TaskActionIcon name="schedule" />
+                          </span>
+                          <span className="habit-task-delete">
+                            <TaskActionIcon name="delete" />
+                          </span>
+                        </>
+                      ) : (
+                        <TaskActionIcon name="delete" />
+                      )}
                     </button>
                   </div>
-                  <button
-                    className="task-delete"
-                    data-testid="task-delete"
-                    title={task.habitId ? '暂停一次' : '归档任务'}
-                    disabled={busy}
-                    aria-label={`${task.habitId ? '暂停一次' : '归档'}：${task.description}`}
-                    onClick={async () => {
-                      if (await flush.current()) {
-                        if (task.habitId) await skipHabit(task.id)
-                        else await archive(task.id)
-                      }
-                    }}
-                  >
-                    {task.habitId ? (
-                      <>
-                        <span className="habit-task-clock">
-                          <TaskActionIcon name="schedule" />
-                        </span>
-                        <span className="habit-task-delete">
-                          <TaskActionIcon name="delete" />
-                        </span>
-                      </>
-                    ) : (
-                      <TaskActionIcon name="delete" />
-                    )}
-                  </button>
                 </div>
-              </div>
             ))}
           </Fragment>
         ))}
         {archiveList}
       </div>
+      </NotePages>
       {error && (
         <p className="task-error" role="alert">
           {error}
@@ -1096,14 +1122,15 @@ export function TasksPage({
                   key={value}
                   type="button"
                   data-testid={`new-kind-${value}`}
-                  title={value === 'task' ? '添加任务' : '添加灵感'}
-                  aria-label={value === 'task' ? '添加任务' : '添加灵感'}
+                  title={value === 'task' ? '添加任务' : '添加小记'}
+                  aria-label={value === 'task' ? '添加任务' : '添加小记'}
                   aria-pressed={newKind === value}
                   onPointerDown={(event) => event.preventDefault()}
                   onClick={async () => {
+                    const request = ++categorySwitch.current
                     const switching = newKind !== value
                     if (switching) {
-                      if (!(await added.save())) return
+                      if (!(await flush.current()) || request !== categorySwitch.current) return
                       setNewKind(value)
                       setError('')
                     }
@@ -1122,8 +1149,8 @@ export function TasksPage({
             </div>
             <ClearableInput
               data-testid="task-new"
-              aria-label={newKind === 'task' ? '新增任务描述' : '新增灵感'}
-              placeholder={newKind === 'task' ? '写下任务…' : '写下灵感…'}
+              aria-label={newKind === 'task' ? '新增任务描述' : '新增小记'}
+              placeholder={newKind === 'task' ? '写下任务…' : '写下小记…'}
               data-new-kind={newKind}
               ref={noteInput}
               aria-hidden={!adding}
@@ -1147,8 +1174,8 @@ export function TasksPage({
             <button
               className="note-add-button"
               type="button"
-              title={newKind === 'task' ? '添加任务' : '添加灵感'}
-              aria-label={newKind === 'task' ? '添加任务' : '添加灵感'}
+              title={newKind === 'task' ? '添加任务' : '添加小记'}
+              aria-label={newKind === 'task' ? '添加任务' : '添加小记'}
               aria-expanded={adding}
               onPointerDown={(event) => event.preventDefault()}
               onClick={(event) => {
@@ -1180,8 +1207,8 @@ export function TasksPage({
           className="note-summary note-inspiration-summary"
           ref={inspirationSummary}
           data-testid="note-inspiration-count"
-          title="今天的灵感，点击在主界面查看"
-          aria-label={`今天的灵感，共${inspirationCount}条，目标${INSPIRATION_GOAL}条`}
+          title="今天的小记，点击在主界面查看"
+          aria-label={`今天的小记，共${inspirationCount}条，目标${INSPIRATION_GOAL}条`}
           onClick={() => void openMainPage('inspiration')}
         >
           <SummaryRing value={inspirationCount} total={INSPIRATION_GOAL} inspiration />

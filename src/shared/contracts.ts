@@ -126,7 +126,9 @@ export interface DesktopApi {
 }
 
 export type DockEdge = 'left' | 'right' | 'top'
+export type AppearanceMode = 'system' | 'light' | 'dark'
 export interface WindowSettings {
+  appearance: AppearanceMode
   themeColor: string
   launchAtLogin: boolean
   defaultAlwaysOnTop: boolean
@@ -136,6 +138,7 @@ export interface WindowSettings {
 export type MainPage = 'task' | 'habit' | 'inspiration' | 'settings'
 
 export interface DesktopState {
+  colorScheme: 'light' | 'dark'
   mainNavigation?: { page: MainPage; revision: number }
   exitPending: boolean
   settings: WindowSettings

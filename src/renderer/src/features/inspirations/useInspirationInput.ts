@@ -41,7 +41,7 @@ export function useInspirationInput(
       const text = current.text.trim()
       if (!text) {
         if (current.id) {
-          report('灵感内容不能为空。')
+          report('小记内容不能为空。')
           return 'blocked'
         }
         return 'done'
@@ -60,11 +60,11 @@ export function useInspirationInput(
       return 'continue'
     },
     report,
-    '保存灵感失败，请重试。'
+    '保存小记失败，请重试。'
   )
   const submit = () => {
     if (!session.current.text.trim()) {
-      report('灵感内容不能为空。')
+      report('小记内容不能为空。')
       return Promise.resolve(false)
     }
     return save()

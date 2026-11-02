@@ -40,6 +40,33 @@ export function SettingsPage({ state, hidden }: { state: DesktopState | null; hi
           </span>
           个性化
         </h2>
+        <div className="appearance-setting">
+          <div className="theme-setting-label">
+            <strong>外观</strong>
+            <span>浅色、黑灰深色，或跟随系统</span>
+          </div>
+          <div className="appearance-options" role="group" aria-label="外观模式">
+            {(
+              [
+                ['system', '随系统'],
+                ['light', '浅色'],
+                ['dark', '深色']
+              ] as const
+            ).map(([value, label]) => (
+              <Button
+                key={value}
+                variant="outline"
+                size="sm"
+                aria-label={`${label}外观`}
+                aria-pressed={(state?.settings.appearance ?? 'system') === value}
+                disabled={!state || busy}
+                onClick={() => state && void update({ ...state.settings, appearance: value })}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+        </div>
         <div className="theme-setting">
           <div className="theme-setting-label">
             <strong>主题色</strong>

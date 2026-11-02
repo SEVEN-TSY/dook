@@ -201,7 +201,7 @@ export function InspirationPanel({
         if (version.current === request) setIdeas(result)
       }
     } catch (error) {
-      notifyError(error instanceof Error ? error.message : '读取灵感失败。')
+      notifyError(error instanceof Error ? error.message : '读取小记失败。')
     }
   }
   refreshCurrent.current = refresh
@@ -219,7 +219,7 @@ export function InspirationPanel({
         setHasMore(result.hasMore)
       }
     } catch (error) {
-      notifyError(error instanceof Error ? error.message : '读取灵感失败。')
+      notifyError(error instanceof Error ? error.message : '读取小记失败。')
     } finally {
       loading.current = false
     }
@@ -245,13 +245,13 @@ export function InspirationPanel({
     },
     refresh,
     notifyError,
-    () => notifySuccess('灵感已保存')
+    () => notifySuccess('小记已保存')
   )
   const original = useInspirationInput(
     async (text, id) => {
-      if (!id) throw new Error('灵感不存在。')
+      if (!id) throw new Error('小记不存在。')
       const result = unwrap(await getDesktopApi().updateInspiration(id, text))
-      if (workbench) notifySuccess('灵感已保存')
+      if (workbench) notifySuccess('小记已保存')
       return result
     },
     refresh,
@@ -310,16 +310,16 @@ export function InspirationPanel({
           })),
           {
             key: 'history',
-            label: '历史灵感',
+            label: '历史小记',
             items: ideas
           },
-          { key: 'archive', label: '已归档灵感', items: ideas }
+          { key: 'archive', label: '已归档小记', items: ideas }
         ]
     : [{ key: 'all', label: '', items: ideas }]
   return (
     <section
       className={`inspiration-panel ${workbench ? 'inspiration-workbench' : ''}`}
-      aria-label="灵感"
+      aria-label="小记"
     >
       {workbench && notice && (
         <div
@@ -344,13 +344,13 @@ export function InspirationPanel({
             setExpanded(!expanded)
           }}
         >
-          <span>{expanded ? '⌄' : '›'} 灵感</span>
+          <span>{expanded ? '⌄' : '›'} 小记</span>
           <span data-testid="inspiration-count">{ideas.length}</span>
         </button>
       )}
       {workbench && (
         <aside className="inspiration-navigation">
-          <div className="inspiration-views" role="group" aria-label="灵感视角">
+          <div className="inspiration-views" role="group" aria-label="小记视角">
             {(['topic', 'date'] as const).map((option) => (
               <button
                 key={option}
@@ -543,7 +543,7 @@ export function InspirationPanel({
                             !(await deletion.confirm({
                               title: '删除主题',
                               description: `删除主题“${topic.name}”？`,
-                              detail: `关联的${topic.count}条灵感及其内容会保留。`
+                              detail: `关联的${topic.count}条小记及其内容会保留。`
                             }))
                           )
                             return
@@ -593,11 +593,11 @@ export function InspirationPanel({
                       <h2 className="inspiration-group-title">{group.label}</h2>
                       <span className="inspiration-group-count">
                         {ideas.length}
-                        {hasMore ? '+' : ''}条灵感
+                        {hasMore ? '+' : ''}条小记
                       </span>
                       {(view === 'topic' || groupKey === dates[0]) && (
                         <ComposerToggle
-                          label="新增灵感"
+                          label="新增小记"
                           expanded={creatingIdea}
                           onClick={() => {
                             setCreatingIdea(!creatingIdea)
@@ -613,13 +613,13 @@ export function InspirationPanel({
                         autoFocus
                         tone="inspiration"
                         multiline
-                        aria-label="新增灵感内容"
+                        aria-label="新增小记内容"
                         placeholder="记下一个想法…"
                         value={newIdea.value}
                         onValueChange={newIdea.setValue}
                         onClear={() => newIdea.setValue('')}
                         onSubmit={newIdea.submit}
-                        submitLabel="记录灵感"
+                        submitLabel="记录小记"
                         saving={newIdea.saving}
                         onCompositionStart={() => {
                           newIdea.composing.current = true
@@ -631,7 +631,7 @@ export function InspirationPanel({
                 )}
                 {group.items.length === 0 && (
                   <p className="inspiration-empty">
-                    {workbench ? '还没有灵感。' : '在下方切换为灵感，记下新的想法。'}
+                    {workbench ? '还没有小记。' : '在下方切换为小记，记下新的想法。'}
                   </p>
                 )}
                 {group.items.map((idea) => (
@@ -644,12 +644,12 @@ export function InspirationPanel({
                         <div className="inspiration-row-actions">
                           <button
                             className="inspiration-supplement"
-                            title="恢复灵感"
-                            aria-label="恢复灵感"
+                            title="恢复小记"
+                            aria-label="恢复小记"
                             onClick={async () => {
                               try {
                                 unwrap(await getDesktopApi().restoreInspiration(idea.id))
-                                notifySuccess('灵感已恢复')
+                                notifySuccess('小记已恢复')
                                 void refresh()
                               } catch (error) {
                                 notifyError(error instanceof Error ? error.message : '恢复失败。')
@@ -660,15 +660,15 @@ export function InspirationPanel({
                           </button>
                           <button
                             className="inspiration-supplement"
-                            title="永久删除灵感"
-                            aria-label="永久删除灵感"
+                            title="永久删除小记"
+                            aria-label="永久删除小记"
                             onClick={async () => {
                               try {
                                 if (
                                   !(await deletion.confirm({
-                                    title: '永久删除灵感',
-                                    description: '永久删除这条灵感？',
-                                    detail: '灵感及其补充、主题关联将被永久删除，无法恢复。'
+                                    title: '永久删除小记',
+                                    description: '永久删除这条小记？',
+                                    detail: '小记及其补充、主题关联将被永久删除，无法恢复。'
                                   }))
                                 )
                                   return
@@ -676,7 +676,7 @@ export function InspirationPanel({
                                   !unwrap(await getDesktopApi().deleteArchivedInspiration(idea.id))
                                 )
                                   return
-                                notifySuccess('灵感已删除')
+                                notifySuccess('小记已删除')
                                 void refresh()
                               } catch (error) {
                                 notifyError(error instanceof Error ? error.message : '删除失败。')
@@ -765,13 +765,13 @@ export function InspirationPanel({
                           </div>
                           <button
                             className="inspiration-supplement"
-                            title="归档灵感"
-                            aria-label="归档灵感"
+                            title="归档小记"
+                            aria-label="归档小记"
                             onClick={async () => {
                               if (!(await save())) return
                               try {
                                 unwrap(await getDesktopApi().archiveInspiration(idea.id))
-                                notifySuccess('灵感已归档')
+                                notifySuccess('小记已归档')
                                 void refresh()
                               } catch (error) {
                                 notifyError(error instanceof Error ? error.message : '归档失败。')

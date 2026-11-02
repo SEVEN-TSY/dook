@@ -79,6 +79,16 @@ export function registerIpc(handlers: Handlers): () => void {
     )
       throw new Error('主题色必须为六位十六进制颜色。')
     return handlers.desktop.updateSettings({
+      appearance: (() => {
+        if (!('appearance' in settings)) return handlers.desktop.state().settings.appearance
+        if (
+          settings.appearance !== 'system' &&
+          settings.appearance !== 'light' &&
+          settings.appearance !== 'dark'
+        )
+          throw new Error('外观模式无效。')
+        return settings.appearance
+      })(),
       themeColor:
         'themeColor' in settings
           ? String(settings.themeColor).toLowerCase()

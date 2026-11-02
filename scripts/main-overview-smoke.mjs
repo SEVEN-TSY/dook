@@ -25,8 +25,8 @@ export async function mainOverviewSmoke({
   const multi = (await js(note, `window.myTodo.createTask('多天任务筛选验证')`)).data
   await js(note, `window.myTodo.convertToMultiDay('${multi.id}')`)
   const habit = (await js(note, `window.myTodo.createHabit('习惯总数验证')`)).data
-  const oldIdea = (await js(note, `window.myTodo.createInspiration('昨天的灵感')`)).data
-  const legacyIdea = (await js(note, `window.myTodo.createInspiration('无日期的旧灵感')`)).data
+  const oldIdea = (await js(note, `window.myTodo.createInspiration('昨天的小记')`)).data
+  const legacyIdea = (await js(note, `window.myTodo.createInspiration('无日期的旧小记')`)).data
   const db = new DatabaseSync(resolve(process.env.MYTODO_SMOKE_DATA, 'mytodo.sqlite'))
   try {
     const yesterday = new Date()
@@ -39,10 +39,10 @@ export async function mainOverviewSmoke({
   } finally {
     db.close()
   }
-  const idea = (await js(note, `window.myTodo.createInspiration('灵感总数验证')`)).data
+  const idea = (await js(note, `window.myTodo.createInspiration('小记总数验证')`)).data
   await waitFor(
     async () => JSON.stringify(await counts()) === '[3,1,1]',
-    '跨窗口同步当天数量，历史与无日期灵感不计入'
+    '跨窗口同步当天数量，历史与无日期小记不计入'
   )
   await click(main, `[data-task-id="${task.id}"] input[type=checkbox]`)
   await waitFor(
@@ -111,9 +111,9 @@ export async function mainOverviewSmoke({
   await click(main, '[data-testid=delete-confirm]')
   await waitFor(() => js(main, `!document.querySelector('${row}')`), '主界面永久删除归档')
   await js(note, `window.myTodo.archiveInspiration('${idea.id}')`)
-  await waitFor(async () => (await counts())[2] === 0, '归档灵感同步总数')
+  await waitFor(async () => (await counts())[2] === 0, '归档小记同步总数')
   await js(note, `window.myTodo.restoreInspiration('${idea.id}')`)
-  await waitFor(async () => (await counts())[2] === 1, '恢复灵感同步总数')
+  await waitFor(async () => (await counts())[2] === 1, '恢复小记同步总数')
   const habitTask = (await js(note, 'window.myTodo.listToday()')).data.tasks.find(
     (x) => x.habitId === habit.id
   )

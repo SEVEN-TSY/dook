@@ -1,3 +1,5 @@
+import { noteJottingsSmoke } from './note-jottings-smoke.mjs'
+import { appearanceSmoke } from './appearance-smoke.mjs'
 import { inspirationPageSmoke } from './inspiration-page-smoke.mjs'
 import { subitemsSmoke } from './subitems-smoke.mjs'
 import { noteArchiveSmoke } from './note-archive-smoke.mjs'
@@ -748,7 +750,7 @@ async function runSmoke() {
         const second = (await window.myTodo.createTask('推进中的任务')).data;
         await window.myTodo.convertToMultiDay(second.id);
         await window.myTodo.setTaskProgress(second.id, 60);
-        await window.myTodo.createInspiration('胶囊灵感');
+        await window.myTodo.createInspiration('胶囊小记');
       })()`
       )
       await count(note, 2)
@@ -811,6 +813,37 @@ async function runSmoke() {
     menuClick('打开主界面')
     let main = await waitFor(() => findWindow('main'), '托盘打开主界面')
     assert.ok(main && note)
+    if (phase.startsWith('note-jottings-')) {
+      await noteJottingsSmoke({
+        main,
+        note,
+        phase,
+        js,
+        click,
+        input,
+        waitFor,
+        capture: async (window, name) =>
+          writeFileSync(resolve(output, name), (await window.webContents.capturePage()).toPNG())
+      })
+      console.log(`Electron note jottings smoke passed: ${phase}`)
+      menuClick('退出')
+      return
+    }
+    if (phase.startsWith('appearance-')) {
+      await appearanceSmoke({
+        main,
+        note,
+        phase,
+        js,
+        click,
+        waitFor,
+        capture: async (window, name) =>
+          writeFileSync(resolve(output, name), (await window.webContents.capturePage()).toPNG())
+      })
+      console.log(`Electron appearance smoke passed: ${phase}`)
+      menuClick('退出')
+      return
+    }
     if (phase === 'delete-confirmation') {
       await deleteConfirmationSmoke({
         main,
@@ -890,7 +923,7 @@ async function runSmoke() {
         () => js(main, 'Boolean(document.querySelector(".workbench-header h1"))'),
         '工作台就绪'
       )
-      await js(main, `document.querySelector('.workbench-nav [aria-label="灵感"]').click()`)
+      await js(main, `document.querySelector('.workbench-nav [aria-label="小记"]').click()`)
       await js(
         main,
         `Array.from(document.querySelectorAll('.inspiration-views button')).find(x => x.textContent === '主题').click()`
@@ -944,12 +977,12 @@ async function runSmoke() {
           () => js(main, `Boolean(document.querySelector('[aria-label="重命名独立主题"]'))`),
           '独立创建主题'
         )
-        await click(main, '[aria-label="新增灵感"]')
-        await input(main, '[aria-label="新增灵感内容"]', '切组前草稿', null)
+        await click(main, '[aria-label="新增小记"]')
+        await input(main, '[aria-label="新增小记内容"]', '切组前草稿', null)
         await click(main, '[aria-label="新增主题"]')
         await js(
           main,
-          `document.querySelector('[aria-label="新增灵感内容"]').dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }))`
+          `document.querySelector('[aria-label="新增小记内容"]').dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }))`
         )
         await input(main, '[aria-label="新增主题名称"]', '新主题', null)
         await js(main, `document.querySelector('[aria-label="新增主题名称"]').form.requestSubmit()`)
@@ -957,13 +990,13 @@ async function runSmoke() {
           () =>
             js(
               main,
-              `document.querySelector('[aria-label="新增灵感内容"]')?.value === '切组前草稿' && Boolean(document.querySelector('[aria-label="新增主题名称"]'))`
+              `document.querySelector('[aria-label="新增小记内容"]')?.value === '切组前草稿' && Boolean(document.querySelector('[aria-label="新增主题名称"]'))`
             ),
           '组合输入时保留草稿和当前主题'
         )
         await js(
           main,
-          `document.querySelector('[aria-label="新增灵感内容"]').dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }))`
+          `document.querySelector('[aria-label="新增小记内容"]').dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }))`
         )
         await input(main, '[aria-label="新增主题名称"]', '新主题')
         await waitFor(
@@ -974,11 +1007,11 @@ async function runSmoke() {
             ),
           '创建主题后切组'
         )
-        await click(main, '[aria-label="新增灵感"]')
+        await click(main, '[aria-label="新增小记"]')
         for (const text of ['连续新增一', '连续新增二']) {
-          await input(main, '[aria-label="新增灵感内容"]', text)
+          await input(main, '[aria-label="新增小记内容"]', text)
           await waitFor(
-            () => js(main, `document.querySelector('[aria-label="新增灵感内容"]')?.value === ''`),
+            () => js(main, `document.querySelector('[aria-label="新增小记内容"]')?.value === ''`),
             `主题内保存${text}`
           )
         }
@@ -996,19 +1029,19 @@ async function runSmoke() {
           db.exec(
             `CREATE TRIGGER fail_inspiration BEFORE INSERT ON inspirations WHEN NEW.description = '失败后重试' BEGIN SELECT RAISE(ABORT, '测试保存失败'); END`
           )
-          await input(main, '[aria-label="新增灵感内容"]', '失败后重试')
+          await input(main, '[aria-label="新增小记内容"]', '失败后重试')
           await waitFor(
             () => js(main, `document.body.textContent.includes('测试保存失败')`),
             '主题新增失败提示'
           )
           assert.equal(
-            await js(main, `document.querySelector('[aria-label="新增灵感内容"]').value`),
+            await js(main, `document.querySelector('[aria-label="新增小记内容"]').value`),
             '失败后重试'
           )
           db.exec('DROP TRIGGER fail_inspiration')
-          await input(main, '[aria-label="新增灵感内容"]', '失败后重试')
+          await input(main, '[aria-label="新增小记内容"]', '失败后重试')
           await waitFor(
-            () => js(main, `document.querySelector('[aria-label="新增灵感内容"]')?.value === ''`),
+            () => js(main, `document.querySelector('[aria-label="新增小记内容"]')?.value === ''`),
             '主题新增失败后重试'
           )
         } finally {
@@ -1038,9 +1071,9 @@ async function runSmoke() {
           (topic) => topic.name === '独立主题'
         )
         assert.deepEqual(draft.topicIds, [originalTopic.id], '草稿保存在原主题')
-        if (!(await js(main, `Boolean(document.querySelector('[aria-label="新增灵感内容"]'))`)))
-          await click(main, '[aria-label="新增灵感"]')
-        await input(main, '[aria-label="新增灵感内容"]', '删除前草稿', null)
+        if (!(await js(main, `Boolean(document.querySelector('[aria-label="新增小记内容"]'))`)))
+          await click(main, '[aria-label="新增小记"]')
+        await input(main, '[aria-label="新增小记内容"]', '删除前草稿', null)
         await click(main, '[aria-label="删除新主题"]')
         await click(main, '[data-testid=delete-confirm]')
         await waitFor(
@@ -1092,7 +1125,7 @@ async function runSmoke() {
         )
         assert.match(
           await js(main, 'document.querySelector("[role=alertdialog]").textContent'),
-          /2条灵感/
+          /2条小记/
         )
         await click(main, '[data-testid=delete-cancel]')
         assert.ok(
@@ -1122,7 +1155,7 @@ async function runSmoke() {
         )
         await js(
           main,
-          `Array.from(document.querySelectorAll('.inspiration-nav-item .inspiration-heading')).find(x => x.textContent === '已归档灵感').click()`
+          `Array.from(document.querySelectorAll('.inspiration-nav-item .inspiration-heading')).find(x => x.textContent === '已归档小记').click()`
         )
         await waitFor(
           () =>
@@ -1144,7 +1177,7 @@ async function runSmoke() {
             .items[0].additions[0].content,
           '归档持久补充'
         )
-        await click(main, '[aria-label="恢复灵感"]')
+        await click(main, '[aria-label="恢复小记"]')
         await waitFor(
           () => js(main, `!document.querySelector('.inspiration-item')`),
           '重启后恢复归档'
@@ -1174,17 +1207,17 @@ async function runSmoke() {
         () => js(main, 'Boolean(document.querySelector(".workbench-header h1"))'),
         '工作台就绪'
       )
-      await js(main, `document.querySelector('.workbench-nav [aria-label="灵感"]').click()`)
+      await js(main, `document.querySelector('.workbench-nav [aria-label="小记"]').click()`)
       if (phase === 'topics-create') {
-        await click(main, '[aria-label="新增灵感"]')
-        await input(main, '[aria-label="新增灵感内容"]', '跨窗口主题灵感')
+        await click(main, '[aria-label="新增小记"]')
+        await input(main, '[aria-label="新增小记内容"]', '跨窗口主题小记')
         await waitFor(
           () =>
             js(
               main,
-              `document.querySelector('[data-testid=inspiration-summary]')?.textContent.includes('跨窗口主题灵感')`
+              `document.querySelector('[data-testid=inspiration-summary]')?.textContent.includes('跨窗口主题小记')`
             ),
-          '灵感创建'
+          '小记创建'
         )
         await js(
           main,
@@ -1283,7 +1316,7 @@ async function runSmoke() {
               note,
               `document.querySelector('[data-testid=note-inspiration-count]')?.textContent.trim() === '1'`
             ),
-          '便签灵感数量同步'
+          '便签小记数量同步'
         )
         await js(
           note,
@@ -1499,38 +1532,38 @@ async function runSmoke() {
         () => js(main, `document.activeElement?.dataset.testid === 'habit-new'`),
         '保存后保留习惯输入焦点，支持连续新增'
       )
-      await js(main, `document.querySelector('.workbench-nav [aria-label="灵感"]').click()`)
+      await js(main, `document.querySelector('.workbench-nav [aria-label="小记"]').click()`)
       writeFileSync(
         resolve(output, 'inspiration-new.png'),
         (await main.webContents.capturePage()).toPNG()
       )
-      await click(main, '[aria-label="新增灵感"]')
-      await input(main, '[aria-label="新增灵感内容"]', '待继续的草稿', null)
-      await click(main, '[aria-label="新增灵感"]')
+      await click(main, '[aria-label="新增小记"]')
+      await input(main, '[aria-label="新增小记内容"]', '待继续的草稿', null)
+      await click(main, '[aria-label="新增小记"]')
       assert.equal(
-        await js(main, `Boolean(document.querySelector('[aria-label="新增灵感内容"]'))`),
+        await js(main, `Boolean(document.querySelector('[aria-label="新增小记内容"]'))`),
         false,
-        '再次点击加号收起灵感输入框'
+        '再次点击加号收起小记输入框'
       )
-      await click(main, '[aria-label="新增灵感"]')
+      await click(main, '[aria-label="新增小记"]')
       assert.equal(
-        await js(main, `document.querySelector('[aria-label="新增灵感内容"]').value`),
+        await js(main, `document.querySelector('[aria-label="新增小记内容"]').value`),
         '待继续的草稿',
-        '收起后展开保留灵感草稿'
+        '收起后展开保留小记草稿'
       )
-      await input(main, '[aria-label="新增灵感内容"]', '新的灵感')
+      await input(main, '[aria-label="新增小记内容"]', '新的小记')
       await waitFor(
         () =>
           js(
             main,
-            `document.querySelector('[data-testid=inspiration-summary]')?.textContent === '新的灵感'`
+            `document.querySelector('[data-testid=inspiration-summary]')?.textContent === '新的小记'`
           ),
-        '页内新增灵感'
+        '页内新增小记'
       )
       assert.equal(
         await js(main, `document.activeElement?.getAttribute('aria-label')`),
-        '新增灵感内容',
-        '新增灵感后保持输入焦点'
+        '新增小记内容',
+        '新增小记后保持输入焦点'
       )
       const inspirationRowHeight = await js(
         main,
@@ -1540,7 +1573,7 @@ async function runSmoke() {
       assert.equal(
         await js(main, `document.querySelector('.inspiration-row').getBoundingClientRect().height`),
         inspirationRowHeight,
-        '进入编辑保持灵感行高'
+        '进入编辑保持小记行高'
       )
       assert.equal(
         await js(
@@ -1548,9 +1581,9 @@ async function runSmoke() {
           `(() => { const field = document.querySelector('[data-testid=inspiration-edit]'); return document.activeElement === field && field.selectionStart === field.value.length && field.selectionEnd === field.value.length })()`
         ),
         true,
-        '进入灵感编辑时光标位于内容末尾'
+        '进入小记编辑时光标位于内容末尾'
       )
-      await input(main, '[data-testid=inspiration-edit]', '编辑后的灵感', null)
+      await input(main, '[data-testid=inspiration-edit]', '编辑后的小记', null)
       await js(
         main,
         `document.querySelector('[data-testid=inspiration-edit]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true }))`
@@ -1566,7 +1599,7 @@ async function runSmoke() {
         () =>
           js(
             main,
-            `document.querySelector('[data-testid=inspiration-edit]')?.value === ${JSON.stringify('编辑后的灵感\n')}`
+            `document.querySelector('[data-testid=inspiration-edit]')?.value === ${JSON.stringify('编辑后的小记\n')}`
           ),
         'Ctrl+Enter在编辑内容中换行'
       )
@@ -1574,7 +1607,7 @@ async function runSmoke() {
       assert.equal(
         await js(main, `document.querySelector('.inspiration-row').getBoundingClientRect().height`),
         inspirationRowHeight,
-        '编辑多行内容保持灵感行高'
+        '编辑多行内容保持小记行高'
       )
       await captureDesign('inspiration-inline-edit.png')
       main.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' })
@@ -1590,13 +1623,13 @@ async function runSmoke() {
         const row = document.querySelector('.inspiration-row');
         const summary = row.querySelector('.inspiration-summary').getBoundingClientRect();
         const actions = Array.from(row.querySelectorAll('.inspiration-row-actions button')).map(x => x.getBoundingClientRect());
-        if (actions.length !== 2 || actions.some(x => x.left < summary.right || Math.abs(x.top - actions[0].top) > 1)) throw new Error('灵感操作未在右端同一行');
+        if (actions.length !== 2 || actions.some(x => x.left < summary.right || Math.abs(x.top - actions[0].top) > 1)) throw new Error('小记操作未在右端同一行');
       })()`
       )
       await captureDesign('inspiration-row-layout.png')
       assert.equal(
         (await js(main, `window.myTodo.listInspirations()`)).data[0].description,
-        '编辑后的灵感\n保留下一行'
+        '编辑后的小记\n保留下一行'
       )
       assert.equal(
         await js(
@@ -1736,12 +1769,12 @@ async function runSmoke() {
       assert.deepEqual(headings, [
         '今天',
         ...Array.from({ length: 6 }, (_, i) => localDate(i + 1)),
-        '历史灵感',
-        '已归档灵感'
+        '历史小记',
+        '已归档小记'
       ])
       await js(
         main,
-        `(async () => { for (let i = 0; i < 25; i++) { const result = await window.myTodo.createInspiration('分页灵感 ' + String(i).padStart(2, '0')); if (!result.ok) throw new Error('创建灵感失败'); } })()`
+        `(async () => { for (let i = 0; i < 25; i++) { const result = await window.myTodo.createInspiration('分页小记 ' + String(i).padStart(2, '0')); if (!result.ok) throw new Error('创建小记失败'); } })()`
       )
       await waitFor(
         () => js(main, `document.querySelectorAll('.inspiration-item').length === 20`),
@@ -1753,7 +1786,7 @@ async function runSmoke() {
           `document.scrollingElement.scrollHeight <= document.scrollingElement.clientHeight`
         ),
         true,
-        '灵感页不出现整页滚动条'
+        '小记页不出现整页滚动条'
       )
       assert.equal(
         await js(
@@ -1761,7 +1794,7 @@ async function runSmoke() {
           `(() => { const list = document.querySelector('.inspiration-list'); return list.scrollHeight > list.clientHeight })()`
         ),
         true,
-        '长灵感列表在内容区独立滚动'
+        '长小记列表在内容区独立滚动'
       )
       await js(
         main,
@@ -1851,13 +1884,13 @@ async function runSmoke() {
         () => js(main, `document.querySelectorAll('.inspiration-item').length === 26`),
         '快速切组后分页'
       )
-      await click(main, '[aria-label="归档灵感"]')
+      await click(main, '[aria-label="归档小记"]')
       await waitFor(
         () => js(main, `document.querySelectorAll('.inspiration-item').length === 25`),
         '归档移出主题'
       )
       await chooseView('日期')
-      await chooseGroup('已归档灵感')
+      await chooseGroup('已归档小记')
       await waitFor(
         () => js(main, `document.querySelectorAll('.inspiration-item').length === 1`),
         '归档区显示'
@@ -1865,7 +1898,7 @@ async function runSmoke() {
       assert.equal(
         await js(
           main,
-          `Boolean(document.querySelector('[aria-label="新增灵感"], [aria-label="归集主题"], [aria-label="归档灵感"]'))`
+          `Boolean(document.querySelector('[aria-label="新增小记"], [aria-label="归集主题"], [aria-label="归档小记"]'))`
         ),
         false
       )
@@ -1890,7 +1923,7 @@ async function runSmoke() {
         (await main.webContents.capturePage()).toPNG()
       )
       main.setBounds(previousBounds)
-      await click(main, '[aria-label="恢复灵感"]')
+      await click(main, '[aria-label="恢复小记"]')
       await waitFor(
         () => js(main, `document.querySelectorAll('.inspiration-item').length === 0`),
         '恢复后离开归档区'
@@ -1900,16 +1933,16 @@ async function runSmoke() {
         () => js(main, `document.querySelectorAll('.inspiration-item').length === 26`),
         '恢复主题关联'
       )
-      await click(main, '[aria-label="归档灵感"]')
+      await click(main, '[aria-label="归档小记"]')
       await chooseView('日期')
       await waitFor(
         () => js(main, `document.querySelectorAll('.inspiration-item').length === 1`),
         '再次归档'
       )
-      await click(main, '[aria-label="永久删除灵感"]')
+      await click(main, '[aria-label="永久删除小记"]')
       await click(main, '[data-testid=delete-cancel]')
       assert.equal(await js(main, `document.querySelectorAll('.inspiration-item').length`), 1)
-      await click(main, '[aria-label="永久删除灵感"]')
+      await click(main, '[aria-label="永久删除小记"]')
       await click(main, '[data-testid=delete-confirm]')
       await waitFor(
         () => js(main, `document.querySelectorAll('.inspiration-item').length === 0`),
@@ -2086,7 +2119,7 @@ async function runSmoke() {
               note,
               `document.querySelector('[data-testid=note-inspiration-count]').textContent.trim() === '1'`
             ),
-          '灵感数量跨窗口同步'
+          '小记数量跨窗口同步'
         )
         await click(note, '[data-testid=new-kind-inspiration]')
         await click(note, '.note-add-button')

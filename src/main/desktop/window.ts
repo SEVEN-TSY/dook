@@ -1,4 +1,4 @@
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, nativeTheme } from 'electron'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { WindowKind } from '../../shared/contracts'
@@ -17,7 +17,7 @@ export function createWindow(kind: WindowKind): BrowserWindow {
     skipTaskbar: note,
     title: note ? 'myTodo · 桌面便签' : 'myTodo',
     alwaysOnTop: note,
-    backgroundColor: note ? '#00000000' : '#FAFBFE',
+    backgroundColor: note ? '#00000000' : nativeTheme.shouldUseDarkColors ? '#202020' : '#FAFBFE',
     show: false,
     autoHideMenuBar: true,
     webPreferences: {

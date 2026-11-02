@@ -189,7 +189,7 @@ export class InspirationRepository implements InspirationStore {
 
   private get(id: string): Inspiration {
     const idea = this.list().find((item) => item.id === id)
-    if (!idea) throw new Error('灵感不存在。')
+    if (!idea) throw new Error('小记不存在。')
     return idea
   }
 
@@ -205,21 +205,21 @@ export class InspirationRepository implements InspirationStore {
         .prepare('UPDATE inspirations SET archived = ? WHERE id = ? AND archived = ?')
         .run(to, id, from).changes
     )
-      throw new Error('灵感状态已变化或不存在。')
+      throw new Error('小记状态已变化或不存在。')
   }
   deleteArchived(id: string): void {
     if (
       !this.database.prepare('DELETE FROM inspirations WHERE id = ? AND archived = 1').run(id)
         .changes
     )
-      throw new Error('已归档灵感不存在。')
+      throw new Error('已归档小记不存在。')
   }
 
   update(id: string, description: string): Inspiration {
     const result = this.database
       .prepare('UPDATE inspirations SET description = ? WHERE id = ? AND archived = 0')
       .run(description, id)
-    if (!result.changes) throw new Error('灵感不存在。')
+    if (!result.changes) throw new Error('小记不存在。')
     return this.get(id)
   }
 
@@ -234,7 +234,7 @@ export class InspirationRepository implements InspirationStore {
     `
       )
       .run(additionId, id, content)
-    if (!result.changes) throw new Error('补充标识已用于其他灵感。')
+    if (!result.changes) throw new Error('补充标识已用于其他小记。')
     return this.get(id)
   }
 }

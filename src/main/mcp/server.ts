@@ -29,7 +29,7 @@ function createProtocolServer(service: AppService): McpServer {
     {
       title: '应用基础链路诊断',
       description:
-        '检查myTodo核心服务和SQLite是否可用。当前工程仅提供基础诊断，尚无任务、习惯或灵感的业务读写工具。',
+        '检查myTodo核心服务和SQLite是否可用。当前工程仅提供基础诊断，尚无任务、习惯或小记的业务读写工具。',
       inputSchema: {},
       annotations: {
         readOnlyHint: true,

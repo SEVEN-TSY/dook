@@ -1,25 +1,26 @@
 /* Shared by the desktop note and the full workspace. No window geometry lives here. */
 :root {
+  --app-panel: light-dark(#ffffff, #202020);
   --app-accent: #526fc4;
   --app-accent-foreground: #ffffff;
-  --app-accent-soft: color-mix(in srgb, var(--app-accent) 10%, white);
-  --app-accent-hover: color-mix(in srgb, var(--app-accent) 13%, white);
-  --app-accent-selected: color-mix(in srgb, var(--app-accent) 20%, white);
+  --app-accent-soft: color-mix(in srgb, var(--app-accent) 10%, var(--app-panel));
+  --app-accent-hover: color-mix(in srgb, var(--app-accent) 13%, var(--app-panel));
+  --app-accent-selected: color-mix(in srgb, var(--app-accent) 20%, var(--app-panel));
   --app-primary-hover: color-mix(in srgb, var(--app-accent) 93%, black);
-  --app-accent-ink: color-mix(in srgb, var(--app-accent) 75%, #253043);
-  --app-accent-track: color-mix(in srgb, var(--app-accent) 18%, white);
-  --app-accent-fill: color-mix(in srgb, var(--app-accent) 65%, white);
-  --app-text: #303744;
-  --app-muted: #6a7588;
-  --app-surface: #fafbfe;
-  --app-border: #e5eaf1;
+  --app-accent-ink: color-mix(in srgb, var(--app-accent) 75%, light-dark(#253043, #f5f5f5));
+  --app-accent-track: color-mix(in srgb, var(--app-accent) 18%, var(--app-panel));
+  --app-accent-fill: color-mix(in srgb, var(--app-accent) 65%, var(--app-panel));
+  --app-text: light-dark(#303744, #e3e3e3);
+  --app-muted: light-dark(#6a7588, #adadad);
+  --app-surface: light-dark(#fafbfe, #202020);
+  --app-border: light-dark(#e5eaf1, #393939);
   --app-hover: var(--app-accent-hover);
-  --app-accent-subtle: color-mix(in srgb, var(--app-accent) 4%, white);
-  --app-input-border: color-mix(in srgb, var(--app-accent) 32%, #e5e7eb);
-  --app-accent-border: color-mix(in srgb, var(--app-accent) 48%, white);
+  --app-accent-subtle: color-mix(in srgb, var(--app-accent) 4%, var(--app-panel));
+  --app-input-border: color-mix(in srgb, var(--app-accent) 32%, light-dark(#e5e7eb, #393939));
+  --app-accent-border: color-mix(in srgb, var(--app-accent) 48%, var(--app-panel));
   --app-accent-shadow: color-mix(in srgb, var(--app-accent) 15%, transparent);
-  --app-inspiration: #ad7c16;
-  --app-inspiration-surface: #fff9e8;
+  --app-inspiration: light-dark(#ad7c16, #d9bc70);
+  --app-inspiration-surface: light-dark(#fff9e8, #332d20);
 }
 .task-check {
   accent-color: var(--app-accent);
@@ -53,14 +54,14 @@
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: #e4e8ef;
-  color: #788395;
+  background: light-dark(#e4e8ef, #2b2b2b);
+  color: light-dark(#788395, #adadad);
   cursor: pointer;
 }
 .clearable-textarea > button.input-clear:hover,
 .clearable-input > button.input-clear:hover {
-  background: #d6dce6;
-  color: #465064;
+  background: light-dark(#d6dce6, #2b2b2b);
+  color: light-dark(#465064, #e3e3e3);
 }
 .note-progress-ring {
   position: absolute;
@@ -88,7 +89,7 @@
   align-items: baseline;
   justify-content: center;
   gap: 1px;
-  color: #697994;
+  color: light-dark(#697994, #adadad);
   font-size: 11px;
   line-height: 18px;
   white-space: nowrap;

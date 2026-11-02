@@ -16,6 +16,7 @@ test('首次使用和旧配置默认开机自启，关闭后重启保留选择',
     )
     const preferences = readPreferences(directory)
     assert.deepEqual(preferences.settings, {
+      appearance: 'system',
       themeColor: '#526fc4',
       launchAtLogin: true,
       defaultAlwaysOnTop: false,
@@ -63,6 +64,7 @@ test('持续推进默认显示，旧配置兼容且关闭后保存重读保留�
     preferences.settings.showMultiDay = false
     writePreferences(directory, preferences)
     assert.deepEqual(readPreferences(directory).settings, {
+      appearance: 'system',
       themeColor: '#526fc4',
       launchAtLogin: false,
       defaultAlwaysOnTop: false,

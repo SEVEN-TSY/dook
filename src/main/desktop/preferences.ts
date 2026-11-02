@@ -11,6 +11,7 @@ export interface DesktopPreferences {
 export function readPreferences(directory: string): DesktopPreferences {
   const defaults: DesktopPreferences = {
     settings: {
+      appearance: 'system',
       themeColor: '#526fc4',
       launchAtLogin: true,
       defaultAlwaysOnTop: true,
@@ -21,6 +22,8 @@ export function readPreferences(directory: string): DesktopPreferences {
   }
   try {
     const saved = JSON.parse(readFileSync(resolve(directory, 'desktop-settings.json'), 'utf8'))
+    if (['system', 'light', 'dark'].includes(saved.settings?.appearance))
+      defaults.settings.appearance = saved.settings.appearance
     if (
       typeof saved.settings?.themeColor === 'string' &&
       /^#[0-9a-f]{6}$/i.test(saved.settings.themeColor)

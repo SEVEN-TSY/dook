@@ -276,7 +276,7 @@ export async function deleteConfirmationSmoke({
   ).data
   await js(note, `window.myTodo.appendInspiration('${idea.id}', '保留历史补充')`)
   await js(note, `window.myTodo.archiveInspiration('${archivedIdea.id}')`)
-  await click(main, '.workbench-nav [aria-label="灵感"]')
+  await click(main, '.workbench-nav [aria-label="小记"]')
   await js(
     main,
     `Array.from(document.querySelectorAll('.inspiration-views button')).find(x => x.textContent === '主题').click()`
@@ -288,7 +288,7 @@ export async function deleteConfirmationSmoke({
   )
   assert.match(
     await js(main, 'document.querySelector("[role=alertdialog]").textContent'),
-    /2条灵感及其内容会保留/
+    /2条小记及其内容会保留/
   )
   await click(main, '[data-testid=delete-cancel]')
   assert.ok(
@@ -319,8 +319,8 @@ export async function deleteConfirmationSmoke({
     main,
     `Array.from(document.querySelectorAll('.inspiration-views button')).find(x => x.textContent === '日期').click()`
   )
-  await click(main, '[title="已归档灵感"]')
-  await click(main, '[aria-label="永久删除灵感"]')
+  await click(main, '[title="已归档小记"]')
+  await click(main, '[aria-label="永久删除小记"]')
   await waitFor(
     () => js(main, 'Boolean(document.querySelector("[role=alertdialog]"))'),
     '归档小记应用内确认'
@@ -335,7 +335,7 @@ export async function deleteConfirmationSmoke({
       await js(note, `window.myTodo.listInspirationPage(0, 50, { kind: 'archive' })`)
     ).data.items.some((x) => x.id === archivedIdea.id)
   )
-  await click(main, '[aria-label="永久删除灵感"]')
+  await click(main, '[aria-label="永久删除小记"]')
   await click(main, '[data-testid=delete-confirm]')
   await waitFor(
     async () =>

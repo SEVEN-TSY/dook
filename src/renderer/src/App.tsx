@@ -37,6 +37,9 @@ export function App() {
     const applyState = (state: DesktopState) => {
       // 同步阻止新的人机输入，避免退出屏障确认后、另一窗口尚在保存时再次变更。
       document.body.inert = state.exitPending
+      document.documentElement.dataset.theme = state.colorScheme
+      document.documentElement.classList.toggle('dark', state.colorScheme === 'dark')
+      document.documentElement.style.colorScheme = state.colorScheme
       setDesktop(state)
     }
     const unsubscribe = api.onWindowState((state) => {
