@@ -19,6 +19,7 @@ export const IPC_CHANNELS = {
   deleteArchivedTask: 'tasks:delete-archived',
   listInspirations: 'inspirations:list',
   listInspirationTopics: 'inspirations:topics:list',
+  inspirationTopicDetails: 'inspirations:topics:details',
   createInspirationTopic: 'inspirations:topics:create',
   deleteInspirationTopic: 'inspirations:topics:delete',
   renameInspirationTopic: 'inspirations:topics:rename',

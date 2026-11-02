@@ -1,4 +1,5 @@
 import { AppIcon } from '../../components/AppIcon'
+import { useDeleteConfirmation } from '../../components/DeleteConfirmation'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/ui/button'
 import { InlineComposer } from '../shared/InlineComposer'
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function HabitsPanel({ onSaveReady, composerOpen, onComposerOpenChange }: Props) {
+  const deletion = useDeleteConfirmation()
   const [habits, setHabits] = useState<Habit[]>([])
   const [value, setValue] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -104,6 +106,16 @@ export function HabitsPanel({ onSaveReady, composerOpen, onComposerOpenChange }:
     if (editing.current && editing.current !== id && !(await save.current())) return
     setBusy(true)
     try {
+      const habit = habits.find((item) => item.id === id)
+      if (
+        !habit ||
+        !(await deletion.confirm({
+          title: '删除习惯',
+          description: '停止这个习惯？',
+          detail: `${habit.description}。已生成的任务会保留。`
+        }))
+      )
+        return
       if (unwrap(await getDesktopApi().deleteHabit(id))) {
         if (editing.current === id) clear()
         setError('')

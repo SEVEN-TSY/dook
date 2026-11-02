@@ -94,19 +94,21 @@ export async function mainOverviewSmoke({
   await waitFor(async () => (await counts())[0] === 2, '主界面恢复更新总数')
   await js(note, `window.myTodo.archiveTask('${task.id}')`)
   await waitFor(async () => (await counts())[0] === 1, '再次归档同步')
-  let confirmations = 0
   dialog.showMessageBox = async () => {
-    confirmations++
-    return { response: 0, checkboxChecked: false }
+    throw new Error('删除不应使用系统确认')
   }
   await click(main, `[aria-label="永久删除：${task.description}"]`)
-  assert.equal(confirmations, 1, '永久删除只确认一次')
+  await waitFor(
+    () => js(main, 'document.querySelectorAll("[role=alertdialog]").length === 1'),
+    '永久删除只确认一次'
+  )
+  await click(main, '[data-testid=delete-cancel]')
   assert.ok(
     (await js(main, 'window.myTodo.listArchivedTasks()')).data.some((x) => x.id === task.id),
     '取消删除保留归档'
   )
-  dialog.showMessageBox = async () => ({ response: 1, checkboxChecked: false })
   await click(main, `[aria-label="永久删除：${task.description}"]`)
+  await click(main, '[data-testid=delete-confirm]')
   await waitFor(() => js(main, `!document.querySelector('${row}')`), '主界面永久删除归档')
   await js(note, `window.myTodo.archiveInspiration('${idea.id}')`)
   await waitFor(async () => (await counts())[2] === 0, '归档灵感同步总数')

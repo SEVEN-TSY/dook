@@ -13,6 +13,7 @@ import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { ClearableTextarea } from '../../components/ui/clearable-textarea'
 import { ClearableInput } from '../../components/ui/clearable-input'
+import { useDeleteConfirmation } from '../../components/DeleteConfirmation'
 
 export interface InspirationPanelHandle {
   save: () => Promise<boolean>
@@ -31,6 +32,7 @@ export function InspirationPanel({
   workbench?: boolean
   collapsible?: boolean
 }) {
+  const deletion = useDeleteConfirmation()
   const FormInput = workbench ? Input : ClearableInput
   const SubmitButton = workbench ? Button : 'button'
   const [notice, setNotice] = useState<{ message: string; error: boolean } | null>(null)
@@ -456,6 +458,17 @@ export function InspirationPanel({
                       onClick={async () => {
                         if (topicGroup === group.key && !(await save())) return
                         try {
+                          const topic = unwrap(
+                            await getDesktopApi().inspirationTopicDetails(group.key)
+                          )
+                          if (
+                            !(await deletion.confirm({
+                              title: '删除主题',
+                              description: `删除主题“${topic.name}”？`,
+                              detail: `关联的${topic.count}条灵感及其内容会保留。`
+                            }))
+                          )
+                            return
                           const deleted = unwrap(
                             await getDesktopApi().deleteInspirationTopic(group.key)
                           )
@@ -573,6 +586,14 @@ export function InspirationPanel({
                             aria-label="永久删除灵感"
                             onClick={async () => {
                               try {
+                                if (
+                                  !(await deletion.confirm({
+                                    title: '永久删除灵感',
+                                    description: '永久删除这条灵感？',
+                                    detail: '灵感及其补充、主题关联将被永久删除，无法恢复。'
+                                  }))
+                                )
+                                  return
                                 if (
                                   !unwrap(await getDesktopApi().deleteArchivedInspiration(idea.id))
                                 )
@@ -763,7 +784,9 @@ export function InspirationPanel({
                         </div>
                       </div>
                     ) : (
+
                       <p className="inspiration-summary">{idea.description}</p>
+
                     )}
                   </article>
                 ))}
