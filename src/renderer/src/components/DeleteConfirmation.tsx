@@ -1,5 +1,5 @@
 import { AlertDialog } from 'radix-ui'
-import { createContext, useContext, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Button } from './ui/button'
 
@@ -11,6 +11,7 @@ interface DeletePrompt {
 
 const Context = createContext<{
   open: boolean
+  cancel: () => void
   confirm: (prompt: DeletePrompt, returnFocus?: HTMLElement | null) => Promise<boolean>
 } | null>(null)
 
@@ -19,16 +20,19 @@ export function DeleteConfirmationProvider({ children }: { children: ReactNode }
   const pending = useRef<((confirmed: boolean) => void) | null>(null)
   const returnFocus = useRef<HTMLElement | null>(null)
   const confirmed = useRef(false)
-  const finish = (result: boolean) => {
+  const finish = useCallback((result: boolean) => {
+    if (!pending.current) return
     confirmed.current = result
-    pending.current?.(result)
+    pending.current(result)
     pending.current = null
     setPrompt(null)
-  }
+  }, [])
+  const cancel = useCallback(() => finish(false), [finish])
   return (
     <Context.Provider
       value={{
         open: prompt !== null,
+        cancel,
         confirm: (next, trigger) => {
           if (pending.current) return Promise.resolve(false)
           returnFocus.current =

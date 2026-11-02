@@ -207,6 +207,42 @@ export async function deleteConfirmationSmoke({
       async () => !(await js(note, 'window.myTodo.getWindowState()')).data.collapsed,
       '继续展开便签'
     )
+    await click(main, habitDelete)
+    await waitFor(
+      () => js(main, 'Boolean(document.querySelector("[role=alertdialog]"))'),
+      '关闭窗口前确认已打开'
+    )
+    mainProtectionPointer = {
+      x: mainProtectionArea.x + mainProtectionArea.width / 2,
+      y: mainProtectionArea.y + mainProtectionArea.height / 2
+    }
+    main.close()
+    await waitFor(() => !main.isVisible(), '确认所属主窗口隐藏')
+    await waitFor(
+      () => js(main, '!document.querySelector("[role=alertdialog]")'),
+      '隐藏主窗口取消确认'
+    )
+    await waitFor(
+      async () => (await js(note, 'window.myTodo.getWindowState()')).data.collapsed,
+      '隐藏确认所属窗口后释放便签保护'
+    )
+    await js(note, `window.myTodo.openWindow('main')`)
+    await waitFor(() => main.isVisible(), '重新打开主窗口')
+    assert.equal(
+      await js(main, 'Boolean(document.querySelector("[role=alertdialog]"))'),
+      false,
+      '重开主窗口不遗留旧确认'
+    )
+    assert.ok(
+      (await js(note, 'window.myTodo.listHabits()')).data.some((x) => x.id === habit.id),
+      '隐藏窗口取消不删除习惯'
+    )
+    mainProtectionPointer = { x: mainProtectionArea.x + 20, y: mainProtectionArea.y + 100 }
+    await js(main, `window.myTodo.openWindow('note')`)
+    await waitFor(
+      async () => !(await js(note, 'window.myTodo.getWindowState()')).data.collapsed,
+      '隐藏取消后继续展开便签'
+    )
   } finally {
     note.setBounds(mainProtectionBounds)
     note.emit('moved')

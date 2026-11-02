@@ -195,7 +195,10 @@ export function TasksPage({
   }
   useEffect(() => {
     const api = getDesktopApi()
-    const unsubscribe = api.onSaveRequested(() => flush.current())
+    const unsubscribe = api.onSaveRequested(() => {
+      deletion.cancel()
+      return flush.current()
+    })
     const onBlur = () => {
       void flush.current()
     }
@@ -207,7 +210,7 @@ export function TasksPage({
       window.removeEventListener('blur', onBlur)
       document.removeEventListener('pointerdown', onPointerDown, true)
     }
-  }, [])
+  }, [deletion.cancel])
   useEffect(() => {
     void getDesktopApi().setInteraction(
       deletion.open ||
