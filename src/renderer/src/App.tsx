@@ -5,6 +5,7 @@ import { getDesktopApi, unwrap } from './platform/desktop'
 import { useTasks } from './features/tasks/useTasks'
 import { NoteTransition } from './features/tasks/NoteTransition'
 import { taskSummary } from './features/tasks/taskSummary'
+import { DeleteConfirmationProvider } from './components/DeleteConfirmation'
 
 export function App() {
   const tasks = useTasks()
@@ -64,7 +65,9 @@ export function App() {
     <>
       {error && <p role="alert">{error}</p>}
       {desktop?.exitPending && <div className="exit-pending">正在保存并退出…</div>}
-      <TasksPage kind={kind} desktop={desktop} hidden={collapsed} tasks={tasks} />
+      <DeleteConfirmationProvider>
+        <TasksPage kind={kind} desktop={desktop} hidden={collapsed} tasks={tasks} />
+      </DeleteConfirmationProvider>
       {kind === 'note' && desktop?.noteMotion && (
         <NoteTransition desktop={desktop} completed={completed} total={total} />
       )}

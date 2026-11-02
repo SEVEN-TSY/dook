@@ -74,6 +74,7 @@ export interface DesktopApi {
   deleteArchivedInspiration: (id: string) => Promise<ApiResult<boolean>>
   listInspirations: () => Promise<ApiResult<Inspiration[]>>
   listInspirationTopics: () => Promise<ApiResult<InspirationTopic[]>>
+  inspirationTopicDetails: (id: string) => Promise<ApiResult<{ name: string; count: number }>>
   createInspirationTopic: (
     name: string,
     inspirationId?: string

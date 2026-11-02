@@ -145,14 +145,16 @@ export async function noteArchiveSmoke({
     () => js(note, `Boolean(document.querySelector('[data-task-id="${task.id}"]'))`),
     '新增任务同步'
   )
-  let confirmations = 0
   dialog.showMessageBox = async () => {
-    confirmations++
-    return { response: 0, checkboxChecked: false }
+    throw new Error('删除不应使用系统确认')
   }
   await click(note, `[data-task-id="${task.id}"] [data-testid=task-delete]`)
   await waitFor(async () => (await archived()).some((x) => x.id === task.id), '归档任务')
-  assert.equal(confirmations, 0, '归档不弹确认')
+  assert.equal(
+    await js(note, 'Boolean(document.querySelector("[role=alertdialog]"))'),
+    false,
+    '归档不弹确认'
+  )
   await waitFor(
     () => js(main, `!document.querySelector('[data-task-id="${task.id}"]')`),
     '归档同步到主界面'
@@ -224,15 +226,24 @@ export async function noteArchiveSmoke({
     'hover显示永久删除'
   )
   await keyboardActivate('[aria-label="永久删除：便签归档验证"]')
-  await waitFor(() => confirmations === 1, '永久删除确认')
+  await waitFor(
+    () => js(note, 'document.querySelectorAll("[role=alertdialog]").length === 1'),
+    '永久删除确认'
+  )
+  await keyboardActivate('[data-testid=delete-cancel]')
+  await waitFor(() => js(note, '!document.querySelector("[role=alertdialog]")'), '取消关闭确认')
+  await js(
+    note,
+    'new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))'
+  )
   assert.equal((await archived()).length, 1, '取消删除保留归档')
-  dialog.showMessageBox = async () => {
-    confirmations++
-    return { response: 1, checkboxChecked: false }
-  }
   await keyboardActivate('[aria-label="永久删除：便签归档验证"]')
+  await waitFor(
+    () => js(note, 'document.querySelectorAll("[role=alertdialog]").length === 1'),
+    '每次永久删除只确认一次'
+  )
+  await keyboardActivate('[data-testid=delete-confirm]')
   await waitFor(async () => (await archived()).length === 0, '永久删除归档')
-  assert.equal(confirmations, 2, '每次永久删除只确认一次')
 
   const habit = (await js(note, `window.myTodo.createHabit('习惯双击验证')`)).data
   const habitTask = (await tasks()).find((x) => x.habitId === habit.id)

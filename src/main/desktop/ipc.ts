@@ -1,4 +1,4 @@
-import { dialog, ipcMain } from 'electron'
+import { ipcMain } from 'electron'
 import type { BrowserWindow, IpcMainInvokeEvent } from 'electron'
 import type {
   ApiResult,
@@ -119,23 +119,10 @@ export function registerIpc(handlers: Handlers): () => void {
   register(IPC_CHANNELS.updateHabit, (_, id, description) =>
     mutate(() => handlers.service.updateHabit(text(id), text(description)))
   )
-  register(IPC_CHANNELS.deleteHabit, async (window, id) => {
+  register(IPC_CHANNELS.deleteHabit, (_, id) => {
     const habitId = text(id)
     const habit = handlers.service.listHabits().find((item) => item.id === habitId)
     if (!habit) throw new Error('习惯不存在，可能已删除。')
-    const result = await handlers.desktop.protect(() =>
-      dialog.showMessageBox(window, {
-        type: 'question',
-        title: '删除习惯',
-        message: '停止这个习惯？',
-        detail: `${habit.description}\n已生成的任务会保留。`,
-        buttons: ['取消', '删除'],
-        defaultId: 0,
-        cancelId: 0,
-        noLink: true
-      })
-    )
-    if (result.response !== 1) return false
     mutate(() => handlers.service.deleteHabit(habitId))
     return true
   })
@@ -147,48 +134,24 @@ export function registerIpc(handlers: Handlers): () => void {
   register(IPC_CHANNELS.restoreTask, (_, id) =>
     mutate(() => handlers.service.restoreTask(text(id)))
   )
-  register(IPC_CHANNELS.deleteArchivedTask, async (window, id) => {
+  register(IPC_CHANNELS.deleteArchivedTask, (_, id) => {
     const taskId = text(id)
     const task = handlers.service.listArchivedTasks().find((item) => item.id === taskId)
     if (!task) throw new Error('归档任务不存在，可能已恢复或删除。')
-    const result = await handlers.desktop.protect(() =>
-      dialog.showMessageBox(window, {
-        type: 'question',
-        title: '删除归档任务',
-        message: '永久删除这项任务？',
-        detail: task.description,
-        buttons: ['取消', '删除'],
-        defaultId: 0,
-        cancelId: 0,
-        noLink: true
-      })
-    )
-    if (result.response !== 1) return false
     mutate(() => handlers.service.deleteArchivedTask(taskId))
     return true
   })
   register(IPC_CHANNELS.listInspirationTopics, () => handlers.service.listInspirationTopics())
+  register(IPC_CHANNELS.inspirationTopicDetails, (_, id) =>
+    handlers.service.inspirationTopicDetails(text(id))
+  )
   register(IPC_CHANNELS.createInspirationTopic, (_, name, id) =>
     mutate(() =>
       handlers.service.createInspirationTopic(text(name), id === undefined ? undefined : text(id))
     )
   )
-  register(IPC_CHANNELS.deleteInspirationTopic, async (window, id) => {
+  register(IPC_CHANNELS.deleteInspirationTopic, (_, id) => {
     const topicId = text(id)
-    const topic = handlers.service.inspirationTopicDetails(topicId)
-    const result = await handlers.desktop.protect(() =>
-      dialog.showMessageBox(window, {
-        type: 'question',
-        title: '删除主题',
-        message: `删除主题“${topic.name}”？`,
-        detail: `关联的${topic.count}条灵感及其内容会保留。`,
-        buttons: ['取消', '删除'],
-        defaultId: 0,
-        cancelId: 0,
-        noLink: true
-      })
-    )
-    if (result.response !== 1) return false
     mutate(() => handlers.service.deleteInspirationTopic(topicId))
     return true
   })
@@ -205,21 +168,8 @@ export function registerIpc(handlers: Handlers): () => void {
   register(IPC_CHANNELS.restoreInspiration, (_, id) =>
     mutate(() => handlers.service.restoreInspiration(text(id)))
   )
-  register(IPC_CHANNELS.deleteArchivedInspiration, async (window, id) => {
+  register(IPC_CHANNELS.deleteArchivedInspiration, (_, id) => {
     const ideaId = text(id)
-    const result = await handlers.desktop.protect(() =>
-      dialog.showMessageBox(window, {
-        type: 'question',
-        title: '永久删除灵感',
-        message: '永久删除这条灵感？',
-        detail: '灵感及其补充将被永久删除。',
-        buttons: ['取消', '删除'],
-        defaultId: 0,
-        cancelId: 0,
-        noLink: true
-      })
-    )
-    if (result.response !== 1) return false
     mutate(() => handlers.service.deleteArchivedInspiration(ideaId))
     return true
   })
@@ -308,23 +258,10 @@ export function registerIpc(handlers: Handlers): () => void {
   register(IPC_CHANNELS.skipHabitTask, (_, id) =>
     mutate(() => handlers.service.skipHabitTask(text(id)))
   )
-  register(IPC_CHANNELS.deleteTask, async (window, id) => {
+  register(IPC_CHANNELS.deleteTask, (_, id) => {
     const taskId = text(id)
     const task = handlers.service.listToday().tasks.find((item) => item.id === taskId)
     if (!task) throw new Error('今天任务不存在，可能已删除或日期已切换。')
-    const result = await handlers.desktop.protect(() =>
-      dialog.showMessageBox(window, {
-        type: 'question',
-        title: '删除任务',
-        message: '永久删除这项任务？',
-        detail: task.description,
-        buttons: ['取消', '删除'],
-        defaultId: 0,
-        cancelId: 0,
-        noLink: true
-      })
-    )
-    if (result.response !== 1) return false
     mutate(() => handlers.service.deleteTask(taskId))
     return true
   })
