@@ -209,17 +209,17 @@ export function TasksPage({
     }
   }, [])
   useEffect(() => {
-    if (kind === 'note')
-      void getDesktopApi().setInteraction(
-        inputFocused ||
-          editing !== null ||
-          inspirationEditing ||
-          subitemEditing ||
-          progressFocused ||
-          draggingTask !== null ||
-          busy ||
-          deletion.open
-      )
+    void getDesktopApi().setInteraction(
+      deletion.open ||
+        (kind === 'note' &&
+          (inputFocused ||
+            editing !== null ||
+            inspirationEditing ||
+            subitemEditing ||
+            progressFocused ||
+            draggingTask !== null ||
+            busy))
+    )
   }, [
     kind,
     inputFocused,
@@ -301,7 +301,7 @@ export function TasksPage({
             <span className="note-archive-description" title={task.description}>
               {task.description}
             </span>
-            <div className="note-archive-actions">
+            <div className="note-archive-actions" tabIndex={-1} data-delete-focus-group>
               <button
                 type="button"
                 className="task-delete note-archive-delete"
@@ -406,6 +406,8 @@ export function TasksPage({
           </nav>
         </aside>
         <main
+          tabIndex={-1}
+          data-delete-focus-fallback
           className={`workbench-main ${page === 'inspiration' ? 'workbench-main-inspiration' : ''}`}
         >
           <header className="workbench-header">
@@ -608,16 +610,23 @@ export function TasksPage({
                       <DropdownMenuItem
                         data-testid="task-delete"
                         variant="destructive"
-                        onSelect={() => {
+                        onSelect={(event) => {
+                          const menu = (event.target as HTMLElement).closest('[role="menu"]')
+                          const trigger = document.getElementById(
+                            menu?.getAttribute('aria-labelledby') ?? ''
+                          )
                           void (async () => {
                             if (await flush.current()) {
                               if (task.habitId) await skipHabit(task.id)
                               else if (
-                                await deletion.confirm({
-                                  title: '删除任务',
-                                  description: '永久删除这项任务？',
-                                  detail: `${task.description}。任务及其子事项将被永久删除，无法恢复。`
-                                })
+                                await deletion.confirm(
+                                  {
+                                    title: '删除任务',
+                                    description: '永久删除这项任务？',
+                                    detail: `${task.description}。任务及其子事项将被永久删除，无法恢复。`
+                                  },
+                                  trigger
+                                )
                               )
                                 await remove(task.id)
                             }
@@ -808,7 +817,7 @@ export function TasksPage({
         )}
       </header>
 
-      <div className="task-list" aria-label="任务">
+      <div className="task-list" aria-label="任务" tabIndex={-1} data-delete-focus-fallback>
         {today && total === 0 && (
           <div className="task-empty">
             <span aria-hidden="true">

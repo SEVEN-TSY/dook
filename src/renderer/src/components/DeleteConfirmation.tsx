@@ -11,14 +11,17 @@ interface DeletePrompt {
 
 const Context = createContext<{
   open: boolean
-  confirm: (prompt: DeletePrompt) => Promise<boolean>
+  confirm: (prompt: DeletePrompt, returnFocus?: HTMLElement | null) => Promise<boolean>
 } | null>(null)
 
 export function DeleteConfirmationProvider({ children }: { children: ReactNode }) {
   const [prompt, setPrompt] = useState<DeletePrompt | null>(null)
   const pending = useRef<((confirmed: boolean) => void) | null>(null)
-  const finish = (confirmed: boolean) => {
-    pending.current?.(confirmed)
+  const returnFocus = useRef<HTMLElement | null>(null)
+  const confirmed = useRef(false)
+  const finish = (result: boolean) => {
+    confirmed.current = result
+    pending.current?.(result)
     pending.current = null
     setPrompt(null)
   }
@@ -26,8 +29,12 @@ export function DeleteConfirmationProvider({ children }: { children: ReactNode }
     <Context.Provider
       value={{
         open: prompt !== null,
-        confirm: (next) => {
+        confirm: (next, trigger) => {
           if (pending.current) return Promise.resolve(false)
+          returnFocus.current =
+            trigger ??
+            (document.activeElement instanceof HTMLElement ? document.activeElement : null)
+          confirmed.current = false
           setPrompt(next)
           return new Promise<boolean>((resolve) => {
             pending.current = resolve
@@ -47,6 +54,23 @@ export function DeleteConfirmationProvider({ children }: { children: ReactNode }
           <AlertDialog.Content
             className="delete-confirmation"
             onEscapeKeyDown={() => finish(false)}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault()
+              const trigger = returnFocus.current
+              const target =
+                !confirmed.current &&
+                trigger?.isConnected &&
+                trigger !== document.body &&
+                trigger.checkVisibility() &&
+                !trigger.matches(':disabled')
+                  ? trigger
+                  : document.querySelector<HTMLElement>('[data-delete-focus-fallback]')
+              // 操作组先获得焦点，恢复由:focus-within展示的行内删除入口。
+              target
+                ?.closest<HTMLElement>('[data-delete-focus-group]')
+                ?.focus({ preventScroll: true })
+              target?.focus({ preventScroll: true })
+            }}
           >
             <AlertDialog.Title>{prompt?.title}</AlertDialog.Title>
             <AlertDialog.Description asChild>
