@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
 import { inspirationSmoke } from './inspiration-smoke.mjs'
+import { topicRefinementSmoke } from './topic-refinement-smoke.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const output = resolve(root, '.local/smoke')
@@ -120,6 +121,23 @@ const click = async (window, selector) => {
   )
   window.focus()
   return js(window, `document.querySelector(${JSON.stringify(selector)}).click()`)
+}
+// 创建并归集成功会关闭浮层；连续测试在原记录仍可见的日期组重新打开。
+const createTopicAndReopen = async (window, name) => {
+  await input(window, '[aria-label="新主题名称"]', name)
+  await waitFor(
+    () => js(window, `!document.querySelector('.inspiration-topic-picker')`),
+    '创建归集后关闭'
+  )
+  await click(window, '[aria-label="归集主题"]')
+  await waitFor(
+    () =>
+      js(
+        window,
+        `Array.from(document.querySelectorAll('.inspiration-topic-picker label')).some(x => x.textContent.includes(${JSON.stringify(name)}))`
+      ),
+    '重新打开已保存主题'
+  )
 }
 const editLayout = (window, selector) =>
   js(
@@ -861,6 +879,12 @@ async function runSmoke() {
       menuClick('退出')
       return
     }
+    if (phase.startsWith('topic-refinement-')) {
+      await topicRefinementSmoke({ main, note, phase, js, click, input, waitFor })
+      console.log(`Electron topic refinement smoke passed: ${phase}`)
+      menuClick('退出')
+      return
+    }
     if (phase.startsWith('topic-management-')) {
       await waitFor(
         () => js(main, 'Boolean(document.querySelector(".workbench-header h1"))'),
@@ -1152,8 +1176,8 @@ async function runSmoke() {
       )
       await js(main, `document.querySelector('.workbench-nav [aria-label="灵感"]').click()`)
       if (phase === 'topics-create') {
-        await click(main, '.primary-button')
-        await input(main, '[data-testid=task-new]', '跨窗口主题灵感')
+        await click(main, '[aria-label="新增灵感"]')
+        await input(main, '[aria-label="新增灵感内容"]', '跨窗口主题灵感')
         await waitFor(
           () =>
             js(
@@ -1162,8 +1186,17 @@ async function runSmoke() {
             ),
           '灵感创建'
         )
+        await js(
+          main,
+          `Array.from(document.querySelectorAll('.inspiration-views button')).find(x => x.textContent === '日期').click()`
+        )
+        await waitFor(
+          () =>
+            js(main, `document.querySelector('.inspiration-group-title')?.textContent === '今天'`),
+          '日期组持续显示归集中的记录'
+        )
         await click(main, '[aria-label="归集主题"]')
-        await input(main, '[aria-label="新主题名称"]', '持久主题')
+        await createTopicAndReopen(main, '持久主题')
         await waitFor(
           () =>
             js(
@@ -1189,7 +1222,7 @@ async function runSmoke() {
           true
         )
         await input(main, '[aria-label="搜索主题"]', '', '')
-        await input(main, '[aria-label="新主题名称"]', '另一个主题')
+        await createTopicAndReopen(main, '另一个主题')
         await waitFor(
           () =>
             js(
@@ -1227,8 +1260,7 @@ async function runSmoke() {
             ),
           '创建失败提示'
         )
-        await click(main, '[aria-label="关闭提示"]')
-        await input(main, '[aria-label="新主题名称"]', '持久主题二')
+        await createTopicAndReopen(main, '持久主题二')
         await waitFor(
           () =>
             js(
@@ -1578,8 +1610,17 @@ async function runSmoke() {
         resolve(output, 'workbench-narrow.png'),
         (await main.webContents.capturePage()).toPNG()
       )
+      await js(
+        main,
+        `Array.from(document.querySelectorAll('.inspiration-views button')).find(x => x.textContent === '日期').click()`
+      )
+      await waitFor(
+        () =>
+          js(main, `document.querySelector('.inspiration-group-title')?.textContent === '今天'`),
+        '日期组持续显示归集中的记录'
+      )
       await click(main, '[aria-label="归集主题"]')
-      await input(main, '[aria-label="新主题名称"]', '产品构想')
+      await createTopicAndReopen(main, '产品构想')
       await waitFor(
         () =>
           js(
@@ -1588,7 +1629,7 @@ async function runSmoke() {
           ),
         '主题创建'
       )
-      await input(main, '[aria-label="新主题名称"]', '工作流')
+      await createTopicAndReopen(main, '工作流')
       await waitFor(
         () =>
           js(

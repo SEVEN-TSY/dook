@@ -117,6 +117,8 @@ TasksPage为每个窗口维护唯一的生命周期保存回调，聚合任务�
 
 ## 6. 验证与扩展
 
+主题归集Popover独立于分页行的生命周期，使用当前行按钮作为虚拟锚点；行因即时归集退出分组时保持操作会话，分组查询仍立即刷新。主题写入继续串行经过DesktopApi及AppService；会话和草稿版本阻止较早异步结果关闭或清空新输入。浮层打开时复用listInspirations读取当前记录的最新主题关联，跨窗口通知同时刷新浮层与分页列表。`node scripts/run-smoke.mjs topic-refinement`覆盖主题入口、外部取消、连续多选、失败保留、过时结果保护及双窗口和重启持久化。
+
 - `tests/tasks.test.ts`及多天任务、子事项、习惯、灵感回归均通过AppService公开接口与真实SQLite验证行为，覆盖可控日期、事务回滚、旧库兼容、删除和重启恢复。
 - `tests/storage.test.ts`验证迁移、诊断与凭证，`tests/mcp.test.ts`验证真实SDK与访问限制。
 - `scripts/run-smoke.mjs`按首次操作、重启恢复两阶段启动真实Electron；`electron-smoke.mjs`验证无感保存及并发输入、数据库锁失败恢复、双窗口同步、托盘、隐藏、设置、置顶、贴边与重启持久化，并保存截图。

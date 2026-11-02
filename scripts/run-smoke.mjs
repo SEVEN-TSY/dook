@@ -28,21 +28,23 @@ const phases = [
   'delete-confirmation'
 ].includes(process.argv[2])
   ? [process.argv[2]]
-  : process.argv[2] === 'inspiration-page'
-    ? ['inspiration-page-create', 'inspiration-page-restart']
-    : process.argv[2] === 'note-archive'
-      ? ['note-archive-create', 'note-archive-restart']
-      : process.argv[2] === 'topic-management'
-        ? ['topic-management-create', 'topic-management-restart']
-        : process.argv[2] === 'topics'
-          ? ['topics-create', 'topics-restart']
-          : process.argv[2] === 'order'
-            ? ['order-create', 'order-restart']
-            : process.argv[2] === 'multiday'
-              ? ['multiday-create', 'multiday-restart']
-              : process.argv[2] === 'subitems'
-                ? ['subitems-create', 'subitems-restart']
-                : ['create', 'restart']
+  : process.argv[2] === 'topic-refinement'
+    ? ['topic-refinement-create', 'topic-refinement-restart']
+    : process.argv[2] === 'inspiration-page'
+      ? ['inspiration-page-create', 'inspiration-page-restart']
+      : process.argv[2] === 'note-archive'
+        ? ['note-archive-create', 'note-archive-restart']
+        : process.argv[2] === 'topic-management'
+          ? ['topic-management-create', 'topic-management-restart']
+          : process.argv[2] === 'topics'
+            ? ['topics-create', 'topics-restart']
+            : process.argv[2] === 'order'
+              ? ['order-create', 'order-restart']
+              : process.argv[2] === 'multiday'
+                ? ['multiday-create', 'multiday-restart']
+                : process.argv[2] === 'subitems'
+                  ? ['subitems-create', 'subitems-restart']
+                  : ['create', 'restart']
 for (const phase of phases) {
   const code = await new Promise((resolveExit, reject) => {
     const child = spawn(electron, [runner], {
