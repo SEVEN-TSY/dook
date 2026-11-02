@@ -30,7 +30,10 @@ export async function topicRefinementSmoke({ main, note, phase, js, click, input
     true,
     '未归类右侧仅显示可访问的新增主题加号'
   )
-  await click(main, '[aria-label="新增主题"]')
+  main.focus()
+  await js(main, `document.querySelector('[aria-label="新增主题"]').focus()`)
+  main.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' })
+  main.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' })
   await input(main, '[aria-label="新增主题名称"]', '放弃的主题', null)
   await js(
     main,
@@ -56,6 +59,23 @@ export async function topicRefinementSmoke({ main, note, phase, js, click, input
   await waitFor(
     () => js(main, `Boolean(document.querySelector('[aria-label="重命名持久主题甲"]'))`),
     '内部确认正常创建'
+  )
+  await click(main, '[aria-label="重命名持久主题甲"]')
+  await input(main, '[aria-label="主题名称"]', '待清除改名', null)
+  await click(main, '[aria-label="清除主题名称"]')
+  assert.equal(
+    await js(
+      main,
+      `document.activeElement?.getAttribute('aria-label') === '主题名称' && document.activeElement.value === ''`
+    ),
+    true,
+    '改名清除视为内部操作且保持焦点'
+  )
+  await input(main, '[aria-label="主题名称"]', '持久主题甲', null)
+  await click(main, '[aria-label="保存主题名称"]')
+  await waitFor(
+    () => js(main, `!document.querySelector('[aria-label="主题名称"]')`),
+    '改名确认保存'
   )
   await click(main, '[aria-label="重命名持久主题甲"]')
   await input(main, '[aria-label="主题名称"]', '未确认改名', null)
