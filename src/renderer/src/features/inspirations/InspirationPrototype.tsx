@@ -113,13 +113,13 @@ export function InspirationPrototype() {
   const [notice, setNotice] = useState('示例数据 · 刷新后恢复')
   const capture = useRef<HTMLInputElement>(null)
   const selected = ideas.find((idea) => idea.id === selection?.id)
-  const groups = (view === 'date' ? dateGroups : [...topics, '未归主题']).map((key) => ({
+  const groups = (view === 'date' ? dateGroups : [...topics, '未归类']).map((key) => ({
     key,
     label: view === 'date' ? dateLabel(key) : key,
     items: ideas.filter((idea) =>
       view === 'date'
         ? idea.date === key
-        : key === '未归主题'
+        : key === '未归类'
           ? !idea.topics.length
           : idea.topics.includes(key)
     )
@@ -276,7 +276,7 @@ export function InspirationPrototype() {
                 {idea.topics.map((t) => (
                   <span key={t}>{t}</span>
                 ))}
-                {!idea.topics.length && <small>未归主题</small>}
+                {!idea.topics.length && <small>未归类</small>}
               </div>
               <div className="ip-actions">
                 <button
@@ -348,7 +348,7 @@ export function InspirationPrototype() {
         <strong>{group.label}</strong>
         <small>{group.items.length}</small>
       </button>
-      {view === 'topic' && group.key !== '未归主题' && (
+      {view === 'topic' && group.key !== '未归类' && (
         <details className="ip-rename">
           <summary aria-label={`管理主题${group.key}`}>···</summary>
           <form

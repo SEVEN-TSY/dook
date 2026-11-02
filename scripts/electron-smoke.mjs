@@ -988,7 +988,7 @@ async function runSmoke() {
           () =>
             js(
               main,
-              `document.querySelector('.inspiration-group-title')?.textContent === '未归主题'`
+              `document.querySelector('.inspiration-group-title')?.textContent === '未归类'`
             ),
           '删除当前主题后切组'
         )
@@ -1612,8 +1612,8 @@ async function runSmoke() {
           main,
           `document.querySelector('.inspiration-nav-item .inspiration-heading').textContent`
         ),
-        '未归主题',
-        '未归主题排在第一项'
+        '未归类',
+        '未归类排在第一项'
       )
       await chooseGroup('产品构想')
       await waitFor(

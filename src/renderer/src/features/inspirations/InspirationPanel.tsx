@@ -290,7 +290,7 @@ export function InspirationPanel({
       ? [
           {
             key: 'unassigned',
-            label: '未归主题',
+            label: '未归类',
             items: ideas
           },
           ...topics.map((topic) => ({
