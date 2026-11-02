@@ -9,7 +9,7 @@
 | `renderer/features/tasks/` | 主界面与便签共用任务列表、行内编辑和操作状态                      |
 | `renderer/platform/`       | 获取桌面桥接、解析ApiResult                                       |
 | `preload/`                 | 固定IPC方法和变更事件订阅；不暴露ipcRenderer                      |
-| `main/desktop/`            | 双窗口、托盘、贴边与屏幕恢复、保存握手、IPC来源验证、原生删除确认 |
+| `main/desktop/`            | 双窗口、托盘、贴边与屏幕恢复、保存握手、IPC来源验证及受控删除入口 |
 | `main/core/`               | AppService及存储接口，本地日期、任务、子事项、习惯与灵感用例      |
 | `main/storage/`            | SQLite生命周期、SQL迁移及任务、习惯、灵感仓储                     |
 | `main/mcp/`                | 官方SDK、本机HTTP端点、鉴权及诊断工具                             |
@@ -29,7 +29,8 @@
 - `main/desktop/note-controller.ts`管理自由置顶选择与贴边强制置顶、即时悬停呼出、600毫秒离开收回交互及操作保护。
 - `main/desktop/note-geometry.ts`检查屏幕组合的外侧边缘并限制可见位置；屏幕变化由便签控制器恢复。
 - `main/desktop/preferences.ts`读写窗口偏好；`save-barrier.ts`按窗口身份关联保存请求与回复。
-- `main/desktop/ipc.ts`只接受注册窗口主Frame的请求，校验参数并包装结果；删除调用系统确认框一次，取消不修改数据。
+- `main/desktop/ipc.ts`只接受注册窗口主Frame的请求，校验参数并包装结果；删除由渲染层共用应用内弹窗确认，再经白名单桥接调用AppService，取消不发起删除。`inspirationTopicDetails`复用已有服务查询主题名称及完整关联数量（含归档小记），用于确认提示。
+- `renderer/src/components/BackToList.tsx`统一返回列表按钮，沿用页面的草稿提交及失败保留；`DeleteConfirmation.tsx`使用Radix AlertDialog提供共用应用内确认、取消默认焦点及键盘操作。TasksPage把确认开启状态纳入便签交互保护。
 - `preload/index.ts`显式暴露DesktopApi；订阅返回清理函数。
 - `renderer/src/features/tasks/TasksPage.tsx`是两端共用的分类界面；主界面采用左侧任务、习惯、灵感同级导航及底部设置入口，三个类别均订阅变更并显示当天数量：当天可见任务、当天习惯任务、当天新增灵感；两端共用已归档任务列表，“显示持续推进”同时控制两端可见性与统计。桌面便签以灯泡和当天数量提供灵感页快捷入口；SubitemsPanel、HabitsPanel和InspirationPanel分别承载子事项、主界面习惯管理及灵感编辑。
 - `renderer/src/features/tasks/useTasks.ts`读取列表、订阅通知、协调操作及错误，丢弃过时列表响应。
@@ -71,7 +72,7 @@
 - v11：灵感归档状态，旧记录默认保持普通状态。
 - v12：任务归档时间及排序索引，旧任务默认未归档。
 
-任务归档独立于完成和习惯暂停状态；日常任务查询及修改均排除归档任务。归档列表按归档时间、创建次序倒序展示，跨日及重启保留。恢复今天任务时归入当天，已完成多天任务的完成日期更新为当天，保留进度和子事项。永久删除级联清理子事项，桌面入口使用一次原生确认。习惯任务只提供暂停一次，不参与归档。
+任务归档独立于完成和习惯暂停状态；日常任务查询及修改均排除归档任务。归档列表按归档时间、创建次序倒序展示，跨日及重启保留。恢复今天任务时归入当天，已完成多天任务的完成日期更新为当天，保留进度和子事项。永久删除级联清理子事项，桌面入口使用一次应用内确认并说明无法恢复。习惯任务只提供暂停一次，不参与归档。
 
 日常列表先返回当天的今天任务，再返回未完成或当天完成的多天任务，各组置顶优先，再按手动顺序展示；尚未排序时保持创建顺序。多天任务完成次日起隐藏，历史数据不自动清理。无子事项时进度由用户调整；有子事项时进度由完成比例计算，整条勾选与子事项在事务中同步。
 
@@ -89,9 +90,9 @@
 | `createTask(description, expectedDate?)`       | 去除首尾空白，创建未完成任务；可拒绝跨日到达的旧输入   |
 | `updateTask(id, description)`                  | 编辑可见任务，拒绝空白                                 |
 | `setTaskCompleted(id, completed)`              | 完成或取消完成                                         |
-| `deleteTask(id)`                               | 原生确认后删除，返回是否删除                           |
+| `deleteTask(id)`                               | 界面确认后经受控桥接删除，返回是否删除                 |
 | `listArchivedTasks()` / `archiveTask(id)`        | 查询全部归档任务或直接归档普通任务                     |
-| `restoreTask(id)` / `deleteArchivedTask(id)`      | 恢复归档任务，或经原生确认永久删除                     |
+| `restoreTask(id)` / `deleteArchivedTask(id)`      | 恢复归档任务，或界面确认后永久删除                     |
 | `openWindow(kind, page?)`                             | 打开或唤出现有窗口，可定位主界面页面                   |
 | `onTasksChanged(listener)`                     | 订阅失效通知，返回取消订阅函数                         |
 | `getBootstrap()` / `runDiagnostics()`          | 保留基础设施诊断接口                                   |
@@ -121,7 +122,7 @@ TasksPage为每个窗口维护唯一的生命周期保存回调，聚合任务�
 - `tests/tasks.test.ts`及多天任务、子事项、习惯、灵感回归均通过AppService公开接口与真实SQLite验证行为，覆盖可控日期、事务回滚、旧库兼容、删除和重启恢复。
 - `tests/storage.test.ts`验证迁移、诊断与凭证，`tests/mcp.test.ts`验证真实SDK与访问限制。
 - `scripts/run-smoke.mjs`按首次操作、重启恢复两阶段启动真实Electron；`electron-smoke.mjs`验证无感保存及并发输入、数据库锁失败恢复、双窗口同步、托盘、隐藏、设置、置顶、贴边与重启持久化，并保存截图。
-- 系统删除确认框的返回值在集成脚本中模拟；生产代码仍使用Electron原生确认框。
+- 删除验证操作真实应用内确认按钮，覆盖取消、确认、失败、主题关联数量、归档永久删除及便签保护。`node scripts/run-smoke.mjs delete-confirmation`复用真实Electron→桥接→AppService→SQLite链路；返回失败使用隔离数据库触发器，窗口保存／退出失败的系统错误提示仍可在操作系统边界模拟。
 - 屏幕拓扑和鼠标坐标可在操作系统边界替换，真实窗口、React、IPC、SQLite及资源退出不替换；物理设备与Windows外壳验收见[桌面便签验证](./desktop-validation.md)。
 
 新增业务继续按shared契约→storage迁移/仓储→core用例→IPC/preload→renderer的边界推进。MCP业务工具、自定义类别及未来AI能力留待后续。构建输出在`out/`，安装产物在`release/`，验证产物在`.local/smoke/`，均不进入Git。

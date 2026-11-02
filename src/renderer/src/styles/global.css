@@ -1095,11 +1095,11 @@ h1 {
   background: var(--app-hover);
 }
 .detail-back {
-  border: 0;
-  background: transparent;
+  min-height: 36px;
+  gap: 8px;
   color: var(--app-accent);
-  padding: 0;
-  margin-bottom: 20px;
+  padding: 8px 12px;
+  margin: -4px 0 16px -12px;
 }
 .detail-label {
   display: block;
@@ -1191,7 +1191,7 @@ h1 {
   font-size: 20px;
 }
 .detail-back {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--app-accent);
 }
 .detail-description {
@@ -1848,4 +1848,44 @@ h1 {
 }
 .note .task-empty small {
   color: color-mix(in srgb, var(--app-accent-ink) 60%, #8792a4);
+}
+.delete-confirmation-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgb(25 32 45 / 28%);
+}
+.delete-confirmation {
+  position: fixed;
+  z-index: 101;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(400px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid var(--app-border);
+  border-radius: 14px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  box-shadow: 0 16px 50px rgb(25 32 45 / 18%);
+}
+.delete-confirmation h2 {
+  margin: 0 0 12px;
+  font-size: 17px;
+}
+.delete-confirmation-description {
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.delete-confirmation-description p {
+  margin: 8px 0;
+}
+.delete-confirmation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
 }

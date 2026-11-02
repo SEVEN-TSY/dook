@@ -19,7 +19,14 @@ writeFileSync(
 )
 const env = { ...process.env, MYTODO_SMOKE_DATA: mkdtempSync(resolve(root, '.local/smoke/data-')) }
 delete env.ELECTRON_RUN_AS_NODE
-const phases = ['drag', 'dock', 'lifecycle', 'workbench', 'main-overview'].includes(process.argv[2])
+const phases = [
+  'drag',
+  'dock',
+  'lifecycle',
+  'workbench',
+  'main-overview',
+  'delete-confirmation'
+].includes(process.argv[2])
   ? [process.argv[2]]
   : process.argv[2] === 'topic-refinement'
     ? ['topic-refinement-create', 'topic-refinement-restart']

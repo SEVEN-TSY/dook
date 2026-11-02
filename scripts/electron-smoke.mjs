@@ -2,6 +2,7 @@ import { inspirationPageSmoke } from './inspiration-page-smoke.mjs'
 import { subitemsSmoke } from './subitems-smoke.mjs'
 import { noteArchiveSmoke } from './note-archive-smoke.mjs'
 import { mainOverviewSmoke } from './main-overview-smoke.mjs'
+import { deleteConfirmationSmoke } from './delete-confirmation-smoke.mjs'
 import { habitsSmoke } from './smoke-habits.mjs'
 import { app, BrowserWindow, dialog, Tray, screen } from 'electron'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -696,8 +697,8 @@ async function multidaySmoke(main, note) {
       async () => (await rows(main))[1].description === '持续整理完整需求',
       '多天编辑同步'
     )
-    dialog.showMessageBox = async () => ({ response: 1, checkboxChecked: false })
     await click(main, '[data-task-kind=multi-day] [data-testid=task-delete]')
+    await click(main, '[data-testid=delete-confirm]')
     await count(note, 1)
   }
   assert.deepEqual(await rows(main), await rows(note))
@@ -810,6 +811,23 @@ async function runSmoke() {
     menuClick('打开主界面')
     let main = await waitFor(() => findWindow('main'), '托盘打开主界面')
     assert.ok(main && note)
+    if (phase === 'delete-confirmation') {
+      await deleteConfirmationSmoke({
+        main,
+        note,
+        js,
+        click,
+        input,
+        waitFor,
+        assert,
+        dialog,
+        capture: async (window, name) =>
+          writeFileSync(resolve(output, name), (await window.webContents.capturePage()).toPNG())
+      })
+      console.log('Electron delete confirmation smoke passed')
+      menuClick('退出')
+      return
+    }
     if (phase === 'main-overview') {
       await mainOverviewSmoke({
         main,
@@ -1023,8 +1041,8 @@ async function runSmoke() {
         if (!(await js(main, `Boolean(document.querySelector('[aria-label="新增灵感内容"]'))`)))
           await click(main, '[aria-label="新增灵感"]')
         await input(main, '[aria-label="新增灵感内容"]', '删除前草稿', null)
-        dialog.showMessageBox = async () => ({ response: 1, checkboxChecked: false })
         await click(main, '[aria-label="删除新主题"]')
+        await click(main, '[data-testid=delete-confirm]')
         await waitFor(
           () =>
             js(
@@ -1067,21 +1085,23 @@ async function runSmoke() {
           main,
           `(async () => { const idea = (await window.myTodo.createInspiration('保留想法')).data; await window.myTodo.appendInspiration(idea.id, '保留补充'); const topics = (await window.myTodo.listInspirationTopics()).data; const topic = topics.find(t => t.name === '改名主题'); await window.myTodo.setInspirationTopic(idea.id, topic.id, true); await window.myTodo.createInspirationTopic('其他主题', idea.id); return idea.id })()`
         )
-        let detail = ''
-        dialog.showMessageBox = async (_window, options) => {
-          detail = options.detail
-          return { response: 0, checkboxChecked: false }
-        }
         await click(main, '[aria-label="删除改名主题"]')
-        await waitFor(() => detail !== '', '删除确认')
-        assert.match(detail, /2条灵感/)
+        await waitFor(
+          () => js(main, 'Boolean(document.querySelector("[role=alertdialog]"))'),
+          '删除确认'
+        )
+        assert.match(
+          await js(main, 'document.querySelector("[role=alertdialog]").textContent'),
+          /2条灵感/
+        )
+        await click(main, '[data-testid=delete-cancel]')
         assert.ok(
           (await js(note, 'window.myTodo.listInspirationTopics()')).data.some(
             (t) => t.name === '改名主题'
           )
         )
-        dialog.showMessageBox = async () => ({ response: 1, checkboxChecked: false })
         await click(main, '[aria-label="删除改名主题"]')
+        await click(main, '[data-testid=delete-confirm]')
         await waitFor(
           async () =>
             !(await js(note, 'window.myTodo.listInspirationTopics()')).data.some(
@@ -1886,11 +1906,11 @@ async function runSmoke() {
         () => js(main, `document.querySelectorAll('.inspiration-item').length === 1`),
         '再次归档'
       )
-      dialog.showMessageBox = async () => ({ response: 0, checkboxChecked: false })
       await click(main, '[aria-label="永久删除灵感"]')
+      await click(main, '[data-testid=delete-cancel]')
       assert.equal(await js(main, `document.querySelectorAll('.inspiration-item').length`), 1)
-      dialog.showMessageBox = async () => ({ response: 1, checkboxChecked: false })
       await click(main, '[aria-label="永久删除灵感"]')
+      await click(main, '[data-testid=delete-confirm]')
       await waitFor(
         () => js(main, `document.querySelectorAll('.inspiration-item').length === 0`),
         '确认永久删除'
@@ -2170,7 +2190,6 @@ async function runSmoke() {
         () => js(main, `document.querySelector('[data-testid=task-new]').value === ''`),
         '下一项保存后清空'
       )
-      dialog.showMessageBox = async () => ({ response: 1, checkboxChecked: false })
       await js(main, `window.myTodo.deleteTask(${JSON.stringify((await rows(note)).at(-1).id)})`)
       await count(note, 1)
       await js(
@@ -2281,28 +2300,23 @@ async function runSmoke() {
         await waitFor(async () => (await rows(other))[0].completed, '完成同步')
         await click(window, 'input[type=checkbox]')
         await waitFor(async () => !(await rows(other))[0].completed, '取消完成同步')
-        let confirmations = 0
-        dialog.showMessageBox = async () => {
-          confirmations++
-          return { response: 0, checkboxChecked: false }
-        }
         if (window === note) {
           await click(other, '[data-testid=task-description]')
           await click(window, '[data-testid=task-delete]')
           await count(other, 1)
-          assert.equal(confirmations, 0, '便签归档直接执行')
+          assert.equal(
+            await js(note, 'Boolean(document.querySelector("[role=alertdialog]"))'),
+            false,
+            '便签归档直接执行'
+          )
         } else {
           await click(window, '[data-testid=task-delete]')
-          await waitFor(() => confirmations === 1, '删除确认取消')
+          await click(window, '[data-testid=delete-cancel]')
           await count(other, 2)
           await click(other, '[data-testid=task-description]')
-          dialog.showMessageBox = async () => {
-            confirmations++
-            return { response: 1, checkboxChecked: false }
-          }
           await click(window, '[data-testid=task-delete]')
+          await click(window, '[data-testid=delete-confirm]')
           await count(other, 1)
-          assert.equal(confirmations, 2)
         }
         assert.equal(
           await js(other, 'Boolean(document.querySelector("[data-testid=task-edit]"))'),

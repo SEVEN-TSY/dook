@@ -40,6 +40,7 @@ const api: DesktopApi = {
   restoreTask: (id) => ipcRenderer.invoke(IPC_CHANNELS.restoreTask, id),
   deleteArchivedTask: (id) => ipcRenderer.invoke(IPC_CHANNELS.deleteArchivedTask, id),
   listInspirationTopics: () => ipcRenderer.invoke(IPC_CHANNELS.listInspirationTopics),
+  inspirationTopicDetails: (id) => ipcRenderer.invoke(IPC_CHANNELS.inspirationTopicDetails, id),
   createInspirationTopic: (name, id) =>
     ipcRenderer.invoke(IPC_CHANNELS.createInspirationTopic, name, id),
   deleteInspirationTopic: (id) => ipcRenderer.invoke(IPC_CHANNELS.deleteInspirationTopic, id),

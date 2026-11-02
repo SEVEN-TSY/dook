@@ -1,4 +1,6 @@
 import { MoreHorizontal, Sun } from 'lucide-react'
+import { useDeleteConfirmation } from '../../components/DeleteConfirmation'
+import { BackToList } from '../../components/BackToList'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -47,6 +49,7 @@ export function TasksPage({
   hidden: boolean
   tasks: ReturnType<typeof useTasks>
 }) {
+  const deletion = useDeleteConfirmation()
   const {
     today,
     archived,
@@ -214,7 +217,8 @@ export function TasksPage({
           subitemEditing ||
           progressFocused ||
           draggingTask !== null ||
-          busy
+          busy ||
+          deletion.open
       )
   }, [
     kind,
@@ -224,7 +228,8 @@ export function TasksPage({
     subitemEditing,
     progressFocused,
     draggingTask,
-    busy
+    busy,
+    deletion.open
   ])
   useEffect(() => {
     if (today) taskAdded.reconcile(today.tasks)
@@ -304,7 +309,15 @@ export function TasksPage({
                 aria-label={`永久删除：${task.description}`}
                 disabled={busy}
                 onClick={async () => {
-                  if (await flush.current()) await deleteArchived(task.id)
+                  if (
+                    (await flush.current()) &&
+                    (await deletion.confirm({
+                      title: '删除归档任务',
+                      description: '永久删除这项任务？',
+                      detail: `${task.description}。任务及其子事项将被永久删除，无法恢复。`
+                    }))
+                  )
+                    await deleteArchived(task.id)
                 }}
               >
                 <TaskActionIcon name="delete" />
@@ -599,7 +612,14 @@ export function TasksPage({
                           void (async () => {
                             if (await flush.current()) {
                               if (task.habitId) await skipHabit(task.id)
-                              else await remove(task.id)
+                              else if (
+                                await deletion.confirm({
+                                  title: '删除任务',
+                                  description: '永久删除这项任务？',
+                                  detail: `${task.description}。任务及其子事项将被永久删除，无法恢复。`
+                                })
+                              )
+                                await remove(task.id)
                             }
                           })()
                         }}
@@ -615,14 +635,11 @@ export function TasksPage({
             </div>
             {selected && (
               <aside className="workbench-detail" aria-label="任务详情">
-                <button
-                  className="detail-back"
+                <BackToList
                   onClick={async () => {
                     if (await flush.current()) setSelectedTask(null)
                   }}
-                >
-                  ← 返回列表
-                </button>
+                />
                 <h2>任务详情</h2>
                 <label className="detail-label">任务描述</label>
                 {editing === selected.id ? (

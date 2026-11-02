@@ -105,6 +105,7 @@ async function habitMaintenanceSmoke({ phase, main, note, input, click, js, wait
         '编辑习惯保留已有任务内容'
       )
       await click(main, `[data-habit-id="${linked.habitId}"] [data-testid=habit-delete]`)
+      await click(main, '[data-testid=delete-confirm]')
       await waitFor(
         async () => !(await habits()).some((item) => item.id === linked.habitId),
         '删除习惯'
