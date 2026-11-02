@@ -1,3 +1,4 @@
+import { inspirationPageSmoke } from './inspiration-page-smoke.mjs'
 import { subitemsSmoke } from './subitems-smoke.mjs'
 import { noteArchiveSmoke } from './note-archive-smoke.mjs'
 import { mainOverviewSmoke } from './main-overview-smoke.mjs'
@@ -119,6 +120,23 @@ const click = async (window, selector) => {
   )
   window.focus()
   return js(window, `document.querySelector(${JSON.stringify(selector)}).click()`)
+}
+// 创建并归集成功会关闭浮层；连续测试在原记录仍可见的日期组重新打开。
+const createTopicAndReopen = async (window, name) => {
+  await input(window, '[aria-label="新主题名称"]', name)
+  await waitFor(
+    () => js(window, `!document.querySelector('.inspiration-topic-picker')`),
+    '创建归集后关闭'
+  )
+  await click(window, '[aria-label="归集主题"]')
+  await waitFor(
+    () =>
+      js(
+        window,
+        `Array.from(document.querySelectorAll('.inspiration-topic-picker label')).some(x => x.textContent.includes(${JSON.stringify(name)}))`
+      ),
+    '重新打开已保存主题'
+  )
 }
 const editLayout = (window, selector) =>
   js(
@@ -808,6 +826,22 @@ async function runSmoke() {
       menuClick('退出')
       return
     }
+    if (phase.startsWith('inspiration-page-')) {
+      await inspirationPageSmoke({
+        main,
+        note,
+        phase,
+        js,
+        click,
+        input,
+        waitFor,
+        capture: async (window, name) =>
+          writeFileSync(resolve(output, name), (await window.webContents.capturePage()).toPNG())
+      })
+      console.log(`Electron inspiration page smoke passed: ${phase}`)
+      menuClick('退出')
+      return
+    }
     if (phase.startsWith('note-archive-')) {
       await noteArchiveSmoke({
         phase,
@@ -1078,16 +1112,18 @@ async function runSmoke() {
             ),
           'Electron重启后归档可见'
         )
-        await click(main, '.inspiration-summary')
-        await waitFor(
-          () =>
-            js(
-              main,
-              `document.querySelector('.inspiration-additions')?.textContent.includes('归档持久补充')`
-            ),
-          '重启后归档补充可见'
+        assert.equal(
+          await js(
+            main,
+            `Boolean(document.querySelector('.inspiration-detail, .inspiration-additions'))`
+          ),
+          false
         )
-        await click(main, '.inspiration-detail .detail-back')
+        assert.equal(
+          (await js(main, `window.myTodo.listInspirationPage(0, 20, {kind:'archive'})`)).data
+            .items[0].additions[0].content,
+          '归档持久补充'
+        )
         await click(main, '[aria-label="恢复灵感"]')
         await waitFor(
           () => js(main, `!document.querySelector('.inspiration-item')`),
@@ -1120,8 +1156,8 @@ async function runSmoke() {
       )
       await js(main, `document.querySelector('.workbench-nav [aria-label="灵感"]').click()`)
       if (phase === 'topics-create') {
-        await click(main, '.primary-button')
-        await input(main, '[data-testid=task-new]', '跨窗口主题灵感')
+        await click(main, '[aria-label="新增灵感"]')
+        await input(main, '[aria-label="新增灵感内容"]', '跨窗口主题灵感')
         await waitFor(
           () =>
             js(
@@ -1130,8 +1166,17 @@ async function runSmoke() {
             ),
           '灵感创建'
         )
+        await js(
+          main,
+          `Array.from(document.querySelectorAll('.inspiration-views button')).find(x => x.textContent === '日期').click()`
+        )
+        await waitFor(
+          () =>
+            js(main, `document.querySelector('.inspiration-group-title')?.textContent === '今天'`),
+          '日期组持续显示归集中的记录'
+        )
         await click(main, '[aria-label="归集主题"]')
-        await input(main, '[aria-label="新主题名称"]', '持久主题')
+        await createTopicAndReopen(main, '持久主题')
         await waitFor(
           () =>
             js(
@@ -1157,7 +1202,7 @@ async function runSmoke() {
           true
         )
         await input(main, '[aria-label="搜索主题"]', '', '')
-        await input(main, '[aria-label="新主题名称"]', '另一个主题')
+        await createTopicAndReopen(main, '另一个主题')
         await waitFor(
           () =>
             js(
@@ -1195,8 +1240,7 @@ async function runSmoke() {
             ),
           '创建失败提示'
         )
-        await click(main, '[aria-label="关闭提示"]')
-        await input(main, '[aria-label="新主题名称"]', '持久主题二')
+        await createTopicAndReopen(main, '持久主题二')
         await waitFor(
           () =>
             js(
@@ -1209,15 +1253,9 @@ async function runSmoke() {
           resolve(output, 'inspiration-topic-picker.png'),
           (await main.webContents.capturePage()).toPNG()
         )
-        await click(main, '[data-testid=inspiration-supplement]')
-        await input(main, '[data-testid=inspiration-addition]', '持久补充')
-        await waitFor(
-          () =>
-            js(
-              main,
-              `document.querySelector('.inspiration-additions')?.textContent.includes('持久补充')`
-            ),
-          '补充保存'
+        await js(
+          main,
+          `(async () => { const idea = (await window.myTodo.listInspirations()).data[0]; await window.myTodo.appendInspiration(idea.id, '持久补充', 'topic-history') })()`
         )
         await waitFor(
           () =>
@@ -1235,15 +1273,18 @@ async function runSmoke() {
           () =>
             js(
               main,
-              `document.querySelector('.inspiration-original')?.textContent === '双窗口更新'`
+              `document.querySelector('.inspiration-summary')?.textContent === '双窗口更新'`
             ),
           '正文跨窗口同步'
         )
       } else {
         await waitFor(
           () =>
-            js(main, `document.querySelector('.inspiration-group-title')?.textContent === '今天'`),
-          '重启进入今天'
+            js(
+              main,
+              `document.querySelector('.inspiration-group-title')?.textContent === '未归类'`
+            ),
+          '重启进入未归类'
         )
         await js(
           main,
@@ -1269,14 +1310,10 @@ async function runSmoke() {
             ),
           '重启后关联和正文保留'
         )
-        await click(main, '[data-testid=inspiration-supplement]')
-        await waitFor(
-          () =>
-            js(
-              main,
-              `document.querySelector('.inspiration-additions')?.textContent.includes('持久补充')`
-            ),
-          '重启后补充保留'
+        assert.equal(
+          (await js(main, `window.myTodo.listInspirations()`)).data[0].additions[0].content,
+          '持久补充',
+          '重启后补充数据保留'
         )
         assert.equal(
           (await js(note, 'window.myTodo.listInspirations()')).data[0].description,
@@ -1533,55 +1570,37 @@ async function runSmoke() {
         const row = document.querySelector('.inspiration-row');
         const summary = row.querySelector('.inspiration-summary').getBoundingClientRect();
         const actions = Array.from(row.querySelectorAll('.inspiration-row-actions button')).map(x => x.getBoundingClientRect());
-        if (actions.length !== 3 || actions.some(x => x.left < summary.right || Math.abs(x.top - actions[0].top) > 1)) throw new Error('灵感操作未在右端同一行');
+        if (actions.length !== 2 || actions.some(x => x.left < summary.right || Math.abs(x.top - actions[0].top) > 1)) throw new Error('灵感操作未在右端同一行');
       })()`
       )
       await captureDesign('inspiration-row-layout.png')
-      await click(main, '[data-testid=inspiration-supplement]')
-      await waitFor(
-        () =>
-          js(
-            main,
-            'document.querySelector(".inspiration-original")?.textContent === "编辑后的灵感\\n保留下一行"'
-          ),
-        '原地编辑保存并打开详情'
-      )
       assert.equal(
-        await js(main, 'document.querySelector(".inspiration-original").textContent'),
+        (await js(main, `window.myTodo.listInspirations()`)).data[0].description,
         '编辑后的灵感\n保留下一行'
       )
       assert.equal(
         await js(
           main,
-          '!!document.querySelector(".inspiration-detail [data-testid=inspiration-edit-original]")'
+          `Boolean(document.querySelector('.inspiration-detail, [data-testid=inspiration-supplement]'))`
         ),
         false
       )
-      await input(main, '[data-testid=inspiration-addition]', '补充内容')
-      await waitFor(
-        () =>
-          js(
-            main,
-            'document.querySelector(".inspiration-additions")?.textContent.includes("补充内容")'
-          ),
-        '灵感补充'
-      )
       main.setContentSize(600, 700)
-      await waitFor(
-        () =>
-          js(
-            main,
-            'getComputedStyle(document.querySelector(".inspiration-detail")).position === "static"'
-          ),
-        '窄窗口详情'
-      )
       writeFileSync(
         resolve(output, 'workbench-narrow.png'),
         (await main.webContents.capturePage()).toPNG()
       )
-      await click(main, '.inspiration-detail .detail-back')
+      await js(
+        main,
+        `Array.from(document.querySelectorAll('.inspiration-views button')).find(x => x.textContent === '日期').click()`
+      )
+      await waitFor(
+        () =>
+          js(main, `document.querySelector('.inspiration-group-title')?.textContent === '今天'`),
+        '日期组持续显示归集中的记录'
+      )
       await click(main, '[aria-label="归集主题"]')
-      await input(main, '[aria-label="新主题名称"]', '产品构想')
+      await createTopicAndReopen(main, '产品构想')
       await waitFor(
         () =>
           js(
@@ -1590,7 +1609,7 @@ async function runSmoke() {
           ),
         '主题创建'
       )
-      await input(main, '[aria-label="新主题名称"]', '工作流')
+      await createTopicAndReopen(main, '工作流')
       await waitFor(
         () =>
           js(
@@ -1636,7 +1655,6 @@ async function runSmoke() {
         await js(main, `document.querySelector('.inspiration-row time').textContent`),
         /^\d{4}-\d{2}-\d{2}$/
       )
-      await click(main, '[data-testid=inspiration-supplement]')
       await chooseGroup('工作流')
       await waitFor(
         () =>
@@ -1644,9 +1662,8 @@ async function runSmoke() {
             main,
             `!document.querySelector('.inspiration-detail') && Boolean(document.querySelector('[data-inspiration-id]'))`
           ),
-        '切组关闭详情'
+        '切组保留列表'
       )
-      await click(main, '[data-testid=inspiration-supplement]')
       await chooseView('日期')
       await waitFor(
         () =>
@@ -1659,12 +1676,12 @@ async function runSmoke() {
         () =>
           js(
             main,
-            `document.querySelector('.inspiration-group-title')?.textContent === '工作流' && Boolean(document.querySelector('.inspiration-detail'))`
+            `document.querySelector('.inspiration-group-title')?.textContent === '工作流' && !document.querySelector('.inspiration-detail')`
           ),
-        '恢复主题组及详情'
+        '恢复主题组及列表'
       )
       writeFileSync(
-        resolve(output, 'inspiration-topic-detail.png'),
+        resolve(output, 'inspiration-topic-list.png'),
         (await main.webContents.capturePage()).toPNG()
       )
       await chooseView('日期')
@@ -1834,8 +1851,8 @@ async function runSmoke() {
       )
       await click(main, '.inspiration-summary')
       await waitFor(
-        () => js(main, `Boolean(document.querySelector('.inspiration-detail'))`),
-        '归档详情可读'
+        () => js(main, `!document.querySelector('.inspiration-detail')`),
+        '归档保持列表且没有详情'
       )
       assert.equal(
         await js(main, `Boolean(document.querySelector('[data-testid=inspiration-addition]'))`),

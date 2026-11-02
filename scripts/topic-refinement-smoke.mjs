@@ -33,6 +33,7 @@ export async function topicRefinementSmoke({ main, note, phase, js, click, input
   main.focus()
   await js(main, `document.querySelector('[aria-label="新增主题"]').focus()`)
   main.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' })
+  main.webContents.sendInputEvent({ type: 'char', keyCode: 'Enter' })
   main.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' })
   await input(main, '[aria-label="新增主题名称"]', '放弃的主题', null)
   await js(
