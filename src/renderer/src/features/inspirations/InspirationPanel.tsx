@@ -1,14 +1,4 @@
-import {
-  Archive,
-  CornerDownLeft,
-  Tags,
-  Pencil,
-  Plus,
-  X,
-  MessageSquarePlus,
-  RotateCcw,
-  Trash2
-} from 'lucide-react'
+import { Archive, CornerDownLeft, Tags, Pencil, Plus, X, RotateCcw, Trash2 } from 'lucide-react'
 import { ComposerToggle, InlineComposer, handleComposerKeyDown } from '../shared/InlineComposer'
 import { Popover, PopoverTrigger, PopoverContent } from '../../components/ui/popover'
 const dateKey = (date: Date) =>
@@ -21,8 +11,8 @@ import { getDesktopApi, unwrap } from '../../platform/desktop'
 import { useInspirationInput } from './useInspirationInput'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
+import { ClearableTextarea } from '../../components/ui/clearable-textarea'
 import { ClearableInput } from '../../components/ui/clearable-input'
-import { Textarea } from '../../components/ui/textarea'
 
 export interface InspirationPanelHandle {
   save: () => Promise<boolean>
@@ -42,7 +32,6 @@ export function InspirationPanel({
   collapsible?: boolean
 }) {
   const FormInput = workbench ? Input : ClearableInput
-  const FormTextarea = workbench ? Textarea : 'textarea'
   const SubmitButton = workbench ? Button : 'button'
   const [notice, setNotice] = useState<{ message: string; error: boolean } | null>(null)
   const notifyError = (message: string) => {
@@ -60,7 +49,7 @@ export function InspirationPanel({
     return () => window.clearTimeout(timer)
   }, [notice])
   const [ideas, setIdeas] = useState<Inspiration[]>([])
-  const [view, setView] = useState<'date' | 'topic'>('date')
+  const [view, setView] = useState<'date' | 'topic'>('topic')
   const [topics, setTopics] = useState<InspirationTopic[]>([])
   const [picker, setPicker] = useState<string | null>(null)
   const [newTopic, setNewTopic] = useState('')
@@ -72,7 +61,6 @@ export function InspirationPanel({
   const refreshCurrent = useRef<() => Promise<void>>(async () => {})
   const [renameId, setRenameId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
-  const [openedGroup, setOpenedGroup] = useState<string | null>(null)
   const [editingGroup, setEditingGroup] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
   const [hasMore, setHasMore] = useState(false)
@@ -81,10 +69,6 @@ export function InspirationPanel({
   const groupKey = view === 'date' ? dateGroup : topicGroup
   const scrollPositions = useRef({ date: 0, topic: 0 })
   const loadedByView = useRef({ date: 20, topic: 20 })
-  const selectedByView = useRef<{ date: string | null; topic: string | null }>({
-    date: null,
-    topic: null
-  })
   const listRef = useRef<HTMLDivElement>(null)
   const newIdeaField = useRef<HTMLTextAreaElement>(null)
   const [creatingIdea, setCreatingIdea] = useState(false)
@@ -92,7 +76,6 @@ export function InspirationPanel({
   const pendingScroll = useRef<number | null>(null)
   const loading = useRef(false)
   const loadedCount = useRef(20)
-  const [opened, setOpened] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
   const [editingHeight, setEditingHeight] = useState(0)
   const originalField = useRef<HTMLTextAreaElement>(null)
@@ -103,7 +86,6 @@ export function InspirationPanel({
     field.setSelectionRange(field.value.length, field.value.length)
     field.scrollTop = field.scrollHeight
   }, [editing, editingGroup])
-  const [focused, setFocused] = useState(false)
   const version = useRef(0)
   const groupNavigation = useRef(0)
   const dates = Array.from({ length: 7 }, (_, index) => {
@@ -140,8 +122,6 @@ export function InspirationPanel({
         ) {
           if (version.current === request) {
             ++version.current
-            selectedByView.current.topic = null
-            setOpened(null)
             setPicker(null)
             setIdeas([])
             setTopics(topicList)
@@ -165,15 +145,6 @@ export function InspirationPanel({
         if (version.current === request) {
           pendingScroll.current = scrollPositions.current[view]
           setIdeas(items)
-          if (opened && !items.some((item) => item.id === opened)) {
-            setOpened(null)
-            selectedByView.current[view] = null
-          }
-          const selected = selectedByView.current[view]
-          if (selected && items.some((item) => item.id === selected)) {
-            setOpened(selected)
-            setOpenedGroup(groupKey)
-          }
           setTopics(topicList)
           setHasMore(hasMore)
         }
@@ -239,18 +210,7 @@ export function InspirationPanel({
     notifyError,
     () => setEditing(null)
   )
-  const addition = useInspirationInput(
-    async (text, _id, key) => {
-      if (!opened) throw new Error('请先展开一条灵感。')
-      const idea = unwrap(await getDesktopApi().appendInspiration(opened, text, key))
-      if (workbench) notifySuccess('补充已保存')
-      return { id: key, description: idea.additions.find((item) => item.id === key)!.content }
-    },
-    refresh,
-    notifyError
-  )
-  const save = async () =>
-    (await Promise.all([original.save(), addition.save(), newIdea.save()])).every(Boolean)
+  const save = async () => (await Promise.all([original.save(), newIdea.save()])).every(Boolean)
   const queueTopicChange = (action: () => Promise<void>) => {
     ++pendingTopics.current
     ++version.current
@@ -276,15 +236,8 @@ export function InspirationPanel({
     }
   }, [view, groupKey])
   useEffect(() => {
-    onEditingChange(editing !== null || (focused && Boolean(addition.value.trim())))
-  }, [editing, focused, addition.value, onEditingChange])
-  const toggleIdea = async (id: string, group?: string) => {
-    if (!(await save())) return
-    const close = opened === id && openedGroup === (group ?? null)
-    selectedByView.current[view] = close ? null : id
-    setOpened(close ? null : id)
-    setOpenedGroup(close ? null : (group ?? null))
-  }
+    onEditingChange(editing !== null)
+  }, [editing, onEditingChange])
   const groups = workbench
     ? view === 'topic'
       ? [
@@ -315,7 +268,7 @@ export function InspirationPanel({
     : [{ key: 'all', label: '', items: ideas }]
   return (
     <section
-      className={`inspiration-panel ${workbench ? 'inspiration-workbench' : ''} ${opened ? 'has-detail' : ''}`}
+      className={`inspiration-panel ${workbench ? 'inspiration-workbench' : ''}`}
       aria-label="灵感"
     >
       {workbench && notice && (
@@ -348,7 +301,7 @@ export function InspirationPanel({
       {workbench && (
         <aside className="inspiration-navigation">
           <div className="inspiration-views" role="group" aria-label="灵感视角">
-            {(['date', 'topic'] as const).map((option) => (
+            {(['topic', 'date'] as const).map((option) => (
               <button
                 key={option}
                 aria-pressed={view === option}
@@ -356,12 +309,10 @@ export function InspirationPanel({
                   if (option === view || !(await save())) return
                   scrollPositions.current[view] = listRef.current?.scrollTop ?? 0
                   loadedByView.current[view] = loadedCount.current
-                  selectedByView.current[view] = opened
                   ++version.current
                   restoringScroll.current = true
                   setIdeas([])
                   loadedCount.current = loadedByView.current[option]
-                  setOpened(null)
                   setPicker(null)
                   setView(option)
                 }}
@@ -383,9 +334,7 @@ export function InspirationPanel({
                       setCreatingTopic(false)
                       setTopicName('')
                       ++version.current
-                      setOpened(null)
                       setPicker(null)
-                      selectedByView.current.topic = null
                       setIdeas([])
                       setTopicGroup(topic.id)
                       notifySuccess('主题已创建')
@@ -444,8 +393,6 @@ export function InspirationPanel({
                   setIdeas([])
                   loadedCount.current = 20
                   loadedByView.current[view] = 20
-                  setOpened(null)
-                  selectedByView.current[view] = null
                   setPicker(null)
                   scrollPositions.current[view] = 0
                   if (listRef.current) listRef.current.scrollTop = 0
@@ -516,9 +463,7 @@ export function InspirationPanel({
                           if (topicGroup === group.key) {
                             ++version.current
                             setIdeas([])
-                            setOpened(null)
                             setPicker(null)
-                            selectedByView.current.topic = null
                             setTopicGroup('unassigned')
                           }
                           setRenameId(null)
@@ -581,6 +526,7 @@ export function InspirationPanel({
                         placeholder="记下一个想法…"
                         value={newIdea.value}
                         onValueChange={newIdea.setValue}
+                        onClear={() => newIdea.setValue('')}
                         onSubmit={newIdea.submit}
                         submitLabel="记录灵感"
                         saving={newIdea.saving}
@@ -601,10 +547,7 @@ export function InspirationPanel({
                   <article key={idea.id} data-inspiration-id={idea.id} className="inspiration-item">
                     {workbench && group.key === 'archive' ? (
                       <div className="inspiration-row">
-                        <button
-                          className="inspiration-summary"
-                          onClick={() => void toggleIdea(idea.id, group.key)}
-                        >
+                        <button className="inspiration-summary">
                           <span>{idea.description}</span>
                         </button>
                         <div className="inspiration-row-actions">
@@ -615,8 +558,6 @@ export function InspirationPanel({
                             onClick={async () => {
                               try {
                                 unwrap(await getDesktopApi().restoreInspiration(idea.id))
-                                setOpened(null)
-                                selectedByView.current[view] = null
                                 notifySuccess('灵感已恢复')
                                 void refresh()
                               } catch (error) {
@@ -636,8 +577,6 @@ export function InspirationPanel({
                                   !unwrap(await getDesktopApi().deleteArchivedInspiration(idea.id))
                                 )
                                   return
-                                setOpened(null)
-                                selectedByView.current[view] = null
                                 notifySuccess('灵感已删除')
                                 void refresh()
                               } catch (error) {
@@ -652,7 +591,7 @@ export function InspirationPanel({
                     ) : workbench ? (
                       <div className="inspiration-row">
                         {editing === idea.id && editingGroup === group.key ? (
-                          <textarea
+                          <ClearableTextarea
                             ref={originalField}
                             className="inspiration-inline-edit"
                             style={{ height: editingHeight }}
@@ -660,8 +599,9 @@ export function InspirationPanel({
                             aria-label="编辑原始想法"
                             data-testid="inspiration-edit"
                             value={original.value}
+                            onClear={() => original.setValue('')}
                             onChange={(event) => original.setValue(event.target.value)}
-                            onBlur={() => void original.save()}
+                            onLeave={() => void original.save()}
                             onCompositionStart={() => {
                               original.composing.current = true
                             }}
@@ -811,8 +751,6 @@ export function InspirationPanel({
                               if (!(await save())) return
                               try {
                                 unwrap(await getDesktopApi().archiveInspiration(idea.id))
-                                setOpened(null)
-                                selectedByView.current[view] = null
                                 notifySuccess('灵感已归档')
                                 void refresh()
                               } catch (error) {
@@ -822,134 +760,10 @@ export function InspirationPanel({
                           >
                             <Archive size={15} />
                           </button>
-                          <button
-                            aria-label="补充灵感"
-                            title="补充灵感"
-                            className="inspiration-supplement"
-                            data-testid="inspiration-supplement"
-                            aria-expanded={opened === idea.id}
-                            onClick={() => void toggleIdea(idea.id, group.key)}
-                          >
-                            <MessageSquarePlus size={15} />
-                          </button>
                         </div>
                       </div>
                     ) : (
-                      <button
-                        className="inspiration-summary"
-                        data-testid="inspiration-summary"
-                        aria-expanded={opened === idea.id}
-                        onClick={() => void toggleIdea(idea.id)}
-                      >
-                        {idea.description}
-                      </button>
-                    )}
-                    {opened === idea.id && (!workbench || openedGroup === group.key) && (
-                      <div className="inspiration-detail">
-                        {workbench && (
-                          <button
-                            className="detail-back"
-                            onClick={() => void toggleIdea(idea.id, group.key)}
-                          >
-                            ← 返回列表
-                          </button>
-                        )}
-                        {workbench && (
-                          <>
-                            <h2>灵感详情</h2>
-                            <p className="inspiration-original">{idea.description}</p>
-                          </>
-                        )}
-                        {!workbench &&
-                          (editing === idea.id ? (
-                            <FormTextarea
-                              aria-label="编辑原始想法"
-                              data-testid="inspiration-edit"
-                              autoFocus
-                              value={original.value}
-                              onChange={(event) => original.setValue(event.target.value)}
-                              onBlur={() => void original.save()}
-                              onCompositionStart={() => {
-                                original.composing.current = true
-                              }}
-                              onCompositionEnd={original.endComposition}
-                              onKeyDown={(event) =>
-                                handleComposerKeyDown(event, original.setValue, original.submit)
-                              }
-                            />
-                          ) : (
-                            <button
-                              className="inspiration-edit-button"
-                              data-testid="inspiration-edit-original"
-                              onClick={() => {
-                                original.start(idea)
-                                setEditing(idea.id)
-                              }}
-                            >
-                              编辑原始想法
-                            </button>
-                          ))}
-                        <ol className="inspiration-additions">
-                          {idea.additions.map((item) => (
-                            <li key={item.id}>{item.content}</li>
-                          ))}
-                        </ol>
-                        {group.key !== 'archive' &&
-                          (workbench ? (
-                            <InlineComposer
-                              tone="inspiration"
-                              multiline
-                              aria-label="补充灵感"
-                              data-testid="inspiration-addition"
-                              placeholder="补充需求、细节或新的想法…"
-                              value={addition.value}
-                              onValueChange={addition.setValue}
-                              onSubmit={addition.submit}
-                              submitLabel="追加补充"
-                              saving={addition.saving}
-                              onFocus={() => setFocused(true)}
-                              onBlur={() => {
-                                setFocused(false)
-                                void addition.save()
-                              }}
-                              onCompositionStart={() => {
-                                addition.composing.current = true
-                              }}
-                              onCompositionEnd={addition.endComposition}
-                            />
-                          ) : (
-                            <form
-                              onSubmit={(event) => {
-                                event.preventDefault()
-                                void addition.submit()
-                              }}
-                            >
-                              <FormTextarea
-                                aria-label="补充灵感"
-                                data-testid="inspiration-addition"
-                                placeholder="补充需求、细节或新的想法"
-                                value={addition.value}
-                                rows={2}
-                                onChange={(event) => addition.setValue(event.target.value)}
-                                onFocus={() => setFocused(true)}
-                                onBlur={() => {
-                                  setFocused(false)
-                                  void addition.save()
-                                }}
-                                onCompositionStart={() => {
-                                  addition.composing.current = true
-                                }}
-                                onCompositionEnd={addition.endComposition}
-                                onKeyDown={(event) =>
-                                  handleComposerKeyDown(event, addition.setValue, addition.submit)
-                                }
-                              />
-                              <SubmitButton className="inspiration-append-button" type="submit">
-                                追加补充
-                              </SubmitButton>
-                            </form>
-                          ))}
-                      </div>
+                      <p className="inspiration-summary">{idea.description}</p>
                     )}
                   </article>
                 ))}

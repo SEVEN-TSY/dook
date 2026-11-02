@@ -36,6 +36,7 @@
   min-width: 0;
   width: 100%;
 }
+.clearable-textarea > button.input-clear,
 .clearable-input > button.input-clear,
 .workbench .clearable-input > button.input-clear,
 .note .clearable-input > button.input-clear {
@@ -56,6 +57,7 @@
   color: #788395;
   cursor: pointer;
 }
+.clearable-textarea > button.input-clear:hover,
 .clearable-input > button.input-clear:hover {
   background: #d6dce6;
   color: #465064;
