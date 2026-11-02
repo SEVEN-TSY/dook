@@ -14,6 +14,25 @@ export async function inspirationPageSmoke({
   capture
 }) {
   await waitFor(() => js(main, `Boolean(document.querySelector('.workbench-nav'))`), '主界面就绪')
+  if (phase.endsWith('create')) {
+    for (const [page, label, field] of [
+      ['任务', '新增任务', '新增任务描述'],
+      ['习惯', '新增习惯', '新增习惯描述']
+    ]) {
+      await click(main, `.workbench-nav [aria-label="${page}"]`)
+      await click(main, `[aria-label="${label}"]`)
+      await input(main, `[aria-label="${field}"]`, '待清除草稿', null)
+      await click(main, `[aria-label="清除${field}"]`)
+      assert.equal(
+        await js(
+          main,
+          `document.activeElement?.getAttribute('aria-label') === '${field}' && document.activeElement.value === ''`
+        ),
+        true,
+        `${page}使用公共清除行为，保留焦点`
+      )
+    }
+  }
   await click(main, '.workbench-nav [aria-label="小记"]')
   await waitFor(
     () => js(main, `Boolean(document.querySelector('.inspiration-group-title'))`),
@@ -79,7 +98,7 @@ export async function inspirationPageSmoke({
       main,
       `(() => { const span = document.querySelector('.inspiration-summary > span'); return {height:span.getBoundingClientRect().height, line:Number.parseFloat(getComputedStyle(span).lineHeight)} })()`
     )
-    assert.ok(preview.height <= preview.line * 2 + 1, '正文最多预览两行')
+    assert.ok(preview.height <= preview.line + 1, '正文仅预览一行')
     await click(main, '[data-testid=inspiration-summary]')
     await waitFor(
       () => js(main, `Boolean(document.querySelector('[aria-label="清除编辑原始想法"]'))`),
@@ -88,6 +107,14 @@ export async function inspirationPageSmoke({
     await js(
       main,
       'new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))'
+    )
+    assert.equal(
+      await js(
+        main,
+        `(() => { const f = document.querySelector('[data-testid=inspiration-edit]'); return f.clientHeight >= f.scrollHeight - 1 })()`
+      ),
+      true,
+      '多行正文编辑自动增高，完整显示内容'
     )
     await capture(main, 'inspiration-edit-clear.png')
     await click(main, '[aria-label="清除编辑原始想法"]')

@@ -1,6 +1,6 @@
 import { useImperativeHandle, useRef } from 'react'
 import type { ComponentProps } from 'react'
-import { X } from 'lucide-react'
+import { ClearButton } from './clear-button'
 
 export function ClearableTextarea({
   ref,
@@ -20,19 +20,12 @@ export function ClearableTextarea({
     >
       <textarea {...props} ref={field} className={className} />
       {String(props.value ?? '').length > 0 && !props.disabled && !props.readOnly && (
-        <button
-          type="button"
+        <ClearButton
           className="input-clear"
-          aria-label={`清除${props['aria-label'] ?? '输入内容'}`}
-          title="清除"
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => {
-            onClear()
-            field.current?.focus({ preventScroll: true })
-          }}
-        >
-          <X size={10} aria-hidden="true" />
-        </button>
+          label={props['aria-label'] ?? '输入内容'}
+          onClear={onClear}
+          focusField={() => field.current?.focus({ preventScroll: true })}
+        />
       )}
     </span>
   )

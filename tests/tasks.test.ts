@@ -23,7 +23,7 @@ test('跨日到达的自动保存不把昨天输入创建为今天任务', () =>
   }
 })
 
-test('今天任务去除空白并按创建顺序展示，跨日不延续', () => {
+test('今天任务去除空白并新增位于普通任务首位，跨日不延续', () => {
   const database = new AppDatabase(':memory:')
   let now = new Date(2026, 9, 27, 23, 59)
   const service = new AppService(database, new TaskRepository(database.connection), () => now)
@@ -34,11 +34,11 @@ test('今天任务去除空白并按创建顺序展示，跨日不延续', () =>
     assert.equal(first.description, '检查构建状态')
     assert.equal(first.date, '2026-10-27')
     assert.equal(first.completed, false)
-    assert.deepEqual(service.listToday().tasks, [first, second])
+    assert.deepEqual(service.listToday().tasks, [second, first])
     now = new Date(2026, 9, 28, 0, 0)
     assert.deepEqual(service.listToday(), { date: '2026-10-28', tasks: [] })
     now = new Date(2026, 9, 27, 12)
-    assert.deepEqual(service.listToday().tasks, [first, second])
+    assert.deepEqual(service.listToday().tasks, [second, first])
   } finally {
     database.close()
   }
@@ -56,14 +56,17 @@ test('编辑和完成保留日期与顺序，删除不被旧编辑恢复，重�
     const first = service.createTask('检查构建')
     const second = service.createTask('待删除')
     assert.throws(() => service.updateTask(first.id, '  '), /任务描述/)
-    assert.equal(service.listToday().tasks[0]?.description, '检查构建')
+    assert.equal(
+      service.listToday().tasks.find((task) => task.id === first.id)?.description,
+      '检查构建'
+    )
     service.setTaskCompleted(first.id, true)
     service.setTaskCompleted(first.id, false)
     service.setTaskCompleted(first.id, true)
     service.updateTask(first.id, ' 更新进展 ')
     assert.deepEqual(service.listToday().tasks, [
-      { ...first, description: '更新进展', completed: true },
-      second
+      second,
+      { ...first, description: '更新进展', completed: true }
     ])
     service.deleteTask(second.id)
     assert.throws(() => service.updateTask(second.id, '旧编辑'), /不存在/)
@@ -102,6 +105,7 @@ test('分类内排序与置顶持久化，完成不改顺序，跨分类或置�
     const e = service.createTask('推进二')
     service.convertToMultiDay(d.id)
     service.convertToMultiDay(e.id)
+    service.moveTask(b.id, a.id, false)
     service.moveTask(c.id, a.id, true)
     service.moveTask(e.id, d.id, true)
     assert.deepEqual(ids(), [c.id, a.id, b.id, e.id, d.id])
@@ -125,8 +129,8 @@ test('分类内排序与置顶持久化，完成不改顺序，跨分类或置�
     assert.equal(service.listToday().tasks[0].pinned, true)
     service.setTaskPinned(b.id, false)
     assert.deepEqual(ids(), [c.id, b.id, a.id, d.id, e.id])
-    const added = service.createTask('新增排最后')
-    assert.deepEqual(ids(), [c.id, b.id, a.id, added.id, d.id, e.id])
+    const added = service.createTask('新增排在普通任务首位')
+    assert.deepEqual(ids(), [c.id, added.id, b.id, a.id, d.id, e.id])
     now = new Date(2026, 9, 29, 12)
     assert.deepEqual(ids(), [d.id, e.id])
     assert.throws(() => service.setTaskPinned(a.id, true), /不存在/)

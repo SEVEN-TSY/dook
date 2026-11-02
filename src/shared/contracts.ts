@@ -60,6 +60,10 @@ export interface DesktopApi {
   onWindowState: (listener: (state: DesktopState) => void) => () => void
   onSaveRequested: (listener: () => Promise<boolean>) => () => void
   listHabits: () => Promise<ApiResult<Habit[]>>
+  listArchivedHabits: () => Promise<ApiResult<Habit[]>>
+  archiveHabit: (id: string) => Promise<ApiResult<void>>
+  restoreHabit: (id: string) => Promise<ApiResult<void>>
+  deleteArchivedHabit: (id: string) => Promise<ApiResult<boolean>>
   createHabit: (description: string) => Promise<ApiResult<Habit>>
   createHabitFromTask: (taskId: string) => Promise<ApiResult<Habit>>
   updateHabit: (id: string, description: string) => Promise<ApiResult<Habit>>

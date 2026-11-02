@@ -1,4 +1,15 @@
-import { MoreHorizontal, Sun } from 'lucide-react'
+import { Toast } from '../../components/Toast'
+import {
+  ArrowUpRight,
+  ListTodo,
+  MoreHorizontal,
+  Pin,
+  PinOff,
+  Repeat,
+  SkipForward,
+  Sun,
+  Trash2
+} from 'lucide-react'
 import { useDeleteConfirmation } from '../../components/DeleteConfirmation'
 import { BackToList } from '../../components/BackToList'
 import {
@@ -12,7 +23,7 @@ import { AppIcon, TaskActionIcon } from '../../components/AppIcon'
 import { SummaryRing } from '../../components/SummaryRing'
 import { TaskCheck } from '../../components/TaskCheck'
 import { Button } from '../../components/ui/button'
-import { Textarea } from '../../components/ui/textarea'
+import { ListDescription } from '../shared/ListDescription'
 import { ClearableInput } from '../../components/ui/clearable-input'
 import { useSummaryMotion } from '../shared/useSummaryMotion'
 import { ComposerToggle, InlineComposer } from '../shared/InlineComposer'
@@ -39,10 +50,24 @@ import { taskSummary as summarizeTasks } from './taskSummary'
 
 const INSPIRATION_GOAL = 5
 
+function noteDateLabel(date: string | undefined) {
+  if (!date) return '正在读取…'
+  const [year, month, day] = date.split('-').map(Number)
+  const weekday = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][
+    new Date(year, month - 1, day).getDay()
+  ]
+  return `${month}月${day}日 · ${weekday}`
+}
+
 function focusTaskEditor(element: HTMLTextAreaElement | null) {
   if (!element) return
   element.focus({ preventScroll: true })
   element.setSelectionRange(element.value.length, element.value.length)
+  requestAnimationFrame(() => {
+    if (!element.isConnected || document.activeElement !== element) return
+    element.scrollLeft = element.scrollWidth
+    element.scrollTop = element.scrollHeight
+  })
 }
 
 export function TasksPage({
@@ -90,6 +115,7 @@ export function TasksPage({
   const [newKind, setNewKind] = useState<'task' | 'inspiration'>('task')
   const categorySwitch = useRef(0)
   const [todayIdeas, setTodayIdeas] = useState<Inspiration[]>([])
+  const [archivedIdeas, setArchivedIdeas] = useState<Inspiration[]>([])
   const taskAdded = useTaskInput(today?.date, refresh, setError)
   const [loadedInspirationCount, setInspirationCount] = useState<number>()
   const inspirationCount = loadedInspirationCount ?? 0
@@ -106,10 +132,24 @@ export function TasksPage({
     try {
       const ideas = unwrap(await getDesktopApi().listInspirations())
       const date = new Date().toDateString()
-      const current = ideas.filter(
-        (idea) => idea.createdAt && new Date(idea.createdAt).toDateString() === date
-      )
+      const isToday = (idea: Inspiration) =>
+        idea.createdAt && new Date(idea.createdAt).toDateString() === date
+      const current = ideas.filter(isToday)
+      const archivedItems: Inspiration[] = []
+      if (kind === 'note') {
+        let hasMore = true
+        while (hasMore && version === categoryCountVersion.current) {
+          const page = unwrap(
+            await getDesktopApi().listInspirationPage(archivedItems.length, 100, {
+              kind: 'archive'
+            })
+          )
+          archivedItems.push(...page.items)
+          hasMore = page.hasMore
+        }
+      }
       if (version === categoryCountVersion.current) {
+        setArchivedIdeas(archivedItems.filter(isToday))
         setInspirationCount(current.length)
         setTodayIdeas(
           current.reverse().sort((a, b) => Date.parse(b.createdAt!) - Date.parse(a.createdAt!))
@@ -119,7 +159,7 @@ export function TasksPage({
       if (version === categoryCountVersion.current)
         setError(error instanceof Error ? error.message : '读取分类数量失败。')
     }
-  }, [setError])
+  }, [kind, setError])
   useEffect(() => {
     void refreshCategoryCounts()
     const unsubscribe = getDesktopApi().onTasksChanged(() => void refreshCategoryCounts())
@@ -190,13 +230,16 @@ export function TasksPage({
   const clickOutside = useRef((_target: EventTarget | null) => {})
   clickOutside.current = (target) => {
     const element = target instanceof Element ? target : null
-    if (!element?.closest('[data-testid="task-new"], .workbench-add, .note-add-controls'))
+    if (
+      kind === 'note' &&
+      !element?.closest('[data-testid="task-new"], .workbench-add, .note-add-controls')
+    )
       void added.save()
-    if (!element?.closest('[data-testid="task-edit"]')) void edited.save()
+    if (!element?.closest('[data-testid="task-edit"], .clearable-textarea')) void edited.save()
   }
   flush.current = async () => {
     const results = await Promise.all([
-      taskAdded.save(),
+      kind === 'note' ? taskAdded.save() : true,
       inspirationAdded.save(),
       edited.save(),
       habitSave.current(),
@@ -261,13 +304,6 @@ export function TasksPage({
   const save = async (event: FormEvent) => {
     event.preventDefault()
     if (editing) await edited.submit()
-  }
-  const openOther = async () => {
-    try {
-      unwrap(await getDesktopApi().openWindow(kind === 'main' ? 'note' : 'main'))
-    } catch (error) {
-      setError(error instanceof Error ? error.message : '打开窗口失败。')
-    }
   }
   const openMainPage = async (target: MainPage) => {
     if (!(await flush.current())) return
@@ -377,7 +413,7 @@ export function TasksPage({
               <small>个人工作台</small>
             </div>
           </div>
-          <nav className="workbench-nav" aria-label="主导航">
+          <nav id="main-navigation" className="workbench-nav" aria-label="主导航">
             {(
               [
                 ['task', '任务'],
@@ -409,24 +445,15 @@ export function TasksPage({
               <AppIcon name="settings" />
               <span>设置</span>
             </button>
-            <button
-              data-testid="open-other"
-              aria-label="打开桌面便签"
-              onClick={() => void openOther()}
-            >
-              <AppIcon name="note" />
-              <span>桌面便签</span>
-              <span className="nav-arrow">↗</span>
-            </button>
           </nav>
         </aside>
         <main
           tabIndex={-1}
           data-delete-focus-fallback
-          className={`workbench-main ${page === 'inspiration' ? 'workbench-main-inspiration' : ''}`}
+          className={`workbench-main ${page === 'inspiration' ? 'workbench-main-inspiration' : page === 'task' || page === 'habit' ? 'workbench-main-list-page' : ''}`}
         >
           <header className="workbench-header">
-            <div>
+            <div className={page === 'task' ? 'workbench-task-heading' : undefined}>
               <p className="workbench-date">
                 {page === 'task' && today
                   ? new Date(`${today.date}T12:00:00`).toLocaleDateString('zh-CN', {
@@ -435,13 +462,17 @@ export function TasksPage({
                       weekday: 'long'
                     })
                   : {
-                      habit: '管理每天自动生成的任务',
+                      habit: '',
                       inspiration: '',
                       settings: '',
                       task: '今天'
                     }[page]}
               </p>
-              <h1>
+              <h1
+                title={
+                  page === 'habit' ? '管理每天自动生成的任务，每天自动放入今天任务' : undefined
+                }
+              >
                 {{ task: '今天', habit: '习惯', inspiration: '小记', settings: '设置' }[page]}
               </h1>
             </div>
@@ -468,11 +499,7 @@ export function TasksPage({
               )}
             </div>
           </header>
-          {error && (
-            <p className="task-error" role="alert">
-              {error}
-            </p>
-          )}
+          <Toast message={error} onDismiss={() => setError('')} />
           <div
             className={`workbench-split ${selected ? 'has-detail' : ''}`}
             hidden={page !== 'task'}
@@ -481,6 +508,7 @@ export function TasksPage({
               <InlineComposer
                 ref={mainTaskInput}
                 expanded={taskComposerOpen}
+                onDismiss={() => setTaskComposerOpen(false)}
                 data-testid="task-new"
                 aria-label="新增任务描述"
                 placeholder="添加一个今天要做的事…"
@@ -517,7 +545,7 @@ export function TasksPage({
                   key={task.id}
                   data-task-id={task.id}
                   data-task-kind={task.kind}
-                  className={`task-row ${task.completed ? 'completed' : ''} ${task.kind === 'multi-day' && visibleTasks[index - 1]?.kind !== 'multi-day' ? 'multi-day-start' : ''} ${selectedTask === task.id ? 'selected' : ''}`}
+                  className={`task-row main-list-row ${task.completed ? 'completed' : ''} ${task.kind === 'multi-day' && visibleTasks[index - 1]?.kind !== 'multi-day' ? 'multi-day-start' : ''} ${selectedTask === task.id ? 'selected' : ''}`}
                 >
                   {task.kind === 'multi-day' && visibleTasks[index - 1]?.kind !== 'multi-day' && (
                     <span className="group-label">
@@ -535,29 +563,25 @@ export function TasksPage({
                     onChange={() => void complete(task)}
                   />
                   <div className="task-content">
-                    <button
+                    <ListDescription
+                      description={task.description}
+                      editing={editing === task.id && selectedTask !== task.id}
+                      draft={edited}
+                      label="编辑任务描述"
+                      testId="task-edit"
+                      previewTestId="task-description"
                       className="task-description"
-                      data-testid="task-description"
-                      title={task.habitId ? '点击在主界面打开' : undefined}
-                      onClick={async () => {
+                      onEdit={async () => {
                         if (task.habitId) {
                           await navigate('habit')
                           return
                         }
                         if (!(await flush.current())) return
-                        setSelectedTask(task.id)
+                        setSelectedTask(null)
                         setEditing(task.id)
                         edited.start(task)
                       }}
-                    >
-                      {task.description}
-                    </button>
-                    {task.habitId && (
-                      <p className="task-meta habit-source">
-                        <AppIcon name="habit" />
-                        来自习惯
-                      </p>
-                    )}
+                    />
                     {task.kind === 'multi-day' && (
                       <p className="task-meta">
                         <span className="task-mini-progress">
@@ -570,6 +594,16 @@ export function TasksPage({
                       </p>
                     )}
                   </div>
+                  {task.habitId && (
+                    <span
+                      className="task-habit-indicator"
+                      role="img"
+                      aria-label="来自习惯"
+                      title="来自习惯"
+                    >
+                      <TaskActionIcon name="schedule" />
+                    </span>
+                  )}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -583,7 +617,18 @@ export function TasksPage({
                         <MoreHorizontal />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="task-actions-menu">
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        data-testid="task-details"
+                        onSelect={() => {
+                          void (async () => {
+                            if (await flush.current()) setSelectedTask(task.id)
+                          })()
+                        }}
+                      >
+                        <ListTodo aria-hidden="true" />
+                        任务详情
+                      </DropdownMenuItem>
                       {task.kind === 'today' && !task.habitId && (
                         <>
                           <DropdownMenuItem
@@ -594,7 +639,7 @@ export function TasksPage({
                               })()
                             }}
                           >
-                            <TaskActionIcon name="convert" />
+                            <ArrowUpRight aria-hidden="true" />
                             转为多天任务
                           </DropdownMenuItem>
                           <DropdownMenuItem
@@ -605,7 +650,7 @@ export function TasksPage({
                               })()
                             }}
                           >
-                            <TaskActionIcon name="habit" />
+                            <Repeat aria-hidden="true" />
                             添加为习惯
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
@@ -618,7 +663,7 @@ export function TasksPage({
                           })()
                         }}
                       >
-                        <TaskActionIcon name={task.pinned ? 'unpin' : 'pin'} />
+                        {task.pinned ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />}
                         {task.pinned ? '取消置顶' : '置顶任务'}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
@@ -648,7 +693,11 @@ export function TasksPage({
                           })()
                         }}
                       >
-                        <TaskActionIcon name={task.habitId ? 'schedule' : 'delete'} />
+                        {task.habitId ? (
+                          <SkipForward aria-hidden="true" />
+                        ) : (
+                          <Trash2 aria-hidden="true" />
+                        )}
                         {task.habitId ? '暂停一次' : '删除任务'}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -664,47 +713,9 @@ export function TasksPage({
                     if (await flush.current()) setSelectedTask(null)
                   }}
                 />
-                <h2>任务详情</h2>
-                <label className="detail-label">任务描述</label>
-                {editing === selected.id ? (
-                  <Textarea
-                    data-testid="task-edit"
-                    aria-label="编辑任务描述"
-                    value={edited.value}
-                    onChange={(event) => edited.setValue(event.target.value)}
-                    onBlur={() => void edited.save()}
-                    onCompositionStart={() => {
-                      edited.composing.current = true
-                    }}
-                    onCompositionEnd={edited.endComposition}
-                  />
-                ) : (
-                  <button
-                    className="detail-description"
-                    onClick={() => {
-                      setEditing(selected.id)
-                      edited.start(selected)
-                    }}
-                  >
-                    {selected.description}
-                  </button>
-                )}
-                {selected.kind === 'multi-day' && (
-                  <label className="detail-progress">
-                    进度 {selected.progress}%
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      data-testid="task-progress"
-                      aria-label={`进度：${selected.description}`}
-                      value={selected.progress}
-                      disabled={busy || Boolean(selected.subitems?.length)}
-                      onChange={(event) => void progress(selected.id, Number(event.target.value))}
-                    />
-                  </label>
-                )}
                 <SubitemsPanel
+                  key={selected.id}
+                  defaultExpanded
                   task={selected}
                   changed={refresh}
                   report={setError}
@@ -758,11 +769,13 @@ export function TasksPage({
             void windowAction(async () => unwrap(await getDesktopApi().setNoteDragging(false)))
         }}
       >
-        <div>
+        <div className="note-heading-label">
           <p className="task-eyebrow">TODAY</p>
           <h1>{newKind === 'inspiration' ? '小记' : '今天'}</h1>
           <p className="task-date">
-            {newKind === 'inspiration' ? `${inspirationCount}条` : (today?.date ?? '正在读取…')}
+            {newKind === 'inspiration'
+              ? `今天 · ${inspirationCount}条`
+              : noteDateLabel(today?.date)}
           </p>
         </div>
         {kind === 'note' && (
@@ -834,9 +847,41 @@ export function TasksPage({
         )}
       </header>
 
+      <div className="note-page-divider" aria-hidden="true">
+        <div
+          className="note-page-divider-track"
+          style={{ transform: newKind === 'task' ? 'translateX(0)' : 'translateX(-50%)' }}
+        >
+          <span />
+          <span />
+        </div>
+      </div>
       <NotePages
         selected={newKind}
         ideas={todayIdeas}
+        archivedIdeas={archivedIdeas}
+        onRestore={(id) =>
+          windowAction(async () => {
+            if (!(await flush.current())) return
+            unwrap(await getDesktopApi().restoreInspiration(id))
+            await refreshCategoryCounts()
+          })
+        }
+        onDelete={(idea) =>
+          windowAction(async () => {
+            if (!(await flush.current())) return
+            if (
+              !(await deletion.confirm({
+                title: '永久删除小记',
+                description: '永久删除这条小记？',
+                detail: `${idea.description}。小记及其补充、主题关联将被永久删除，无法恢复。`
+              }))
+            )
+              return
+            unwrap(await getDesktopApi().deleteArchivedInspiration(idea.id))
+            await refreshCategoryCounts()
+          })
+        }
         onArchive={(id) =>
           windowAction(async () => {
             if (!(await flush.current())) return
@@ -845,7 +890,12 @@ export function TasksPage({
           })
         }
       >
-        <div className="task-list" aria-label="任务" tabIndex={-1} data-delete-focus-fallback>
+        <div
+          className="task-list"
+          aria-label="任务"
+          tabIndex={-1}
+          data-delete-focus-fallback={newKind === 'task' ? true : undefined}
+        >
           {today && total === 0 && (
             <div className="task-empty">
               <span aria-hidden="true">
@@ -1090,17 +1140,13 @@ export function TasksPage({
                     </button>
                   </div>
                 </div>
-            ))}
-          </Fragment>
-        ))}
-        {archiveList}
-      </div>
+              ))}
+            </Fragment>
+          ))}
+          {archiveList}
+        </div>
       </NotePages>
-      {error && (
-        <p className="task-error" role="alert">
-          {error}
-        </p>
-      )}
+      <Toast message={error} onDismiss={() => setError('')} />
       <div className={`note-bottom ${adding ? 'is-editing' : ''}`}>
         <form
           className={`task-add ${adding ? 'is-editing' : ''}`}

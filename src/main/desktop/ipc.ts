@@ -120,6 +120,17 @@ export function registerIpc(handlers: Handlers): () => void {
   })
   register(IPC_CHANNELS.runDiagnostics, handlers.runDiagnostics)
   register(IPC_CHANNELS.listHabits, () => handlers.service.listHabits())
+  register(IPC_CHANNELS.listArchivedHabits, () => handlers.service.listArchivedHabits())
+  register(IPC_CHANNELS.archiveHabit, (_, id) =>
+    mutate(() => handlers.service.archiveHabit(text(id)))
+  )
+  register(IPC_CHANNELS.restoreHabit, (_, id) =>
+    mutate(() => handlers.service.restoreHabit(text(id)))
+  )
+  register(IPC_CHANNELS.deleteArchivedHabit, (_, id) => {
+    mutate(() => handlers.service.deleteArchivedHabit(text(id)))
+    return true
+  })
   register(IPC_CHANNELS.createHabit, (_, description) =>
     mutate(() => handlers.service.createHabit(text(description)))
   )

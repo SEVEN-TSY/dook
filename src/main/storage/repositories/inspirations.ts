@@ -14,7 +14,7 @@ export class InspirationRepository implements InspirationStore {
 
   listTopics(): InspirationTopic[] {
     return this.database
-      .prepare('SELECT id, name FROM inspiration_topics ORDER BY sequence')
+      .prepare('SELECT id, name FROM inspiration_topics ORDER BY sequence DESC')
       .all()
       .map((row) => ({ id: String(row.id), name: String(row.name) }))
   }

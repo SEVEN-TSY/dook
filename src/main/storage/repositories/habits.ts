@@ -6,10 +6,10 @@ import type { HabitStore } from '../../core/habits'
 export class HabitRepository implements HabitStore {
   constructor(private readonly database: DatabaseSync) {}
 
-  list(): Habit[] {
+  list(archived = false): Habit[] {
     return this.database
-      .prepare('SELECT id, description FROM habits ORDER BY sequence')
-      .all()
+      .prepare('SELECT id, description FROM habits WHERE archived = ? ORDER BY sequence')
+      .all(archived ? 1 : 0)
       .map((row) => ({ id: String(row.id), description: String(row.description) }))
   }
 
@@ -54,7 +54,9 @@ export class HabitRepository implements HabitStore {
   update(id: string, description: string, date: string): Habit {
     return this.transaction(() => {
       const row = this.database
-        .prepare('UPDATE habits SET description = ? WHERE id = ? RETURNING id, description')
+        .prepare(
+          'UPDATE habits SET description = ? WHERE id = ? AND archived = 0 RETURNING id, description'
+        )
         .get(description, id)
       if (!row) throw new Error('习惯不存在，可能已删除。')
       this.database
@@ -66,9 +68,49 @@ export class HabitRepository implements HabitStore {
     })
   }
 
-  delete(id: string): void {
-    const result = this.database.prepare('DELETE FROM habits WHERE id = ?').run(id)
-    if (!result.changes) throw new Error('习惯不存在，可能已删除。')
+  delete(id: string, date: string): void {
+    this.transaction(() => {
+      const result = this.database
+        .prepare('DELETE FROM habits WHERE id = ? AND archived = 0')
+        .run(id)
+      if (!result.changes) throw new Error('习惯不存在，可能已删除。')
+      this.database.prepare('DELETE FROM tasks WHERE habit_id = ? AND date = ?').run(id, date)
+    })
+  }
+
+  archive(id: string, date: string): void {
+    this.transaction(() => {
+      const result = this.database
+        .prepare('UPDATE habits SET archived = 1 WHERE id = ? AND archived = 0')
+        .run(id)
+      if (!result.changes) throw new Error('习惯不存在，可能已归档或删除。')
+      this.database.prepare('DELETE FROM tasks WHERE habit_id = ? AND date = ?').run(id, date)
+    })
+  }
+
+  restore(id: string, date: string): void {
+    this.transaction(() => {
+      const row = this.database
+        .prepare(
+          'UPDATE habits SET archived = 0 WHERE id = ? AND archived = 1 RETURNING id, description'
+        )
+        .get(id)
+      if (!row) throw new Error('归档习惯不存在，可能已恢复或删除。')
+      this.database
+        .prepare('DELETE FROM habit_generations WHERE habit_id = ? AND date = ?')
+        .run(id, date)
+      this.generate({ id: String(row.id), description: String(row.description) }, date)
+    })
+  }
+
+  deleteArchived(id: string): void {
+    this.transaction(() => {
+      const result = this.database
+        .prepare('DELETE FROM habits WHERE id = ? AND archived = 1')
+        .run(id)
+      if (!result.changes) throw new Error('归档习惯不存在，可能已恢复或删除。')
+      this.database.prepare('DELETE FROM habit_generations WHERE habit_id = ?').run(id)
+    })
   }
 
   ensureToday(date: string): boolean {

@@ -21,6 +21,7 @@
   --color-accent: var(--app-accent-soft);
   --color-accent-foreground: var(--app-accent-ink);
   --color-muted-foreground: light-dark(#6a7588, #adadad);
+  --color-muted: var(--app-accent-subtle);
   --color-destructive: #c74b55;
   --color-border: var(--app-input-border);
   --color-input: var(--app-input-border);
@@ -34,6 +35,8 @@
 }
 
 [data-slot='button'],
+[data-slot='toggle'],
+[data-slot='toggle-group-item'],
 [data-slot='switch'] {
   border: 0 solid var(--color-border);
   padding: 0;
@@ -46,6 +49,13 @@
 [data-slot='textarea'] {
   border-style: solid;
   color: var(--ui-foreground);
+  font-family: inherit;
+}
+
+/* DropdownMenu needs the border reset normally supplied by Preflight. */
+[data-slot='dropdown-menu-content'] {
+  border-style: solid;
+  border-color: var(--color-border);
   font-family: inherit;
 }
 

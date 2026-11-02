@@ -29,6 +29,22 @@ export class AppService {
     return this.habitStore().list()
   }
 
+  listArchivedHabits(): Habit[] {
+    return this.habitStore().list(true)
+  }
+
+  archiveHabit(id: string): void {
+    this.habitStore().archive(this.taskId(id), localDate(this.now()))
+  }
+
+  restoreHabit(id: string): void {
+    this.habitStore().restore(this.taskId(id), localDate(this.now()))
+  }
+
+  deleteArchivedHabit(id: string): void {
+    this.habitStore().deleteArchived(this.taskId(id))
+  }
+
   createHabit(description: string): Habit {
     if (typeof description !== 'string' || !description.trim())
       throw new Error('习惯描述不能为空。')
@@ -48,7 +64,7 @@ export class AppService {
 
   deleteHabit(id: string): void {
     if (typeof id !== 'string' || !id) throw new Error('习惯标识无效。')
-    this.habitStore().delete(id)
+    this.habitStore().delete(id, localDate(this.now()))
   }
 
   ensureDailyTasks(): boolean {

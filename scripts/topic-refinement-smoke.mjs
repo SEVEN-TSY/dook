@@ -108,6 +108,11 @@ export async function topicRefinementSmoke({ main, note, phase, js, click, input
     true,
     '归集浮层具有可访问关闭入口'
   )
+  assert.equal(
+    await js(main, `document.querySelector('.inspiration-topic-picker label').textContent.trim()`),
+    '持久主题乙',
+    '新建主题在归集列表最上面'
+  )
   await click(main, '.inspiration-topic-picker input[type=checkbox]')
   await waitFor(
     () =>
@@ -119,13 +124,51 @@ export async function topicRefinementSmoke({ main, note, phase, js, click, input
   )
   await js(
     main,
-    `Array.from(document.querySelectorAll('.inspiration-topic-picker label')).find(x => x.textContent.includes('持久主题乙')).querySelector('input').click()`
+    `Array.from(document.querySelectorAll('.inspiration-topic-picker label')).find(x => x.textContent.includes('持久主题甲')).querySelector('input').click()`
   )
   await waitFor(
     async () => (await js(note, 'window.myTodo.listInspirations()')).data[0].topicIds.length === 2,
     '连续多主题同步另一窗口'
   )
   await input(main, '[aria-label="搜索主题"]', '主题乙', null)
+  assert.deepEqual(
+    await js(
+      main,
+      `(() => {
+      const style = getComputedStyle(document.querySelector('[aria-label="清除搜索主题"]'));
+      return [style.width, style.height, style.borderRadius, style.padding];
+    })()`
+    ),
+    ['14px', '14px', '50%', '0px'],
+    '归集浮层复用圆形清除按钮，不受旧按钮样式覆盖'
+  )
+  const originalScheme = await js(main, `document.documentElement.style.colorScheme`)
+  main.webContents.debugger.attach('1.3')
+  try {
+    await main.webContents.debugger.sendCommand('DOM.enable')
+    await main.webContents.debugger.sendCommand('CSS.enable')
+    const { root } = await main.webContents.debugger.sendCommand('DOM.getDocument')
+    const { nodeId } = await main.webContents.debugger.sendCommand('DOM.querySelector', {
+      nodeId: root.nodeId,
+      selector: '[aria-label="清除搜索主题"]'
+    })
+    await js(main, `document.documentElement.style.colorScheme = 'dark'`)
+    await main.webContents.debugger.sendCommand('CSS.forcePseudoState', {
+      nodeId,
+      forcedPseudoClasses: ['hover']
+    })
+    assert.equal(
+      await js(
+        main,
+        `getComputedStyle(document.querySelector('[aria-label="清除搜索主题"]')).backgroundColor`
+      ),
+      'rgb(58, 58, 58)',
+      '深色清除按钮悬停使用中性灰背景'
+    )
+  } finally {
+    main.webContents.debugger.detach()
+    await js(main, `document.documentElement.style.colorScheme = ${JSON.stringify(originalScheme)}`)
+  }
   assert.equal(
     await js(
       main,
@@ -135,19 +178,25 @@ export async function topicRefinementSmoke({ main, note, phase, js, click, input
     '搜索已有主题'
   )
   await input(main, '[aria-label="搜索主题"]', '', null)
+  assert.equal(
+    await js(main, `document.querySelector('[aria-label="创建并归集"]').disabled`),
+    true,
+    '空主题名称禁用回车按钮'
+  )
   await input(main, '[aria-label="新主题名称"]', '   ')
-  await waitFor(
-    () =>
-      js(
-        main,
-        `document.querySelector('.inspiration-topic-picker [role=alert]')?.textContent.includes('主题名称不能为空')`
-      ),
-    '创建失败保留浮层并显示错误'
+  await js(main, `document.querySelector('[aria-label="新主题名称"]').form.requestSubmit()`)
+  assert.equal(
+    await js(
+      main,
+      `document.querySelector('[aria-label="创建并归集"]').disabled && !document.querySelector('.inspiration-topic-picker [role=alert]')`
+    ),
+    true,
+    '纯空格禁用按钮并拦截表单提交'
   )
   assert.equal(
     await js(main, `document.querySelector('[aria-label="新主题名称"]').value`),
     '   ',
-    '创建失败保留输入'
+    '空白提交保留输入'
   )
   await input(main, '[aria-label="新主题名称"]', '关闭丢弃', null)
   await click(main, '[aria-label="关闭主题归集"]')

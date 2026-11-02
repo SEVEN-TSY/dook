@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Check, Palette, Monitor, StickyNote } from 'lucide-react'
+import { Check, Palette, Monitor, StickyNote, Sun, Moon } from 'lucide-react'
+import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Switch } from '../../components/ui/switch'
@@ -43,29 +44,41 @@ export function SettingsPage({ state, hidden }: { state: DesktopState | null; hi
         <div className="appearance-setting">
           <div className="theme-setting-label">
             <strong>外观</strong>
-            <span>浅色、黑灰深色，或跟随系统</span>
           </div>
-          <div className="appearance-options" role="group" aria-label="外观模式">
+          <ToggleGroup
+            type="single"
+            value={state?.settings.appearance ?? 'system'}
+            onValueChange={(appearance) => {
+              if (
+                state &&
+                (appearance === 'system' || appearance === 'light' || appearance === 'dark')
+              )
+                void update({ ...state.settings, appearance })
+            }}
+            disabled={!state || busy}
+            variant="outline"
+            spacing={0}
+            aria-label="外观模式"
+            className="mt-3"
+          >
             {(
               [
-                ['system', '随系统'],
-                ['light', '浅色'],
-                ['dark', '深色']
+                ['system', '随系统', Monitor],
+                ['light', '浅色', Sun],
+                ['dark', '深色', Moon]
               ] as const
-            ).map(([value, label]) => (
-              <Button
+            ).map(([value, label, Icon]) => (
+              <ToggleGroupItem
                 key={value}
-                variant="outline"
-                size="sm"
+                value={value}
+                className="gap-2 px-4 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary data-[state=on]:hover:text-primary-foreground"
                 aria-label={`${label}外观`}
-                aria-pressed={(state?.settings.appearance ?? 'system') === value}
-                disabled={!state || busy}
-                onClick={() => state && void update({ ...state.settings, appearance: value })}
               >
+                <Icon size={16} strokeWidth={1.7} aria-hidden="true" />
                 {label}
-              </Button>
+              </ToggleGroupItem>
             ))}
-          </div>
+          </ToggleGroup>
         </div>
         <div className="theme-setting">
           <div className="theme-setting-label">

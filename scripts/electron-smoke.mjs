@@ -1,5 +1,7 @@
+import { habitArchiveSmoke } from './habit-archive-smoke.mjs'
 import { noteJottingsSmoke } from './note-jottings-smoke.mjs'
 import { appearanceSmoke } from './appearance-smoke.mjs'
+import { listInteractionSmoke } from './list-interaction-smoke.mjs'
 import { inspirationPageSmoke } from './inspiration-page-smoke.mjs'
 import { subitemsSmoke } from './subitems-smoke.mjs'
 import { noteArchiveSmoke } from './note-archive-smoke.mjs'
@@ -844,6 +846,12 @@ async function runSmoke() {
       menuClick('退出')
       return
     }
+    if (phase === 'habit-archive') {
+      await habitArchiveSmoke({ main, note, js, click, input, waitFor, assert })
+      console.log('Electron habit archive smoke passed')
+      menuClick('退出')
+      return
+    }
     if (phase === 'delete-confirmation') {
       await deleteConfirmationSmoke({
         main,
@@ -1384,6 +1392,21 @@ async function runSmoke() {
       menuClick('退出')
       return
     }
+    if (phase === 'list-interaction') {
+      await listInteractionSmoke({
+        main,
+        note,
+        js,
+        click,
+        input,
+        waitFor,
+        capture: async (window, name) =>
+          writeFileSync(resolve(output, name), (await window.webContents.capturePage()).toPNG())
+      })
+      console.log('Electron list interaction smoke passed')
+      menuClick('退出')
+      return
+    }
     if (phase === 'workbench') {
       const captureDesign = async (filename) => {
         await js(
@@ -1497,7 +1520,11 @@ async function runSmoke() {
           ),
         'Escape关闭菜单并返回操作按钮'
       )
-      await click(main, '[data-testid=task-description]')
+      await js(main, `document.querySelector('[aria-label="更多操作：工作台任务"]').focus()`)
+      main.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Down' })
+      main.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Down' })
+      await click(main, '[data-testid=task-details]')
+      await click(main, '.detail-description')
       await input(main, '[data-testid=task-edit]', '更新工作台任务', null)
       await click(main, '.detail-back')
       await waitFor(
@@ -1604,10 +1631,12 @@ async function runSmoke() {
         'Ctrl+Enter在编辑内容中换行'
       )
       await main.webContents.insertText('保留下一行')
-      assert.equal(
-        await js(main, `document.querySelector('.inspiration-row').getBoundingClientRect().height`),
-        inspirationRowHeight,
-        '编辑多行内容保持小记行高'
+      assert.ok(
+        (await js(
+          main,
+          `document.querySelector('.inspiration-row').getBoundingClientRect().height`
+        )) > inspirationRowHeight,
+        '编辑换行时自动增高小记输入框'
       )
       await captureDesign('inspiration-inline-edit.png')
       main.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' })

@@ -159,8 +159,12 @@ export class TaskRepository implements TaskStore {
   create(description: string, date: string): Task {
     const id = randomUUID()
     this.database
-      .prepare('INSERT INTO tasks (id, description, date) VALUES (?, ?, ?)')
-      .run(id, description, date)
+      .prepare(
+        `INSERT INTO tasks (id, description, date, sort_order)
+        SELECT ?, ?, ?, COALESCE(MIN(COALESCE(sort_order, sequence)), 1) - 1
+        FROM tasks WHERE date = ? AND kind = 'today' AND pinned = 0 AND archived_at IS NULL`
+      )
+      .run(id, description, date, date)
     return this.get(id, date)
   }
 

@@ -122,5 +122,10 @@ export const migrations = [
     name: 'task_archive',
     sql: `ALTER TABLE tasks ADD COLUMN archived_at TEXT;
       CREATE INDEX tasks_archive_order ON tasks(archived_at DESC, sequence DESC);`
+  },
+  {
+    version: 13,
+    name: 'habit_archive',
+    sql: `ALTER TABLE habits ADD COLUMN archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0, 1));`
   }
 ] as const

@@ -1,5 +1,7 @@
 /* Shared by the desktop note and the full workspace. No window geometry lives here. */
 :root {
+  --app-scrollbar: light-dark(#6a75884d, #88888866);
+  --app-scrollbar-hover: light-dark(#6a758873, #88888899);
   --app-panel: light-dark(#ffffff, #202020);
   --app-accent: #526fc4;
   --app-accent-foreground: #ffffff;
@@ -22,8 +24,42 @@
   --app-inspiration: light-dark(#ad7c16, #d9bc70);
   --app-inspiration-surface: light-dark(#fff9e8, #332d20);
 }
-.task-check {
-  accent-color: var(--app-accent);
+/* Structural focus targets restore focus without drawing a selection frame. */
+:is(main, section, aside, div)[tabindex='-1']:focus {
+  outline: none;
+}
+
+/* All checkbox surfaces share the task-list control, including topic selection. */
+input[type='checkbox']:not([role='switch']) {
+  appearance: none;
+  display: grid;
+  place-content: center;
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  border: 1.5px solid var(--app-input-border);
+  border-radius: 5px;
+  background: light-dark(#fff, #202020);
+  flex: none;
+  cursor: pointer;
+}
+input[type='checkbox']:not([role='switch'])::before {
+  content: '';
+  width: 8px;
+  height: 5px;
+  border: solid var(--app-accent-foreground);
+  border-width: 0 0 1.5px 1.5px;
+  transform: translateY(-1px) rotate(-45deg) scale(0);
+}
+input[type='checkbox']:not([role='switch']):checked {
+  background: var(--app-accent);
+  border-color: var(--app-accent);
+}
+input[type='checkbox']:not([role='switch']):checked::before {
+  transform: translateY(-1px) rotate(-45deg) scale(1);
+}
+input[type='checkbox']:not([role='switch']):hover {
+  border-color: var(--app-accent);
 }
 .clearable-input {
   position: relative;
@@ -37,20 +73,15 @@
   min-width: 0;
   width: 100%;
 }
-.clearable-textarea > button.input-clear,
-.clearable-input > button.input-clear,
-.workbench .clearable-input > button.input-clear,
-.note .clearable-input > button.input-clear {
-  position: absolute;
-  top: 50%;
-  right: 6px;
-  transform: translateY(-50%);
+/* Compact shared draft clear action. */
+button.draft-clear,
+.workbench button.draft-clear,
+.note button.draft-clear {
   display: grid;
   place-items: center;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   min-height: 0;
-  margin: 0;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -58,10 +89,19 @@
   color: light-dark(#788395, #adadad);
   cursor: pointer;
 }
-.clearable-textarea > button.input-clear:hover,
-.clearable-input > button.input-clear:hover {
-  background: light-dark(#d6dce6, #2b2b2b);
+button.draft-clear:hover,
+.workbench button.draft-clear:hover,
+.note button.draft-clear:hover {
+  background: light-dark(#d6dce6, #3a3a3a);
   color: light-dark(#465064, #e3e3e3);
+}
+.clearable-textarea > .input-clear,
+.clearable-input > .input-clear {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  margin: 0;
 }
 .note-progress-ring {
   position: absolute;
@@ -104,4 +144,42 @@
   .note-progress-value {
     transition: none;
   }
+}
+
+/* Only the note uses the smaller clear action. */
+.note button.draft-clear {
+  width: 12px;
+  height: 12px;
+}
+.note button.draft-clear > svg {
+  width: 8px;
+  height: 8px;
+}
+.app-toast {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 120;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 6px 10px;
+  border: 1px solid var(--app-border);
+  border-radius: 7px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  box-shadow: 0 3px 12px rgb(25 32 45 / 12%);
+  font-size: 12px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+.app-toast.is-error {
+  color: light-dark(#924c4c, #e69b9f);
+}
+html[data-window='note'] .app-toast {
+  top: 48px;
+  max-width: calc(100vw - 40px);
+  padding: 5px 8px;
+  font-size: 11px;
 }

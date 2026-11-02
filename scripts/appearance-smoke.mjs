@@ -19,6 +19,7 @@ export async function appearanceSmoke({ main, note, phase, js, click, waitFor, c
   }
   assert.equal((await state()).settings.appearance, 'system', '旧配置及首次使用默认随系统')
   await click(note, '[data-testid=note-settings]')
+  assert.equal(await js(main, `document.querySelector('[data-slot="toggle-group"] [value="system"]')?.getAttribute('aria-checked') ?? document.querySelector('[aria-label="随系统外观"]').getAttribute('aria-checked')`), 'true', 'shadcn单选组默认随系统')
   await click(main, '[aria-label="深色外观"]')
   await waitFor(
     async () => (await theme(main)) === 'dark' && (await theme(note)) === 'dark',

@@ -104,24 +104,21 @@ async function habitMaintenanceSmoke({ phase, main, note, input, click, js, wait
         description,
         '编辑习惯保留已有任务内容'
       )
-      await click(main, `[data-habit-id="${linked.habitId}"] [data-testid=habit-delete]`)
-      await click(main, '[data-testid=delete-confirm]')
+      await click(main, `[data-habit-id="${linked.habitId}"] [data-testid=habit-archive]`)
       await waitFor(
         async () => !(await habits()).some((item) => item.id === linked.habitId),
         '删除习惯'
       )
       for (const target of [main, note]) {
         await waitFor(
-          () =>
-            js(
-              target,
-              `Boolean(document.querySelector('[data-task-id="${task.id}"] [data-testid=habit-source]'))`
-            ),
-          '删除习惯后历史来源保留'
+          () => js(target, `!document.querySelector('[data-task-id="${task.id}"]')`),
+          '删除习惯后当天任务从两窗口移除'
         )
       }
-      assert.equal((await tasks()).find((item) => item.id === task.id).completed, true)
-      await js(window, `window.myTodo.deleteTask(${JSON.stringify(task.id)})`)
+      assert.equal(
+        (await tasks()).find((item) => item.id === task.id),
+        undefined
+      )
       await waitFor(async () => (await tasks()).length === before, '清理维护场景任务')
     }
     await input(note, '[data-testid=task-new]', persistedDescription)

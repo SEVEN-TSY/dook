@@ -30,6 +30,10 @@ const api: DesktopApi = {
     return () => ipcRenderer.removeListener(SAVE_REQUEST, callback)
   },
   listHabits: () => ipcRenderer.invoke(IPC_CHANNELS.listHabits),
+  listArchivedHabits: () => ipcRenderer.invoke(IPC_CHANNELS.listArchivedHabits),
+  archiveHabit: (id) => ipcRenderer.invoke(IPC_CHANNELS.archiveHabit, id),
+  restoreHabit: (id) => ipcRenderer.invoke(IPC_CHANNELS.restoreHabit, id),
+  deleteArchivedHabit: (id) => ipcRenderer.invoke(IPC_CHANNELS.deleteArchivedHabit, id),
   createHabit: (description) => ipcRenderer.invoke(IPC_CHANNELS.createHabit, description),
   createHabitFromTask: (taskId) => ipcRenderer.invoke(IPC_CHANNELS.createHabitFromTask, taskId),
   updateHabit: (id, description) => ipcRenderer.invoke(IPC_CHANNELS.updateHabit, id, description),

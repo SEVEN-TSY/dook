@@ -151,6 +151,8 @@ export async function deleteConfirmationSmoke({
   await expectFocus(note, '.task-list', '删除归档行后焦点保留在稳定的任务列表')
   const habit = (await js(note, `window.myTodo.createHabit('习惯删除验证')`)).data
   await click(main, '.workbench-nav [aria-label="习惯"]')
+  await click(main, `[data-habit-id="${habit.id}"] [data-testid=habit-archive]`)
+  await click(main, '[aria-label="已归档习惯"]')
   const habitDelete = `[data-habit-id="${habit.id}"] [data-testid=habit-delete]`
   await focus(main, habitDelete)
   await click(main, habitDelete)
@@ -160,7 +162,7 @@ export async function deleteConfirmationSmoke({
   )
   assert.match(
     await js(main, 'document.querySelector("[role=alertdialog]").textContent'),
-    /已生成的任务会保留/
+    /习惯将被永久删除，无法恢复，历史任务保留/
   )
   const mainProtectionBounds = note.getBounds()
   const mainProtectionArea = screen.getDisplayMatching(mainProtectionBounds).workArea
@@ -234,7 +236,7 @@ export async function deleteConfirmationSmoke({
       '重开主窗口不遗留旧确认'
     )
     assert.ok(
-      (await js(note, 'window.myTodo.listHabits()')).data.some((x) => x.id === habit.id),
+      (await js(note, 'window.myTodo.listArchivedHabits()')).data.some((x) => x.id === habit.id),
       '隐藏窗口取消不删除习惯'
     )
     mainProtectionPointer = { x: mainProtectionArea.x + 20, y: mainProtectionArea.y + 100 }
@@ -248,7 +250,9 @@ export async function deleteConfirmationSmoke({
     note.emit('moved')
     screen.getCursorScreenPoint = mainProtectionCursor
   }
-  assert.ok((await js(note, 'window.myTodo.listHabits()')).data.some((x) => x.id === habit.id))
+  assert.ok(
+    (await js(note, 'window.myTodo.listArchivedHabits()')).data.some((x) => x.id === habit.id)
+  )
   await click(main, habitDelete)
   main.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' })
   await waitFor(() => js(main, '!document.querySelector("[role=alertdialog]")'), '主界面Esc取消')
@@ -256,7 +260,8 @@ export async function deleteConfirmationSmoke({
   await click(main, `[data-habit-id="${habit.id}"] [data-testid=habit-delete]`)
   await click(main, '[data-testid=delete-confirm]')
   await waitFor(
-    async () => !(await js(note, 'window.myTodo.listHabits()')).data.some((x) => x.id === habit.id),
+    async () =>
+      !(await js(note, 'window.myTodo.listArchivedHabits()')).data.some((x) => x.id === habit.id),
     '习惯确认删除'
   )
   await waitFor(
@@ -265,8 +270,8 @@ export async function deleteConfirmationSmoke({
   )
   await expectFocus(main, '.workbench-main', '删除习惯行后焦点保留在稳定的当前页面')
   assert.ok(
-    (await js(note, 'window.myTodo.listToday()')).data.tasks.some((x) => x.habitId === habit.id),
-    '删除习惯保留已生成任务'
+    !(await js(note, 'window.myTodo.listToday()')).data.tasks.some((x) => x.habitId === habit.id),
+    '删除习惯清理当天任务'
   )
   const topic = (await js(note, `window.myTodo.createInspirationTopic('删除关联主题')`)).data
   const idea = (await js(note, `window.myTodo.createInspiration('保留关联小记', '${topic.id}')`))
@@ -346,8 +351,16 @@ export async function deleteConfirmationSmoke({
   )
   await click(main, '.workbench-nav [aria-label="任务"]')
   const editable = (await js(note, `window.myTodo.createTask('返回保存验证')`)).data
-  await click(main, `[data-task-id="${editable.id}"] [data-testid=task-description]`)
-  await input(main, '.workbench-detail [data-testid=task-edit]', '返回前草稿', null)
+  await waitFor(
+    () => js(main, `Boolean(document.querySelector('[data-task-id="${editable.id}"] .task-more'))`),
+    '返回保存任务同步主界面'
+  )
+  await js(
+    main,
+    `document.querySelector('[data-task-id="${editable.id}"] .task-more').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, ctrlKey: false, pointerType: 'mouse' }))`
+  )
+  await click(main, '[data-testid=task-details]')
+  await input(main, '.workbench-detail [data-testid=subitem-new]', '返回前草稿', null)
   const db = new DatabaseSync(resolve(process.env.MYTODO_SMOKE_DATA, 'mytodo.sqlite'))
   try {
     db.exec(
@@ -359,7 +372,7 @@ export async function deleteConfirmationSmoke({
       '返回保存失败反馈'
     )
     assert.equal(
-      await js(main, 'document.querySelector(".workbench-detail [data-testid=task-edit]").value'),
+      await js(main, 'document.querySelector(".workbench-detail [data-testid=subitem-new]").value'),
       '返回前草稿',
       '失败保留详情和草稿'
     )
@@ -372,7 +385,7 @@ export async function deleteConfirmationSmoke({
   await waitFor(() => js(main, '!document.querySelector(".workbench-detail")'), '成功返回列表')
   assert.equal(
     (await js(note, 'window.myTodo.listToday()')).data.tasks.find((x) => x.id === editable.id)
-      .description,
+      .subitems[0].description,
     '返回前草稿'
   )
   const skippedHabit = (await js(note, `window.myTodo.createHabit('直接暂停验证')`)).data

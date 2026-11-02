@@ -51,13 +51,58 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
     `(async () => { const {settings} = (await window.myTodo.getWindowState()).data; await window.myTodo.updateSettings({...settings, appearance:'light', edgeAutoHide:false}) })()`
   )
   const before = note.getContentSize()
+  const heading = await js(
+    note,
+    `(() => {
+    const header = document.querySelector('.task-heading');
+    const title = header.querySelector('h1');
+    const date = header.querySelector('.task-date');
+    const divider = document.querySelector('.note-page-divider').getBoundingClientRect();
+    const panel = document.querySelector('.tasks-page.note').getBoundingClientRect();
+    const pages = document.querySelector('.note-pages').getBoundingClientRect();
+    return { title: title.textContent, date: date.textContent,
+      sameLine: Math.abs(title.getBoundingClientRect().bottom - date.getBoundingClientRect().bottom) < 5,
+      fullWidth: Math.abs(divider.left - panel.left - 1) < 1 && Math.abs(divider.right - panel.right + 1) < 1,
+      gap: pages.top - divider.bottom };
+  })()`
+  )
+  assert.equal(heading.title, '今天')
+  assert.match(heading.date, /^\d+月\d+日 · 周[一二三四五六日]$/)
+  assert.ok(heading.sameLine, '任务标题和日期同排')
+  assert.ok(heading.fullWidth, '分隔线贯穿便签内容表面')
+  assert.equal(heading.gap, 4, '列表紧接分隔线')
+  await capture(note, 'note-header-task.png')
   await click(note, '[data-testid=new-kind-inspiration]')
   await waitFor(
     () => js(note, `document.querySelector('.task-heading h1')?.textContent === '小记'`),
     '类别切换显示小记页'
   )
   assert.equal((await visible()).length, 1, '显示今天的小记')
+  assert.equal(
+    await js(note, `document.querySelector('.task-heading .task-date').textContent`),
+    '今天 · 1条'
+  )
+  assert.equal(
+    await js(
+      note,
+      `getComputedStyle(document.querySelector('.note-jotting-marker'), '::before').borderRadius`
+    ),
+    '50%'
+  )
   await js(main, `window.myTodo.createInspiration('最近一条小记')`)
+  assert.equal(
+    await js(
+      note,
+      `(() => {
+    const marker = document.querySelector('.note-jotting-marker');
+    const probe = document.createElement('span'); probe.style.color = 'var(--app-accent)'; marker.append(probe);
+    const same = getComputedStyle(marker, '::before').backgroundColor === getComputedStyle(probe).color;
+    probe.remove(); return same;
+  })()`
+    ),
+    true,
+    '小记圆点使用主题色'
+  )
   await waitFor(async () => (await visible()).length === 2, '新增跨窗口同步')
   assert.equal((await visible())[0], '最近一条小记', '小记按记录时间倒序')
   assert.deepEqual(note.getContentSize(), before, '切页尺寸不变')
@@ -107,6 +152,74 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
     false,
     '归档同步主界面读取结果'
   )
+  const archiveCount = () =>
+    js(
+      note,
+      `document.querySelector('[data-testid=jotting-archive-toggle] .note-group-count').textContent`
+    )
+  await waitFor(async () => (await archiveCount()) === '2', '小记归档数量同步')
+  assert.equal(
+    await js(
+      note,
+      `document.querySelector('[data-testid=jotting-archive-toggle]').getAttribute('aria-expanded')`
+    ),
+    'false',
+    '已归档默认折叠'
+  )
+  await click(note, '[data-testid=jotting-archive-toggle]')
+  const archivedRow = (text) => `[data-archived-jotting-id]:has([title="${text}"])`
+  await click(note, `${archivedRow('日期筛选后的小记')} [title="恢复小记"]`)
+  await waitFor(
+    async () => (await visible()).length === 3 && (await archiveCount()) === '1',
+    '当天小记恢复到列表'
+  )
+  await click(note, '[data-note-jotting-id] button')
+  await waitFor(
+    async () => (await visible()).length === 2 && (await archiveCount()) === '2',
+    '再次归档保留展开状态'
+  )
+  await js(main, `window.myTodo.archiveInspiration('${excluded.old}')`)
+  await js(main, `window.myTodo.archiveInspiration('${excluded.legacy}')`)
+  const dateProbe = await js(
+    main,
+    `(async () => {
+    const idea = (await window.myTodo.createInspiration('归档日期边界验收')).data;
+    await window.myTodo.archiveInspiration(idea.id);
+    return idea.id;
+  })()`
+  )
+  await waitFor(async () => (await archiveCount()) === '3', '当天归档小记跨窗口同步')
+  assert.equal(
+    await js(
+      note,
+      `Array.from(document.querySelectorAll('[data-archived-jotting-id]')).some(x => /昨天的小记|无日期的小记/.test(x.textContent))`
+    ),
+    false,
+    '已归档也仅显示今天记录的小记'
+  )
+  await js(main, `window.myTodo.deleteArchivedInspiration('${dateProbe}')`)
+  await waitFor(async () => (await archiveCount()) === '2', '删除同步归档计数')
+  const remove = `${archivedRow('已归档的小记')} [title="永久删除小记"]`
+  await js(note, `document.querySelector(${JSON.stringify(remove)}).focus()`)
+  await click(note, remove)
+  await waitFor(
+    () => js(note, `Boolean(document.querySelector('[role=alertdialog]'))`),
+    '归档小记使用应用内删除确认'
+  )
+  await click(note, '[data-testid=delete-cancel]')
+  assert.equal(await archiveCount(), '2', '取消删除保留小记')
+  await click(note, remove)
+  await click(note, '[data-testid=delete-confirm]')
+  await waitFor(async () => (await archiveCount()) === '1', '确认永久删除小记')
+  assert.equal(
+    (await js(main, `window.myTodo.listInspirationPage(0,100,{kind:'archive'})`)).data.items.some(
+      (x) => x.description === '已归档的小记'
+    ),
+    false,
+    '删除同步另一窗口'
+  )
+  await capture(note, 'note-jottings-archived.png')
+  await click(note, '[data-testid=jotting-archive-toggle]')
   await js(
     main,
     `(async () => { for(let i=0;i<18;i++) { await window.myTodo.createInspiration('长列表小记'+i); await window.myTodo.createTask('长列表任务'+i) } })()`
@@ -134,15 +247,25 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
     const pane = document.querySelector('[data-note-page=task]');
     const start = pane.getBoundingClientRect().left;
     document.querySelector('[data-testid=new-kind-${target}]').click();
-    const positions=[];
-    for(let i=0;i<8;i++) { await new Promise(requestAnimationFrame); positions.push(pane.getBoundingClientRect().left); }
-    return {start, positions};
+    const divider = document.querySelector('.note-page-divider-track');
+    const dividerStart = divider.getBoundingClientRect().left;
+    const positions=[], dividerPositions=[];
+    for(let i=0;i<8;i++) {
+      await new Promise(requestAnimationFrame);
+      positions.push(pane.getBoundingClientRect().left);
+      dividerPositions.push(divider.getBoundingClientRect().left);
+    }
+    return {start, positions, dividerStart, dividerPositions};
   })()`
     )
   const left = await motion('inspiration')
   assert.ok(
     left.positions.some((x) => x < left.start - 1),
     '切到小记时任务向左移动'
+  )
+  assert.ok(
+    left.dividerPositions.some((x) => x < left.dividerStart - 1),
+    '黄色分隔线从右向左进入'
   )
   await mode('inspiration')
   await settled()
@@ -156,6 +279,10 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
   assert.ok(
     right.positions.some((x) => x > right.start + 1),
     '返回任务时整体向右移动'
+  )
+  assert.ok(
+    right.dividerPositions.some((x) => x > right.dividerStart + 1),
+    '主题色分隔线从左向右恢复'
   )
   await mode('task')
   await settled()
@@ -239,6 +366,7 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
       `window.smokeRealDate = Date; window.Date = class extends window.smokeRealDate { constructor(...args) { super(...(args.length ? args : [window.smokeRealDate.now()+86400000])) } }; void 0`
     )
     await waitFor(async () => (await visible()).length === 0, '跨日清空昨天的小记')
+    await waitFor(async () => (await archiveCount()) === '0', '跨日清空昨天的归档小记')
     await js(main, `window.myTodo.createInspiration('新一天的小记')`)
     await waitFor(async () => (await visible()).length === 1, '跨日继续记录')
     assert.equal((await visible())[0], '新一天的小记')

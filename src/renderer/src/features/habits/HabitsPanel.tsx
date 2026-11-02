@@ -1,8 +1,12 @@
+import { Archive, RotateCcw, Trash2 } from 'lucide-react'
+import { Toast } from '../../components/Toast'
 import { AppIcon } from '../../components/AppIcon'
 import { useDeleteConfirmation } from '../../components/DeleteConfirmation'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/ui/button'
 import { InlineComposer } from '../shared/InlineComposer'
+import { ListDescription } from '../shared/ListDescription'
+import { useHabitEdit } from './useHabitEdit'
 import type { Habit } from '../../../../shared/contracts'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
 
@@ -15,21 +19,24 @@ interface Props {
 export function HabitsPanel({ onSaveReady, composerOpen, onComposerOpenChange }: Props) {
   const deletion = useDeleteConfirmation()
   const [habits, setHabits] = useState<Habit[]>([])
+  const [archivedHabits, setArchivedHabits] = useState<Habit[]>([])
+  const [archiveView, setArchiveView] = useState(false)
   const [value, setValue] = useState('')
-  const [editingId, setEditingId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const text = useRef('')
-  const editing = useRef<string | null>(null)
   const field = useRef<HTMLTextAreaElement>(null)
   const pending = useRef<Promise<boolean> | null>(null)
   const composing = useRef(false)
   const saveAfterComposition = useRef(false)
   const save = useRef(async () => true)
+  const edited = useHabitEdit(setError, (habit) => {
+    setHabits((current) => current.map((item) => (item.id === habit.id ? habit : item)))
+  })
+  const flush = useRef(async () => true)
+  flush.current = async () => (await save.current()) && (await edited.save())
   const clear = () => {
-    editing.current = null
     text.current = ''
-    setEditingId(null)
     setValue('')
   }
   save.current = () => {
@@ -39,19 +46,14 @@ export function HabitsPanel({ onSaveReady, composerOpen, onComposerOpenChange }:
       return Promise.resolve(false)
     }
     if (!text.current.trim()) {
-      if (editing.current) {
-        setError('习惯描述不能为空。')
-        return Promise.resolve(false)
-      }
       return Promise.resolve(true)
     }
     const description = text.current.trim()
-    const id = editing.current
     setBusy(true)
     pending.current = (async () => {
       try {
         const api = getDesktopApi()
-        unwrap(await (id ? api.updateHabit(id, description) : api.createHabit(description)))
+        unwrap(await api.createHabit(description))
         clear()
         setError('')
         return true
@@ -66,17 +68,26 @@ export function HabitsPanel({ onSaveReady, composerOpen, onComposerOpenChange }:
     return pending.current
   }
   useEffect(() => {
-    if (composerOpen) field.current?.focus()
+    if (composerOpen) {
+      setArchiveView(false)
+      requestAnimationFrame(() => field.current?.focus())
+    }
   }, [composerOpen])
-  useEffect(() => onSaveReady(() => save.current()), [onSaveReady])
+  useEffect(() => onSaveReady(() => flush.current()), [onSaveReady])
   useEffect(() => {
     let active = true
     let request = 0
     const refresh = async () => {
       const version = ++request
       try {
-        const result = unwrap(await getDesktopApi().listHabits())
-        if (active && version === request) setHabits(result)
+        const api = getDesktopApi()
+        const [result, archived] = await Promise.all([api.listHabits(), api.listArchivedHabits()])
+        const current = unwrap(result)
+        const archive = unwrap(archived)
+        if (active && version === request) {
+          setHabits(current)
+          setArchivedHabits(archive)
+        }
       } catch (error) {
         if (active && version === request)
           setError(error instanceof Error ? error.message : '读取习惯失败。')
@@ -92,57 +103,75 @@ export function HabitsPanel({ onSaveReady, composerOpen, onComposerOpenChange }:
     }
   }, [])
   const edit = async (habit: Habit) => {
-    if (!(await save.current())) return
-    editing.current = habit.id
-    text.current = habit.description
-    setEditingId(habit.id)
-    setValue(habit.description)
+    if (edited.id === habit.id) return
+    if (!(await flush.current())) return
+    edited.start(habit)
     setError('')
-    onComposerOpenChange(true)
-    requestAnimationFrame(() => field.current?.focus())
   }
-  const remove = async (id: string) => {
-    if (pending.current && !(await pending.current)) return
-    if (editing.current && editing.current !== id && !(await save.current())) return
+  const act = async (habit: Habit, action: 'archive' | 'restore' | 'delete') => {
+    if (busy || !(await flush.current())) return
     setBusy(true)
     try {
-      const habit = habits.find((item) => item.id === id)
-      if (
-        !habit ||
-        !(await deletion.confirm({
-          title: '删除习惯',
-          description: '停止这个习惯？',
-          detail: `${habit.description}。已生成的任务会保留。`
-        }))
-      )
-        return
-      if (unwrap(await getDesktopApi().deleteHabit(id))) {
-        if (editing.current === id) clear()
-        setError('')
+      const api = getDesktopApi()
+      if (action === 'delete') {
+        if (
+          !(await deletion.confirm({
+            title: '永久删除习惯',
+            description: '永久删除这个习惯？',
+            detail: `${habit.description}。习惯将被永久删除，无法恢复，历史任务保留。`
+          }))
+        )
+          return
+        unwrap(await api.deleteArchivedHabit(habit.id))
+      } else if (action === 'archive') {
+        unwrap(await api.archiveHabit(habit.id))
+      } else {
+        unwrap(await api.restoreHabit(habit.id))
       }
+      setError('')
     } catch (error) {
-      setError(error instanceof Error ? error.message : '删除习惯失败。')
+      setError(error instanceof Error ? error.message : '习惯操作失败，请重试。')
     } finally {
       setBusy(false)
     }
   }
   return (
     <section className="habits-panel" aria-label="习惯管理">
-      <h2>
-        全部习惯 <span>{habits.length}</span>
-      </h2>
-      <p className="habit-hint">每天自动放入今天任务</p>
+      <div className="habit-view-switch" aria-label="习惯分组">
+        {([false, true] as const).map((archived) => (
+          <Button
+            key={String(archived)}
+            variant="ghost"
+            size="sm"
+            aria-pressed={archiveView === archived}
+            aria-label={archived ? '已归档习惯' : '全部习惯'}
+            disabled={busy}
+            onClick={async () => {
+              if (await flush.current()) {
+                edited.start()
+                setArchiveView(archived)
+              }
+            }}
+          >
+            {archived ? '已归档' : '全部习惯'}
+            <span>{archived ? archivedHabits.length : habits.length}</span>
+          </Button>
+        ))}
+      </div>
       <InlineComposer
         ref={field}
-        expanded={composerOpen}
+        expanded={composerOpen && !archiveView}
+        onDismiss={async () => {
+          if (await save.current()) onComposerOpenChange(false)
+        }}
         tone="habit"
-        data-testid={editingId ? 'habit-edit-input' : 'habit-new'}
-        aria-label={editingId ? '编辑习惯描述' : '新增习惯描述'}
-        placeholder={editingId ? '修改固定工作…' : '记下一项每天重复的工作…'}
+        data-testid="habit-new"
+        aria-label="新增习惯描述"
+        placeholder="记下一项每天重复的工作…"
         value={value}
         disabled={busy}
         saving={busy}
-        submitLabel={editingId ? '保存修改' : '添加习惯'}
+        submitLabel="添加习惯"
         onValueChange={(value) => {
           text.current = value
           setValue(value)
@@ -168,7 +197,7 @@ export function HabitsPanel({ onSaveReady, composerOpen, onComposerOpenChange }:
           }
         }}
       />
-      {habits.length === 0 && (
+      {!archiveView && habits.length === 0 && (
         <div className="workbench-empty">
           <span className="empty-icon">
             <AppIcon name="habit" />
@@ -177,47 +206,89 @@ export function HabitsPanel({ onSaveReady, composerOpen, onComposerOpenChange }:
           <span>新增习惯后，每天自动生成一项今天任务</span>
         </div>
       )}
+      {archiveView && archivedHabits.length === 0 && (
+        <p className="inspiration-empty">还没有已归档习惯。</p>
+      )}
       <ul className="habit-list">
-        {habits.map((habit) => (
-          <li key={habit.id} data-habit-id={habit.id}>
-            <span className="habit-symbol">
-              <AppIcon name="habit" />
-            </span>
-            <span data-testid="habit-description">{habit.description}</span>
-            <small className="habit-frequency">每天</small>
-            <Button
-              variant="ghost"
-              size="sm"
-              type="button"
-              data-testid="habit-edit"
-              disabled={busy}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => void edit(habit)}
-              aria-label={`编辑习惯：${habit.description}`}
-            >
-              编辑
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              type="button"
-              data-testid="habit-delete"
-              disabled={busy}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => void remove(habit.id)}
-              aria-label={`删除习惯：${habit.description}`}
-            >
-              删除
-            </Button>
+        {(archiveView ? archivedHabits : habits).map((habit) => (
+          <li key={habit.id} data-habit-id={habit.id} className="main-list-row">
+            <div className="habit-description">
+              {archiveView ? (
+                <span className="habit-archived-description" title={habit.description}>
+                  {habit.description}
+                </span>
+              ) : (
+                <ListDescription
+                  description={habit.description}
+                  editing={edited.id === habit.id}
+                  draft={edited}
+                  onEdit={() => edit(habit)}
+                  label="编辑习惯描述"
+                  testId="habit-edit-input"
+                  previewTestId="habit-description"
+                />
+              )}
+            </div>
+            <div className="main-list-actions">
+              {archiveView ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    title="恢复习惯"
+                    aria-label="恢复习惯"
+                    data-testid="habit-restore"
+                    disabled={busy}
+                    onClick={() => void act(habit, 'restore')}
+                  >
+                    <RotateCcw size={15} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    title="永久删除习惯"
+                    aria-label="永久删除习惯"
+                    data-testid="habit-delete"
+                    disabled={busy}
+                    onClick={() => void act(habit, 'delete')}
+                  >
+                    <Trash2 size={15} />
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    type="button"
+                    data-testid="habit-edit"
+                    disabled={busy}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => void edit(habit)}
+                    aria-label={`编辑习惯：${habit.description}`}
+                  >
+                    编辑
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    title="归档习惯"
+                    aria-label={`归档习惯：${habit.description}`}
+                    data-testid="habit-archive"
+                    disabled={busy}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => void act(habit, 'archive')}
+                  >
+                    <Archive size={15} />
+                  </Button>
+                </>
+              )}
+            </div>
           </li>
         ))}
       </ul>
 
-      {error && (
-        <p className="task-error" role="alert">
-          {error}
-        </p>
-      )}
+      <Toast message={error} onDismiss={() => setError('')} />
     </section>
   )
 }

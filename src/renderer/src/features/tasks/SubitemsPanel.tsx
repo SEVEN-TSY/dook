@@ -6,6 +6,7 @@ import { getDesktopApi, unwrap } from '../../platform/desktop'
 import { useSerialSave } from '../shared/useSerialSave'
 
 interface Props {
+  defaultExpanded?: boolean
   task: Task
   changed: () => Promise<void>
   report: (message: string) => void
@@ -19,8 +20,15 @@ interface Draft {
   observed?: boolean
 }
 
-export function SubitemsPanel({ task, changed, report, onSaveReady, onInteraction }: Props) {
-  const [expanded, setExpanded] = useState(false)
+export function SubitemsPanel({
+  task,
+  changed,
+  report,
+  onSaveReady,
+  onInteraction,
+  defaultExpanded = false
+}: Props) {
+  const [expanded, setExpanded] = useState(defaultExpanded)
   const [draft, setDraft] = useState<Draft>({ text: '', saved: '' })
   const current = useRef(draft)
   const [mutating, setMutating] = useState(false)

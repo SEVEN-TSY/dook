@@ -16,8 +16,10 @@ function PopoverContent({
   className,
   align = 'center',
   sideOffset = 4,
+  showArrow = false,
+  children,
   ...props
-}: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+}: React.ComponentProps<typeof PopoverPrimitive.Content> & { showArrow?: boolean }) {
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Content
@@ -29,7 +31,23 @@ function PopoverContent({
           className
         )}
         {...props}
-      />
+      >
+        {children}
+        {showArrow && (
+          <PopoverPrimitive.Arrow asChild width={16} height={8}>
+            <svg viewBox="0 0 30 10" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M0 0H30L15 10Z" className="fill-popover" />
+              <path
+                d="M0 0 15 10 30 0"
+                fill="none"
+                stroke="var(--app-border)"
+                strokeWidth="1"
+                vectorEffect="non-scaling-stroke"
+              />
+            </svg>
+          </PopoverPrimitive.Arrow>
+        )}
+      </PopoverPrimitive.Content>
     </PopoverPrimitive.Portal>
   )
 }

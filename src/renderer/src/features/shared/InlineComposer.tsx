@@ -1,5 +1,6 @@
-import { CornerDownLeft, Plus, X } from 'lucide-react'
-import { useImperativeHandle, useRef } from 'react'
+import { CornerDownLeft, Plus } from 'lucide-react'
+import { ClearButton } from '../../components/ui/clear-button'
+import { useEffect, useImperativeHandle, useRef } from 'react'
 import type { ComponentProps, KeyboardEvent } from 'react'
 
 export function handleComposerKeyDown(
@@ -32,6 +33,7 @@ type Props = Omit<ComponentProps<'textarea'>, 'onChange' | 'onSubmit' | 'value'>
   multiline?: boolean
   tone?: 'task' | 'habit' | 'inspiration'
   expanded?: boolean
+  onDismiss?: () => void | Promise<void>
 }
 
 export function ComposerToggle({
@@ -72,13 +74,33 @@ export function InlineComposer({
   multiline = false,
   tone = 'task',
   expanded = true,
+  onDismiss,
   className = '',
   ...fieldProps
 }: Props) {
   const field = useRef<HTMLTextAreaElement>(null)
+  const form = useRef<HTMLFormElement>(null)
   useImperativeHandle(ref, () => field.current!, [])
+  useEffect(() => {
+    if (!expanded || !onDismiss) return
+    const dismiss = (event: MouseEvent) => {
+      const target = event.target
+      if (!(target instanceof Element) || !form.current?.checkVisibility()) return
+      if (form.current.contains(target)) return
+      if (
+        target.closest(
+          'button, a, input, textarea, select, label, [role="dialog"], [role="menu"], [contenteditable="true"]'
+        )
+      )
+        return
+      void onDismiss()
+    }
+    document.addEventListener('click', dismiss)
+    return () => document.removeEventListener('click', dismiss)
+  }, [expanded, onDismiss])
   return (
     <form
+      ref={form}
       className={`inline-composer composer-${tone} ${className}`}
       hidden={!expanded}
       aria-busy={saving}
@@ -106,20 +128,13 @@ export function InlineComposer({
           )
         }
       />
-      {onClear && value.length > 0 && !fieldProps.disabled && !fieldProps.readOnly && (
-        <button
-          type="button"
+      {value.length > 0 && !fieldProps.disabled && !fieldProps.readOnly && (
+        <ClearButton
           className="composer-clear"
-          aria-label={`清除${fieldProps['aria-label'] ?? '输入内容'}`}
-          title="清除"
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => {
-            onClear()
-            field.current?.focus({ preventScroll: true })
-          }}
-        >
-          <X size={12} aria-hidden="true" />
-        </button>
+          label={fieldProps['aria-label'] ?? '输入内容'}
+          onClear={onClear ?? (() => onValueChange(''))}
+          focusField={() => field.current?.focus({ preventScroll: true })}
+        />
       )}
       <button
         type="submit"
