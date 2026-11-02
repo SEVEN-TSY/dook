@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
 import { inspirationSmoke } from './inspiration-smoke.mjs'
+import { topicRefinementSmoke } from './topic-refinement-smoke.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const output = resolve(root, '.local/smoke')
@@ -823,6 +824,12 @@ async function runSmoke() {
           writeFileSync(resolve(output, name), (await window.webContents.capturePage()).toPNG())
       })
       console.log(`Electron note archive smoke passed: ${phase}`)
+      menuClick('退出')
+      return
+    }
+    if (phase.startsWith('topic-refinement-')) {
+      await topicRefinementSmoke({ main, note, phase, js, click, input, waitFor })
+      console.log(`Electron topic refinement smoke passed: ${phase}`)
       menuClick('退出')
       return
     }
