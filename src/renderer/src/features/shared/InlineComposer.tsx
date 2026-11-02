@@ -1,4 +1,5 @@
-import { CornerDownLeft, Plus } from 'lucide-react'
+import { CornerDownLeft, Plus, X } from 'lucide-react'
+import { useImperativeHandle, useRef } from 'react'
 import type { ComponentProps, KeyboardEvent } from 'react'
 
 export function handleComposerKeyDown(
@@ -26,6 +27,7 @@ type Props = Omit<ComponentProps<'textarea'>, 'onChange' | 'onSubmit' | 'value'>
   onValueChange: (value: string) => void
   onSubmit: () => void | Promise<unknown>
   submitLabel: string
+  onClear?: () => void
   saving?: boolean
   multiline?: boolean
   tone?: 'task' | 'habit' | 'inspiration'
@@ -60,6 +62,8 @@ export function ComposerToggle({
 
 /** Shared writing surface; drafts stay mounted while the entry is collapsed. */
 export function InlineComposer({
+  ref,
+  onClear,
   value,
   onValueChange,
   onSubmit,
@@ -71,6 +75,8 @@ export function InlineComposer({
   className = '',
   ...fieldProps
 }: Props) {
+  const field = useRef<HTMLTextAreaElement>(null)
+  useImperativeHandle(ref, () => field.current!, [])
   return (
     <form
       className={`inline-composer composer-${tone} ${className}`}
@@ -85,6 +91,7 @@ export function InlineComposer({
       <textarea
         aria-description={multiline ? '回车确认，Ctrl+回车换行' : '回车确认'}
         {...fieldProps}
+        ref={field}
         rows={1}
         value={value}
         onChange={(event) => onValueChange(event.target.value)}
@@ -99,6 +106,21 @@ export function InlineComposer({
           )
         }
       />
+      {onClear && value.length > 0 && !fieldProps.disabled && !fieldProps.readOnly && (
+        <button
+          type="button"
+          className="composer-clear"
+          aria-label={`清除${fieldProps['aria-label'] ?? '输入内容'}`}
+          title="清除"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => {
+            onClear()
+            field.current?.focus({ preventScroll: true })
+          }}
+        >
+          <X size={12} aria-hidden="true" />
+        </button>
+      )}
       <button
         type="submit"
         className="composer-submit"

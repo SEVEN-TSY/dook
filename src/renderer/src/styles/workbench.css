@@ -898,7 +898,7 @@
 .workbench .inspiration-summary > span {
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   overflow: hidden;
   white-space: pre-wrap;
 }
@@ -1416,4 +1416,31 @@ html[data-window='main'] .inspiration-topic-picker form input {
   .workbench .composer-hint {
     display: none;
   }
+}
+
+.workbench .composer-clear {
+  display: grid;
+  flex: none;
+  place-items: center;
+  align-self: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--app-muted);
+}
+.workbench .composer-clear:hover {
+  background: var(--app-hover);
+  color: var(--app-text);
+}
+.workbench .clearable-textarea {
+  display: block;
+  position: relative;
+  min-width: 0;
+  width: 100%;
+}
+.workbench .clearable-textarea textarea {
+  padding-right: 28px;
 }

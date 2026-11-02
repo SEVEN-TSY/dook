@@ -128,3 +128,11 @@ TasksPage为每个窗口维护唯一的生命周期保存回调，聚合任务�
 Electron分类场景还可分别运行node scripts/run-smoke.mjs multiday和node scripts/run-smoke.mjs subitems，隔离首次操作及重启数据，避免与普通回归中的任务数量断言耦合。
 
 便签的设置和灵感快捷入口通过openWindow的可选MainPage参数定位主界面。DesktopState携带带版本号的mainNavigation，确保主界面首次加载和重复唤出均能接收导航；切页前统一保存已有草稿，失败保留原页。
+
+## 灵感界面细节
+
+`renderer/src/features/inspirations/InspirationPanel.tsx`只承载分组导航、分页列表、正文原地编辑和主题归集；默认主题视角及未归类。主题和日期在组件生命周期内各自保留分组、加载页数及滚动位置，重启不恢复浏览位置，不再维护详情选中状态。
+
+普通与已归档灵感不渲染详情、历史补充或追加入口。`appendInspiration`、仓储及已有补充数据继续保留，领域仍支持持续补充。新增与原地编辑沿用`useInspirationInput`及`useSerialSave`；`InlineComposer`通过显式`onClear`接入新增清除，`ClearableTextarea`提供正文清除及输入区域内部焦点移动保护，其他类别不自动增加清除操作。
+
+便签的任务和灵感继续共用`TasksPage.tsx`的单行`ClearableInput`、展开、提交与失焦收起流程。`node scripts/run-smoke.mjs inspiration-page`通过真实双窗口和SQLite验证输入、分页、两视角位置、双窗口同步及重启默认分组，并保留普通和窄窗口截图。
