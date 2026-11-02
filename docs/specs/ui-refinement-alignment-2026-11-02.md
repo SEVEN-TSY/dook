@@ -1,6 +1,6 @@
 # 界面细节调整对齐记录
 
-2026-11-02。状态：用户已整体确认需求及验收边界，正式规格见《界面交互细节调整》，已发布为[GitHub Issue #27](https://github.com/SEVEN-TSY/myTodo/issues/27)，标签为ready-for-agent。本记录保留对齐结果，不代表功能已经实施。
+2026-11-02。状态：用户已整体确认需求及验收边界，正式规格已发布为[GitHub Issue #27](https://github.com/SEVEN-TSY/myTodo/issues/27)，现已在`codex/issue-27-integration`完成实施，见[实施验收记录](../reviews/issue-27-review.md)。本记录保留对齐过程；开发及验收以正式规格和实施结果为准。
 
 ## 已明确的要求
 

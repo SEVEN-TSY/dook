@@ -1,4 +1,4 @@
-状态：2026-11-02用户已确认需求及验收边界，已发布为[GitHub Issue #27](https://github.com/SEVEN-TSY/myTodo/issues/27)，标签为ready-for-agent；尚未实施。
+状态：2026-11-02用户确认需求及验收边界后发布为[GitHub Issue #27](https://github.com/SEVEN-TSY/myTodo/issues/27)，拆分为#28、#29、#30，现已在`codex/issue-27-integration`完成实施、组合验证及代码审查修复。验证和审查结果见[实施验收记录](../reviews/issue-27-review.md)。
 
 ## Problem Statement
 
