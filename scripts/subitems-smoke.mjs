@@ -50,7 +50,7 @@ export async function subitemsSmoke({ phase, main, note, input, click, js, waitF
       () =>
         js(
           note,
-          `document.querySelector('[role=alert]')?.textContent.includes('子事项内容不能为空')`
+          `document.querySelector('[role=alert], [data-sonner-toast][data-type=error] [data-title]')?.textContent.includes('子事项内容不能为空')`
         ),
       '空白子事项保留校验反馈'
     )

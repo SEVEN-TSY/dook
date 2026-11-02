@@ -1,3 +1,4 @@
+import { CreatedTime } from '../shared/CreatedTime'
 import { Toast } from '../../components/Toast'
 import { Archive, CornerDownLeft, Tags, Pencil, Plus, X, RotateCcw, Trash2 } from 'lucide-react'
 import { ComposerToggle, InlineComposer } from '../shared/InlineComposer'
@@ -286,7 +287,7 @@ export function InspirationPanel({
       ? [
           {
             key: 'unassigned',
-            label: '未归类',
+            label: '无归类',
             items: ideas
           },
           ...topics.map((topic) => ({
@@ -626,9 +627,14 @@ export function InspirationPanel({
                   <article key={idea.id} data-inspiration-id={idea.id} className="inspiration-item">
                     {workbench && group.key === 'archive' ? (
                       <div className="inspiration-row main-list-row">
-                        <button className="inspiration-summary">
-                          <span>{idea.description}</span>
-                        </button>
+                        <div className="main-list-content">
+                          <div className="inspiration-summary">
+                            <span>{idea.description}</span>
+                          </div>
+                          <p className="list-meta">
+                            <CreatedTime value={idea.createdAt} />
+                          </p>
+                        </div>
                         <div className="inspiration-row-actions">
                           <button
                             className="inspiration-supplement"
@@ -677,27 +683,27 @@ export function InspirationPanel({
                       </div>
                     ) : workbench ? (
                       <div className="inspiration-row main-list-row">
-                        <ListDescription
-                          description={idea.description}
-                          editing={editing === idea.id && editingGroup === group.key}
-                          draft={original}
-                          label="编辑原始想法"
-                          testId="inspiration-edit"
-                          previewTestId="inspiration-summary"
-                          className="inspiration-summary"
-                          onEdit={async () => {
-                            if (!(await save())) return
-                            original.start(idea)
-                            setEditing(idea.id)
-                            setEditingGroup(group.key)
-                          }}
-                        />
+                        <div className="main-list-content">
+                          <ListDescription
+                            description={idea.description}
+                            editing={editing === idea.id && editingGroup === group.key}
+                            draft={original}
+                            label="编辑原始想法"
+                            testId="inspiration-edit"
+                            previewTestId="inspiration-summary"
+                            className="inspiration-summary"
+                            onEdit={async () => {
+                              if (!(await save())) return
+                              original.start(idea)
+                              setEditing(idea.id)
+                              setEditingGroup(group.key)
+                            }}
+                          />
+                          <p className="list-meta">
+                            <CreatedTime value={idea.createdAt} />
+                          </p>
+                        </div>
                         <div className="inspiration-row-actions">
-                          {view === 'topic' && idea.createdAt && (
-                            <time dateTime={idea.createdAt}>
-                              {dateKey(new Date(idea.createdAt))}
-                            </time>
-                          )}
                           <div className="inspiration-topic-control">
                             <button
                               type="button"
@@ -776,7 +782,7 @@ export function InspirationPanel({
             showArrow
             align="end"
             sideOffset={6}
-            className="inspiration-topic-picker w-[236px] max-w-[calc(100vw-24px)] p-3"
+            className="action-popover inspiration-topic-picker w-[236px] max-w-[calc(100vw-24px)] p-3"
             aria-label="选择主题"
             onCloseAutoFocus={(event) => {
               event.preventDefault()
@@ -784,7 +790,7 @@ export function InspirationPanel({
             }}
           >
             <div className="inspiration-topic-picker-body">
-              <div className="inspiration-topic-picker-header">
+              <div className="action-popover-header inspiration-topic-picker-header">
                 <span>归集主题</span>
                 <Button
                   type="button"
@@ -811,6 +817,11 @@ export function InspirationPanel({
                 {topics
                   .filter((topic) =>
                     topic.name.toLocaleLowerCase().includes(topicSearch.trim().toLocaleLowerCase())
+                  )
+                  .sort(
+                    (a, b) =>
+                      Number(pickerIdea.topicIds.includes(b.id)) -
+                      Number(pickerIdea.topicIds.includes(a.id))
                   )
                   .map((topic) => (
                     <label key={topic.id}>

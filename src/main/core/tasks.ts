@@ -7,7 +7,7 @@ export interface TaskStore {
   restore(id: string, date: string): Task
   deleteArchived(id: string): void
   get(id: string, date: string): Task
-  create(description: string, date: string): Task
+  create(description: string, date: string, createdAt: string): Task
   update(id: string, date: string, change: TaskChange): Task
   skip(id: string, date: string): void
   setOrder(ids: string[]): void

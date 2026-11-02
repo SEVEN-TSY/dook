@@ -155,31 +155,3 @@ button.draft-clear:hover,
   width: 8px;
   height: 8px;
 }
-.app-toast {
-  position: fixed;
-  top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 120;
-  width: max-content;
-  max-width: calc(100vw - 32px);
-  padding: 6px 10px;
-  border: 1px solid var(--app-border);
-  border-radius: 7px;
-  background: var(--app-surface);
-  color: var(--app-text);
-  box-shadow: 0 3px 12px rgb(25 32 45 / 12%);
-  font-size: 12px;
-  line-height: 18px;
-  overflow-wrap: anywhere;
-  pointer-events: none;
-}
-.app-toast.is-error {
-  color: light-dark(#924c4c, #e69b9f);
-}
-html[data-window='note'] .app-toast {
-  top: 48px;
-  max-width: calc(100vw - 40px);
-  padding: 5px 8px;
-  font-size: 11px;
-}

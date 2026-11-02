@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useId, useRef } from 'react'
+import { toast } from 'sonner'
 
-/** Brief feedback outside the document flow, without taking input focus. */
+/** Bridge existing message state to the shared Sonner host. */
 export function Toast({
   message,
   onDismiss,
@@ -12,17 +12,20 @@ export function Toast({
   error?: boolean
 }) {
   const dismiss = useRef(onDismiss)
+  const id = useId()
   dismiss.current = onDismiss
   useEffect(() => {
     if (!message) return
-    const timer = window.setTimeout(() => dismiss.current(), 3000)
-    return () => window.clearTimeout(timer)
-  }, [message])
-  if (!message) return null
-  return createPortal(
-    <div className={`app-toast ${error ? 'is-error' : ''}`} role={error ? 'alert' : 'status'}>
-      {message}
-    </div>,
-    document.body
-  )
+    let active = true
+    const finish = () => {
+      if (active) dismiss.current()
+    }
+    const notify = error ? toast.error : toast.success
+    notify(message, { id, duration: 3000, onDismiss: finish, onAutoClose: finish })
+    return () => {
+      active = false
+      toast.dismiss(id)
+    }
+  }, [message, error, id])
+  return null
 }

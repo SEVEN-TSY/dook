@@ -91,7 +91,7 @@ async function habitMaintenanceSmoke({ phase, main, note, input, click, js, wait
         () => js(main, `Boolean(document.querySelector('[data-habit-id="${linked.habitId}"]'))`),
         '主界面习惯同步'
       )
-      await click(main, `[data-habit-id="${linked.habitId}"] [data-testid=habit-edit]`)
+      await click(main, `[data-habit-id="${linked.habitId}"] [data-testid=habit-description]`)
       await input(main, '[data-testid=habit-edit-input]', `${description}未来内容`)
       await waitFor(
         async () =>

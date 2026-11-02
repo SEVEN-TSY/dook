@@ -2,6 +2,15 @@ import { BrowserWindow, nativeTheme } from 'electron'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { WindowKind } from '../../shared/contracts'
+import { appIcon } from './brand'
+
+export function mainWindowTitleBar() {
+  return {
+    color: nativeTheme.shouldUseDarkColors ? '#202020' : '#ffffff',
+    symbolColor: nativeTheme.shouldUseDarkColors ? '#e3e3e3' : '#303744',
+    height: 32
+  }
+}
 
 export function createWindow(kind: WindowKind): BrowserWindow {
   const directory = dirname(fileURLToPath(import.meta.url))
@@ -12,10 +21,13 @@ export function createWindow(kind: WindowKind): BrowserWindow {
     minWidth: note ? 334 : 680,
     minHeight: note ? 260 : 480,
     frame: !note,
+    titleBarStyle: note ? 'default' : 'hidden',
+    titleBarOverlay: note ? false : mainWindowTitleBar(),
     thickFrame: !note,
     transparent: note,
     skipTaskbar: note,
     title: note ? 'myTodo · 桌面便签' : 'myTodo',
+    icon: appIcon(),
     alwaysOnTop: note,
     backgroundColor: note ? '#00000000' : nativeTheme.shouldUseDarkColors ? '#202020' : '#FAFBFE',
     show: false,

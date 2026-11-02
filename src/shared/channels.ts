@@ -15,6 +15,7 @@ export const IPC_CHANNELS = {
   createHabit: 'habits:create',
   createHabitFromTask: 'habits:from-task',
   updateHabit: 'habits:update',
+  setHabitSchedule: 'habits:set-schedule',
   deleteHabit: 'habits:delete',
   listToday: 'tasks:list-today',
   listArchivedTasks: 'tasks:list-archived',

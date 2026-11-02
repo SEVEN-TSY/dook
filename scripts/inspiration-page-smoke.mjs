@@ -51,8 +51,8 @@ export async function inspirationPageSmoke({
   )
   assert.equal(
     await js(main, `document.querySelector('.inspiration-group-title').textContent`),
-    '未归类',
-    '首次进入及重启默认未归类'
+    '无归类',
+    '首次进入及重启默认无归类'
   )
   if (phase.endsWith('create')) {
     await click(main, '[aria-label="新增小记"]')
@@ -128,7 +128,7 @@ export async function inspirationPageSmoke({
     )
     await js(main, `document.querySelector('[data-testid=inspiration-edit]').blur()`)
     await waitFor(
-      () => js(main, `Boolean(document.querySelector('[role=alert]'))`),
+      () => js(main, `Boolean(document.querySelector('[role=alert], [data-sonner-toast][data-type=error] [data-title]'))`),
       '已有正文清空不可保存'
     )
     assert.equal(
@@ -345,7 +345,7 @@ export async function inspirationPageSmoke({
       noteIdeas,
       '双窗口读取同一持久化数据'
     )
-    await selectGroup('未归类')
+    await selectGroup('无归类')
     await waitFor(
       () =>
         js(
@@ -358,7 +358,7 @@ export async function inspirationPageSmoke({
     main.setSize(760, 680)
     await capture(main, 'inspiration-page-narrow.png')
     await capture(note, 'inspiration-note-input.png')
-    // 退出前停在其他主题；重启应回到未归类。
+    // 退出前停在其他主题；重启应回到无归类。
     await selectGroup('记忆主题')
   }
   const saved = (await js(main, `window.myTodo.listInspirationPage(0, 20, {kind:'archive'})`)).data

@@ -1,3 +1,5 @@
+import { CreatedTime } from '../shared/CreatedTime'
+import { BrandMark } from '../../components/BrandMark'
 import { Toast } from '../../components/Toast'
 import {
   ArrowUpRight,
@@ -104,6 +106,9 @@ export function TasksPage({
   const [page, setPage] = useState<MainPage>('task')
   const [adding, setAdding] = useState(false)
   const [taskComposerOpen, setTaskComposerOpen] = useState(false)
+  const [taskArchiveView, setTaskArchiveView] = useState(false)
+  const [habitCounts, setHabitCounts] = useState({ current: 0, archived: 0 })
+  const [habitArchiveView, setHabitArchiveView] = useState(false)
   const [habitComposerOpen, setHabitComposerOpen] = useState(false)
   const mainTaskInput = useRef<HTMLTextAreaElement>(null)
   const [expandedNoteGroups, setExpandedNoteGroups] = useState({ today: true, 'multi-day': false })
@@ -331,7 +336,7 @@ export function TasksPage({
         className="note-group-heading"
         data-note-group="archived"
         data-testid="task-archive-toggle"
-        hidden={total === 0 && archived.length === 0}
+        hidden={kind === 'main' || (total === 0 && archived.length === 0)}
         aria-expanded={archiveExpanded}
         onClick={() => setArchiveExpanded((expanded) => !expanded)}
       >
@@ -346,12 +351,26 @@ export function TasksPage({
         </svg>
         已归档<span className="note-group-count">{archived.length}</span>
       </button>
-      <div hidden={!archiveExpanded} aria-label="已归档任务">
+      <div hidden={kind === 'main' ? !taskArchiveView : !archiveExpanded} aria-label="已归档任务">
+        {kind === 'main' && archived.length === 0 && (
+          <p className="inspiration-empty">还没有已归档任务。</p>
+        )}
         {archived.map((task) => (
           <div className="note-archive-row" key={task.id} data-archived-task-id={task.id}>
-            <span className="note-archive-description" title={task.description}>
-              {task.description}
-            </span>
+            {kind === 'main' ? (
+              <div className="task-content">
+                <span className="note-archive-description" title={task.description}>
+                  {task.description}
+                </span>
+                <p className="list-meta">
+                  <CreatedTime value={task.createdAt} />
+                </p>
+              </div>
+            ) : (
+              <span className="note-archive-description" title={task.description}>
+                {task.description}
+              </span>
+            )}
             <div className="note-archive-actions" tabIndex={-1} data-delete-focus-group>
               <button
                 type="button"
@@ -405,12 +424,10 @@ export function TasksPage({
       <section className={`workbench page-${page}`} hidden={hidden}>
         <aside className="workbench-sidebar">
           <div className="workbench-brand">
-            <span className="brand-mark">
-              <AppIcon name="task" />
-            </span>
+            <BrandMark />
             <div>
-              <strong>myTodo</strong>
-              <small>个人工作台</small>
+              <strong>DOOK</strong>
+              <small>From DO to OK.</small>
             </div>
           </div>
           <nav id="main-navigation" className="workbench-nav" aria-label="主导航">
@@ -465,31 +482,25 @@ export function TasksPage({
                       habit: '',
                       inspiration: '',
                       settings: '',
-                      task: '今天'
+                      task: '这就去做'
                     }[page]}
               </p>
-              <h1
-                title={
-                  page === 'habit' ? '管理每天自动生成的任务，每天自动放入今天任务' : undefined
-                }
-              >
+              <h1 title={page === 'habit' ? '管理按周期自动生成的任务' : undefined}>
                 {{ task: '今天', habit: '习惯', inspiration: '小记', settings: '设置' }[page]}
               </h1>
             </div>
             <div className="workbench-header-actions">
-              {page === 'task' && (
-                <span className="workbench-completion">
-                  <strong>{completed}</strong> / {total} 已完成
-                </span>
-              )}
               {page !== 'settings' && page !== 'inspiration' && (
                 <ComposerToggle
                   className="primary-button workbench-add"
                   label={page === 'habit' ? '新增习惯' : '新增任务'}
                   expanded={page === 'habit' ? habitComposerOpen : taskComposerOpen}
                   onClick={() => {
-                    if (page === 'habit') setHabitComposerOpen(!habitComposerOpen)
-                    else {
+                    if (page === 'habit') {
+                      setHabitArchiveView(false)
+                      setHabitComposerOpen(!habitComposerOpen)
+                    } else {
+                      setTaskArchiveView(false)
                       setTaskComposerOpen(!taskComposerOpen)
                       if (!taskComposerOpen)
                         requestAnimationFrame(() => mainTaskInput.current?.focus())
@@ -499,6 +510,49 @@ export function TasksPage({
               )}
             </div>
           </header>
+          {(page === 'task' || page === 'habit') && (
+            <div
+              className="archive-view-switch"
+              role="group"
+              aria-label={page === 'task' ? '任务筛选' : '习惯筛选'}
+            >
+              {([false, true] as const).map((archived) => (
+                <button
+                  key={String(archived)}
+                  type="button"
+                  className="archive-filter"
+                  aria-label={`${archived ? '已归档' : '当前'}${page === 'task' ? '任务' : '习惯'}`}
+                  aria-pressed={(page === 'task' ? taskArchiveView : habitArchiveView) === archived}
+                  onClick={async () => {
+                    if ((page === 'task' ? taskArchiveView : habitArchiveView) === archived) return
+                    if (!(await flush.current())) return
+                    setSelectedTask(null)
+                    if (page === 'task') {
+                      setTaskArchiveView(archived)
+                      setTaskComposerOpen(false)
+                    } else {
+                      setHabitArchiveView(archived)
+                      setHabitComposerOpen(false)
+                    }
+                  }}
+                >
+                  <span>{archived ? '已归档' : page === 'task' ? '当前任务' : '当前'}</span>
+                  <span
+                    className="archive-filter-count"
+                    title={page === 'task' && !archived ? '已完成／任务总数' : '数量'}
+                  >
+                    {page === 'task'
+                      ? archived
+                        ? tasks.archived.length
+                        : `${completed}/${total}`
+                      : archived
+                        ? habitCounts.archived
+                        : habitCounts.current}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
           <Toast message={error} onDismiss={() => setError('')} />
           <div
             className={`workbench-split ${selected ? 'has-detail' : ''}`}
@@ -507,7 +561,7 @@ export function TasksPage({
             <div className="workbench-list" aria-label="任务">
               <InlineComposer
                 ref={mainTaskInput}
-                expanded={taskComposerOpen}
+                expanded={taskComposerOpen && !taskArchiveView}
                 onDismiss={() => setTaskComposerOpen(false)}
                 data-testid="task-new"
                 aria-label="新增任务描述"
@@ -522,7 +576,7 @@ export function TasksPage({
                 }}
                 onCompositionEnd={taskAdded.endComposition}
               />
-              {today && total === 0 && (
+              {!taskArchiveView && today && total === 0 && (
                 <div className="workbench-empty">
                   <span className="empty-icon" aria-hidden="true">
                     ✓
@@ -531,179 +585,202 @@ export function TasksPage({
                   <span>在上方记下第一项任务，按回车添加</span>
                 </div>
               )}
-              {Boolean(noteGroups.today.length) && (
-                <div className="task-section-heading">
-                  <span>今天任务</span>
-                  <span>
-                    {noteGroups.today.filter((task) => task.completed).length} /{' '}
-                    {noteGroups.today.length}
-                  </span>
-                </div>
-              )}
-              {visibleTasks.map((task, index) => (
-                <div
-                  key={task.id}
-                  data-task-id={task.id}
-                  data-task-kind={task.kind}
-                  className={`task-row main-list-row ${task.completed ? 'completed' : ''} ${task.kind === 'multi-day' && visibleTasks[index - 1]?.kind !== 'multi-day' ? 'multi-day-start' : ''} ${selectedTask === task.id ? 'selected' : ''}`}
-                >
-                  {task.kind === 'multi-day' && visibleTasks[index - 1]?.kind !== 'multi-day' && (
-                    <span className="group-label">
-                      持续推进
-                      <small>
-                        {noteGroups['multi-day'].filter((item) => item.completed).length} /{' '}
-                        {noteGroups['multi-day'].length}
-                      </small>
-                    </span>
-                  )}
-                  <TaskCheck
-                    checked={task.completed}
-                    disabled={busy}
-                    aria-label={`完成：${task.description}`}
-                    onChange={() => void complete(task)}
-                  />
-                  <div className="task-content">
-                    <ListDescription
-                      description={task.description}
-                      editing={editing === task.id && selectedTask !== task.id}
-                      draft={edited}
-                      label="编辑任务描述"
-                      testId="task-edit"
-                      previewTestId="task-description"
-                      className="task-description"
-                      onEdit={async () => {
-                        if (task.habitId) {
-                          await navigate('habit')
-                          return
-                        }
-                        if (!(await flush.current())) return
-                        setSelectedTask(null)
-                        setEditing(task.id)
-                        edited.start(task)
-                      }}
-                    />
-                    {task.kind === 'multi-day' && (
-                      <p className="task-meta">
-                        <span className="task-mini-progress">
-                          <span style={{ width: `${task.progress}%` }} />
-                        </span>
-                        {task.progress}%
-                        {task.subitems?.length
-                          ? ` · 子事项 ${task.subitems.filter((item) => item.completed).length}／${task.subitems.length}`
-                          : ''}
-                      </p>
-                    )}
-                  </div>
-                  {task.habitId && (
-                    <span
-                      className="task-habit-indicator"
-                      role="img"
-                      aria-label="来自习惯"
-                      title="来自习惯"
+              {!taskArchiveView &&
+                total > 0 &&
+                (['today', 'multi-day'] as const)
+                  .filter((group) => group === 'today' || showMultiDay)
+                  .map((group) => (
+                    <section
+                      key={group}
+                      className="task-card-group"
+                      aria-labelledby={`task-card-${group}-title`}
+                      data-task-card={group}
                     >
-                      <TaskActionIcon name="schedule" />
-                    </span>
-                  )}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="task-more"
-                        disabled={busy}
-                        aria-label={`更多操作：${task.description}`}
-                        title="更多操作"
-                      >
-                        <MoreHorizontal />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        data-testid="task-details"
-                        onSelect={() => {
-                          void (async () => {
-                            if (await flush.current()) setSelectedTask(task.id)
-                          })()
-                        }}
-                      >
-                        <ListTodo aria-hidden="true" />
-                        任务详情
-                      </DropdownMenuItem>
-                      {task.kind === 'today' && !task.habitId && (
-                        <>
-                          <DropdownMenuItem
-                            data-testid="task-convert"
-                            onSelect={() => {
-                              void (async () => {
-                                if (await flush.current()) await convert(task.id)
-                              })()
-                            }}
-                          >
-                            <ArrowUpRight aria-hidden="true" />
-                            转为多天任务
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            data-testid="task-to-habit"
-                            onSelect={() => {
-                              void (async () => {
-                                if (await flush.current()) await addHabit(task.id)
-                              })()
-                            }}
-                          >
-                            <Repeat aria-hidden="true" />
-                            添加为习惯
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                        </>
+                      <header className="task-card-heading">
+                        <h2 id={`task-card-${group}-title`}>
+                          {group === 'today' ? '这就去做' : '持续推进'}
+                        </h2>
+                        <span className="task-card-count">
+                          {noteGroups[group].filter((task) => task.completed).length}/
+                          {noteGroups[group].length}
+                        </span>
+                      </header>
+                      {noteGroups[group].length === 0 && (
+                        <p className="task-card-empty">
+                          {group === 'today' ? '暂时没有今天任务' : '暂时没有持续推进的任务'}
+                        </p>
                       )}
-                      <DropdownMenuItem
-                        onSelect={() => {
-                          void (async () => {
-                            if (await flush.current()) await pin(task)
-                          })()
-                        }}
-                      >
-                        {task.pinned ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />}
-                        {task.pinned ? '取消置顶' : '置顶任务'}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        data-testid="task-delete"
-                        variant="destructive"
-                        onSelect={(event) => {
-                          const menu = (event.target as HTMLElement).closest('[role="menu"]')
-                          const trigger = document.getElementById(
-                            menu?.getAttribute('aria-labelledby') ?? ''
-                          )
-                          void (async () => {
-                            if (await flush.current()) {
-                              if (task.habitId) await skipHabit(task.id)
-                              else if (
-                                await deletion.confirm(
-                                  {
-                                    title: '删除任务',
-                                    description: '永久删除这项任务？',
-                                    detail: `${task.description}。任务及其子事项将被永久删除，无法恢复。`
-                                  },
-                                  trigger
-                                )
-                              )
-                                await remove(task.id)
-                            }
-                          })()
-                        }}
-                      >
-                        {task.habitId ? (
-                          <SkipForward aria-hidden="true" />
-                        ) : (
-                          <Trash2 aria-hidden="true" />
-                        )}
-                        {task.habitId ? '暂停一次' : '删除任务'}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              ))}
+                      {noteGroups[group].map((task) => (
+                        <div
+                          key={task.id}
+                          data-task-id={task.id}
+                          data-task-kind={task.kind}
+                          className={`task-row main-list-row ${task.completed ? 'completed' : ''} ${selectedTask === task.id ? 'selected' : ''}`}
+                        >
+                          <TaskCheck
+                            checked={task.completed}
+                            disabled={busy}
+                            aria-label={`完成：${task.description}`}
+                            onChange={() => void complete(task)}
+                          />
+                          <div className="task-content">
+                            <ListDescription
+                              description={task.description}
+                              editing={editing === task.id && selectedTask !== task.id}
+                              draft={edited}
+                              label="编辑任务描述"
+                              testId="task-edit"
+                              previewTestId="task-description"
+                              className="task-description"
+                              onEdit={async () => {
+                                if (task.habitId) {
+                                  await navigate('habit')
+                                  return
+                                }
+                                if (!(await flush.current())) return
+                                setSelectedTask(null)
+                                setEditing(task.id)
+                                edited.start(task)
+                              }}
+                            />
+                            <p className="task-meta list-meta">
+                              {task.kind === 'multi-day' && (
+                                <>
+                                  <span className="task-mini-progress">
+                                    <span style={{ width: `${task.progress}%` }} />
+                                  </span>
+                                  <span>{task.progress}%</span>
+                                  {task.subitems?.length ? (
+                                    <span>
+                                      · 子事项{' '}
+                                      {task.subitems.filter((item) => item.completed).length}／
+                                      {task.subitems.length}
+                                    </span>
+                                  ) : null}
+                                  <span aria-hidden="true">·</span>
+                                </>
+                              )}
+                              <CreatedTime value={task.createdAt} />
+                            </p>
+                          </div>
+                          {task.habitId && (
+                            <span
+                              className="task-habit-indicator"
+                              role="img"
+                              aria-label="来自习惯"
+                              title="来自习惯"
+                            >
+                              <TaskActionIcon name="schedule" />
+                            </span>
+                          )}
+                          <DropdownMenu modal={false}>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                className="task-more"
+                                disabled={busy}
+                                aria-label={`更多操作：${task.description}`}
+                                title="更多操作"
+                              >
+                                <MoreHorizontal />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                data-testid="task-details"
+                                onSelect={() => {
+                                  void (async () => {
+                                    if (await flush.current()) setSelectedTask(task.id)
+                                  })()
+                                }}
+                              >
+                                <ListTodo aria-hidden="true" />
+                                任务详情
+                              </DropdownMenuItem>
+                              {task.kind === 'today' && !task.habitId && (
+                                <>
+                                  <DropdownMenuItem
+                                    data-testid="task-convert"
+                                    onSelect={() => {
+                                      void (async () => {
+                                        if (await flush.current()) await convert(task.id)
+                                      })()
+                                    }}
+                                  >
+                                    <ArrowUpRight aria-hidden="true" />
+                                    转为多天任务
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    data-testid="task-to-habit"
+                                    onSelect={() => {
+                                      void (async () => {
+                                        if (await flush.current()) await addHabit(task.id)
+                                      })()
+                                    }}
+                                  >
+                                    <Repeat aria-hidden="true" />
+                                    添加为习惯
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                </>
+                              )}
+                              <DropdownMenuItem
+                                onSelect={() => {
+                                  void (async () => {
+                                    if (await flush.current()) await pin(task)
+                                  })()
+                                }}
+                              >
+                                {task.pinned ? (
+                                  <PinOff aria-hidden="true" />
+                                ) : (
+                                  <Pin aria-hidden="true" />
+                                )}
+                                {task.pinned ? '取消置顶' : '置顶任务'}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                data-testid="task-delete"
+                                variant="destructive"
+                                onSelect={(event) => {
+                                  const menu = (event.target as HTMLElement).closest(
+                                    '[role="menu"]'
+                                  )
+                                  const trigger = document.getElementById(
+                                    menu?.getAttribute('aria-labelledby') ?? ''
+                                  )
+                                  void (async () => {
+                                    if (await flush.current()) {
+                                      if (task.habitId) await skipHabit(task.id)
+                                      else if (
+                                        await deletion.confirm(
+                                          {
+                                            title: '删除任务',
+                                            description: '永久删除这项任务？',
+                                            detail: `${task.description}。任务及其子事项将被永久删除，无法恢复。`
+                                          },
+                                          trigger
+                                        )
+                                      )
+                                        await remove(task.id)
+                                    }
+                                  })()
+                                }}
+                              >
+                                {task.habitId ? (
+                                  <SkipForward aria-hidden="true" />
+                                ) : (
+                                  <Trash2 aria-hidden="true" />
+                                )}
+                                {task.habitId ? '暂停一次' : '删除任务'}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      ))}
+                    </section>
+                  ))}
               {archiveList}
             </div>
             {selected && (
@@ -725,9 +802,11 @@ export function TasksPage({
               </aside>
             )}
           </div>
-          <div hidden={page !== 'habit'}>
+          <div className="workbench-habit-page" hidden={page !== 'habit'}>
             <HabitsPanel
               onSaveReady={onHabitSaveReady}
+              archiveView={habitArchiveView}
+              onCountsChange={setHabitCounts}
               composerOpen={habitComposerOpen}
               onComposerOpenChange={setHabitComposerOpen}
             />

@@ -102,7 +102,10 @@ test('习惯任务继续暂停一次，归档不可改变习惯生成规则', ()
     habits: new HabitRepository(database.connection)
   })
   try {
-    const habit = service.createHabit('检查构建')
+    const habit = service.setHabitSchedule(service.createHabit('检查构建').id, {
+      kind: 'daily',
+      time: '00:00'
+    })
     const task = service.listToday().tasks[0]!
     assert.throws(() => service.archiveTask(task.id), /暂停一次/)
     service.skipHabitTask(task.id)

@@ -1,3 +1,5 @@
+import { HabitSchedulePopover } from './HabitSchedulePopover'
+import { CreatedTime } from '../shared/CreatedTime'
 import { Archive, RotateCcw, Trash2 } from 'lucide-react'
 import { Toast } from '../../components/Toast'
 import { AppIcon } from '../../components/AppIcon'
@@ -12,18 +14,29 @@ import { getDesktopApi, unwrap } from '../../platform/desktop'
 
 interface Props {
   onSaveReady: (save: () => Promise<boolean>) => () => void
+  onCountsChange: (counts: { current: number; archived: number }) => void
+  archiveView: boolean
   composerOpen: boolean
   onComposerOpenChange: (open: boolean) => void
 }
 
-export function HabitsPanel({ onSaveReady, composerOpen, onComposerOpenChange }: Props) {
+export function HabitsPanel({
+  onSaveReady,
+  composerOpen,
+  onComposerOpenChange,
+  archiveView,
+  onCountsChange
+}: Props) {
   const deletion = useDeleteConfirmation()
   const [habits, setHabits] = useState<Habit[]>([])
   const [archivedHabits, setArchivedHabits] = useState<Habit[]>([])
-  const [archiveView, setArchiveView] = useState(false)
+  useEffect(() => {
+    onCountsChange({ current: habits.length, archived: archivedHabits.length })
+  }, [habits.length, archivedHabits.length, onCountsChange])
   const [value, setValue] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const text = useRef('')
   const field = useRef<HTMLTextAreaElement>(null)
   const pending = useRef<Promise<boolean> | null>(null)
@@ -32,6 +45,7 @@ export function HabitsPanel({ onSaveReady, composerOpen, onComposerOpenChange }:
   const save = useRef(async () => true)
   const edited = useHabitEdit(setError, (habit) => {
     setHabits((current) => current.map((item) => (item.id === habit.id ? habit : item)))
+    setSuccess('习惯已更新')
   })
   const flush = useRef(async () => true)
   flush.current = async () => (await save.current()) && (await edited.save())
@@ -56,6 +70,7 @@ export function HabitsPanel({ onSaveReady, composerOpen, onComposerOpenChange }:
         unwrap(await api.createHabit(description))
         clear()
         setError('')
+        setSuccess('习惯已创建')
         return true
       } catch (error) {
         setError(error instanceof Error ? error.message : '习惯保存失败，请重试。')
@@ -69,7 +84,6 @@ export function HabitsPanel({ onSaveReady, composerOpen, onComposerOpenChange }:
   }
   useEffect(() => {
     if (composerOpen) {
-      setArchiveView(false)
       requestAnimationFrame(() => field.current?.focus())
     }
   }, [composerOpen])
@@ -129,6 +143,7 @@ export function HabitsPanel({ onSaveReady, composerOpen, onComposerOpenChange }:
         unwrap(await api.restoreHabit(habit.id))
       }
       setError('')
+      setSuccess({ archive: '习惯已归档', restore: '习惯已恢复', delete: '习惯已永久删除' }[action])
     } catch (error) {
       setError(error instanceof Error ? error.message : '习惯操作失败，请重试。')
     } finally {
@@ -137,27 +152,6 @@ export function HabitsPanel({ onSaveReady, composerOpen, onComposerOpenChange }:
   }
   return (
     <section className="habits-panel" aria-label="习惯管理">
-      <div className="habit-view-switch" aria-label="习惯分组">
-        {([false, true] as const).map((archived) => (
-          <Button
-            key={String(archived)}
-            variant="ghost"
-            size="sm"
-            aria-pressed={archiveView === archived}
-            aria-label={archived ? '已归档习惯' : '全部习惯'}
-            disabled={busy}
-            onClick={async () => {
-              if (await flush.current()) {
-                edited.start()
-                setArchiveView(archived)
-              }
-            }}
-          >
-            {archived ? '已归档' : '全部习惯'}
-            <span>{archived ? archivedHabits.length : habits.length}</span>
-          </Button>
-        ))}
-      </div>
       <InlineComposer
         ref={field}
         expanded={composerOpen && !archiveView}
@@ -228,6 +222,9 @@ export function HabitsPanel({ onSaveReady, composerOpen, onComposerOpenChange }:
                   previewTestId="habit-description"
                 />
               )}
+              <p className="list-meta">
+                <CreatedTime value={habit.createdAt} />
+              </p>
             </div>
             <div className="main-list-actions">
               {archiveView ? (
@@ -257,18 +254,18 @@ export function HabitsPanel({ onSaveReady, composerOpen, onComposerOpenChange }:
                 </>
               ) : (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    type="button"
-                    data-testid="habit-edit"
+                  <HabitSchedulePopover
+                    habit={habit}
                     disabled={busy}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => void edit(habit)}
-                    aria-label={`编辑习惯：${habit.description}`}
-                  >
-                    编辑
-                  </Button>
+                    beforeOpen={() => flush.current()}
+                    onSaved={(updated) => {
+                      setHabits((current) =>
+                        current.map((item) => (item.id === updated.id ? updated : item))
+                      )
+                      setError('')
+                      setSuccess('定时周期已保存')
+                    }}
+                  />
                   <Button
                     variant="ghost"
                     size="icon-sm"
@@ -288,7 +285,14 @@ export function HabitsPanel({ onSaveReady, composerOpen, onComposerOpenChange }:
         ))}
       </ul>
 
-      <Toast message={error} onDismiss={() => setError('')} />
+      <Toast
+        message={error || success}
+        error={Boolean(error)}
+        onDismiss={() => {
+          setError('')
+          setSuccess('')
+        }}
+      />
     </section>
   )
 }

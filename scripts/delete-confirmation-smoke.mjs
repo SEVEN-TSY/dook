@@ -368,7 +368,7 @@ export async function deleteConfirmationSmoke({
     )
     await click(main, '[aria-label="返回列表"]')
     await waitFor(
-      () => js(main, 'Boolean(document.querySelector("[role=alert]"))'),
+      () => js(main, 'Boolean(document.querySelector("[role=alert], [data-sonner-toast][data-type=error] [data-title]"))'),
       '返回保存失败反馈'
     )
     assert.equal(
@@ -402,7 +402,7 @@ export async function deleteConfirmationSmoke({
   )
   assert.equal(await js(note, 'Boolean(document.querySelector("[role=alertdialog]"))'), false)
   await js(note, `window.myTodo.archiveTask('${editable.id}')`)
-  await click(main, '[data-testid=task-archive-toggle]')
+  await click(main, '.archive-view-switch [aria-label="已归档任务"]')
   const deleteButton = `[aria-label="永久删除：返回前草稿"]`
   await click(main, deleteButton)
   const originalSize = main.getSize()
@@ -415,7 +415,7 @@ export async function deleteConfirmationSmoke({
       "CREATE TRIGGER reject_confirmed_delete BEFORE DELETE ON tasks BEGIN SELECT RAISE(ABORT, '删除失败验证'); END"
     )
     await click(main, '[data-testid=delete-confirm]')
-    await waitFor(() => js(main, 'Boolean(document.querySelector("[role=alert]"))'), '删除失败反馈')
+    await waitFor(() => js(main, 'Boolean(document.querySelector("[role=alert], [data-sonner-toast][data-type=error] [data-title]"))'), '删除失败反馈')
     assert.ok(
       (await js(note, 'window.myTodo.listArchivedTasks()')).data.some((x) => x.id === editable.id),
       '删除失败保留原界面数据'

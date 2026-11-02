@@ -44,7 +44,7 @@ test('编辑习惯同步当天描述，删除习惯只删除当天任务并保�
     const original = service.listToday().tasks[0]!
     assert.throws(() => service.updateHabit(habit.id, '  '), /习惯描述/)
     const updated = service.updateHabit(habit.id, '  更新进展  ')
-    assert.deepEqual(updated, { id: habit.id, description: '更新进展' })
+    assert.deepEqual(updated, { ...habit, description: '更新进展' })
     assert.deepEqual(service.listToday().tasks, [{ ...original, description: '更新进展' }])
     now = new Date(2026, 9, 28, 12)
     service.ensureDailyTasks()
@@ -228,7 +228,10 @@ test('习惯归档停止生成，恢复补齐当天且永久删除保留历史�
       habits: new HabitRepository(database.connection)
     })
   try {
-    const habit = service().createHabit('每日归档测试')
+    const habit = service().setHabitSchedule(service().createHabit('每日归档测试').id, {
+      kind: 'daily',
+      time: '00:00'
+    })
     const historical = service().listToday().tasks[0]
     now = new Date(2026, 10, 2, 12)
     service().ensureDailyTasks()
@@ -270,7 +273,7 @@ test('习惯归档及恢复失败时整体回滚', () => {
   const service = new AppService(
     database,
     new TaskRepository(database.connection),
-    () => new Date(2026, 10, 2),
+    () => new Date(2026, 10, 2, 12),
     {
       habits: new HabitRepository(database.connection)
     }

@@ -137,6 +137,9 @@ export function registerIpc(handlers: Handlers): () => void {
   register(IPC_CHANNELS.createHabitFromTask, (_, taskId) =>
     mutate(() => handlers.service.createHabitFromTask(text(taskId)))
   )
+  register(IPC_CHANNELS.setHabitSchedule, (_, id, schedule) =>
+    mutate(() => handlers.service.setHabitSchedule(text(id), schedule))
+  )
   register(IPC_CHANNELS.updateHabit, (_, id, description) =>
     mutate(() => handlers.service.updateHabit(text(id), text(description)))
   )

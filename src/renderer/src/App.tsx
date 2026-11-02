@@ -6,6 +6,7 @@ import { useTasks } from './features/tasks/useTasks'
 import { NoteTransition } from './features/tasks/NoteTransition'
 import { taskSummary } from './features/tasks/taskSummary'
 import { DeleteConfirmationProvider } from './components/DeleteConfirmation'
+import { Toaster } from './components/ui/sonner'
 
 export function App() {
   const tasks = useTasks()
@@ -66,11 +67,18 @@ export function App() {
   }, [kind])
   return (
     <>
+      {kind === 'main' && <div className="main-window-drag-region" aria-hidden="true" />}
       {error && <p role="alert">{error}</p>}
       {desktop?.exitPending && <div className="exit-pending">正在保存并退出…</div>}
       <DeleteConfirmationProvider>
         <TasksPage kind={kind} desktop={desktop} hidden={collapsed} tasks={tasks} />
       </DeleteConfirmationProvider>
+      <Toaster
+        theme={desktop?.colorScheme ?? 'system'}
+        offset={kind === 'note' ? 48 : 16}
+        mobileOffset={kind === 'note' ? 48 : 16}
+        style={collapsed ? { display: 'none' } : undefined}
+      />
       {kind === 'note' && desktop?.noteMotion && (
         <NoteTransition desktop={desktop} completed={completed} total={total} />
       )}

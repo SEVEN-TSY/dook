@@ -307,7 +307,7 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
   await click(note, '[data-testid=new-kind-task]')
   await waitFor(
     () =>
-      js(note, `document.querySelector('[role=alert]')?.textContent.includes('小记保存失败验收')`),
+      js(note, `document.querySelector('[role=alert], [data-sonner-toast][data-type=error] [data-title]')?.textContent.includes('小记保存失败验收')`),
     '保存失败可见反馈'
   )
   await mode('inspiration')

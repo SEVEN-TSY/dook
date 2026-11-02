@@ -41,7 +41,9 @@ test('习惯每天仅生成一次，完成删除和多次补齐均不重复生�
   })
   try {
     const first = service.createHabit('检查构建')
-    service.createHabit('整理待办')
+    const second = service.createHabit('整理待办')
+    service.setHabitSchedule(first.id, { kind: 'daily', time: '00:00' })
+    service.setHabitSchedule(second.id, { kind: 'daily', time: '00:00' })
     const tasks = service.listToday().tasks
     service.setTaskCompleted(tasks[0]!.id, true)
     service.deleteTask(tasks[1]!.id)

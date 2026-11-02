@@ -127,5 +127,16 @@ export const migrations = [
     version: 13,
     name: 'habit_archive',
     sql: `ALTER TABLE habits ADD COLUMN archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0, 1));`
+  },
+  {
+    version: 14,
+    name: 'task_and_habit_created_time',
+    sql: `ALTER TABLE tasks ADD COLUMN created_at TEXT;
+      ALTER TABLE habits ADD COLUMN created_at TEXT;`
+  },
+  {
+    version: 15,
+    name: 'habit_schedule',
+    sql: `ALTER TABLE habits ADD COLUMN schedule TEXT;`
   }
 ] as const

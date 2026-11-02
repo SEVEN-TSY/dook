@@ -5,9 +5,11 @@ import type { TaskStore, TaskChange } from '../../core/tasks'
 
 const visible = `archived_at IS NULL AND ((kind = 'today' AND date = ? AND skipped_on IS NULL) OR
   (kind = 'multi-day' AND (completed = 0 OR completed_on = ?)))`
-const fields = 'id, description, date, completed, kind, progress, completed_on, habit_id, pinned'
+const fields =
+  'id, description, date, completed, kind, progress, completed_on, habit_id, pinned, created_at'
 const taskFromRow = (row: Record<string, SQLOutputValue>): Task => ({
   ...(row.pinned === 1 ? { pinned: true } : {}),
+  createdAt: row.created_at == null ? null : String(row.created_at),
   id: String(row.id),
   description: String(row.description),
   date: String(row.date),
@@ -156,15 +158,15 @@ export class TaskRepository implements TaskStore {
     ids.forEach((id, index) => update.run(index + 1, id))
   }
 
-  create(description: string, date: string): Task {
+  create(description: string, date: string, createdAt: string): Task {
     const id = randomUUID()
     this.database
       .prepare(
-        `INSERT INTO tasks (id, description, date, sort_order)
-        SELECT ?, ?, ?, COALESCE(MIN(COALESCE(sort_order, sequence)), 1) - 1
+        `INSERT INTO tasks (id, description, date, created_at, sort_order)
+        SELECT ?, ?, ?, ?, COALESCE(MIN(COALESCE(sort_order, sequence)), 1) - 1
         FROM tasks WHERE date = ? AND kind = 'today' AND pinned = 0 AND archived_at IS NULL`
       )
-      .run(id, description, date, date)
+      .run(id, description, date, createdAt, date)
     return this.get(id, date)
   }
 

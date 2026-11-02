@@ -1,4 +1,15 @@
 /* Main window only. Shared note primitives and desktop geometry live elsewhere. */
+.main-window-drag-region {
+  position: fixed;
+  top: env(titlebar-area-y, 0px);
+  left: env(titlebar-area-x, 0px);
+  width: env(titlebar-area-width, calc(100% - 138px));
+  height: env(titlebar-area-height, 32px);
+  z-index: 10;
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
 .workbench {
   --workspace-line: light-dark(#e9ecf2, #393939);
   --workspace-soft: light-dark(#f4f6fa, #252525);
@@ -28,12 +39,16 @@
   color: var(--app-text);
 }
 .workbench-brand .brand-mark {
+  flex: none;
   width: 32px;
   height: 32px;
-  border-radius: 10px;
-  background: var(--app-accent);
-  color: var(--app-accent-foreground);
-  box-shadow: 0 3px 7px var(--app-accent-shadow);
+  border-radius: 0;
+  background: transparent;
+}
+.workbench-brand .brand-mark svg {
+  display: block;
+  width: 32px;
+  height: 32px;
 }
 .workbench-brand strong {
   font-size: 17px;
@@ -122,6 +137,7 @@
   max-width: none;
   padding-left: 20px;
   padding-right: 0;
+  padding-bottom: 0;
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -169,16 +185,6 @@
   display: flex;
   align-items: center;
   gap: 20px;
-}
-.workbench-completion {
-  white-space: nowrap;
-  color: light-dark(#a0a6b2, #8b8b8b);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-.workbench-completion strong {
-  color: light-dark(#596a93, #adadad);
-  font-weight: 600;
 }
 .workbench .primary-button {
   box-shadow: 0 2px 4px var(--app-accent-shadow);
@@ -315,19 +321,6 @@
   background: transparent;
   color: var(--app-accent-ink);
 }
-.task-section-heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 10px 12px;
-  color: light-dark(#7d8798, #adadad);
-  font-size: 11px;
-}
-.task-section-heading > span:last-child {
-  color: light-dark(#abb2bf, #8b8b8b);
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-}
 .workbench .note-group-heading {
   margin-top: 32px;
   padding: 0 10px 12px;
@@ -341,7 +334,11 @@
   padding: 12px 10px;
 }
 .workbench .note-archive-description {
+  display: block;
   font-size: 14px;
+}
+.workbench .note-archive-actions {
+  flex-shrink: 0;
 }
 .workbench .note-archive-actions .task-pin {
   display: grid;
@@ -413,27 +410,6 @@
   height: 100%;
   background: var(--app-accent-fill);
   border-radius: inherit;
-}
-.workbench .task-row.multi-day-start {
-  margin-top: 44px;
-  padding-top: 12px;
-  border-top: 0;
-}
-.workbench .group-label {
-  position: absolute;
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-  top: -24px;
-  left: 0;
-  padding: 0 10px;
-  background: transparent;
-  color: light-dark(#7d8798, #adadad);
-  font-size: 11px;
-}
-.workbench .group-label small {
-  color: light-dark(#abb2bf, #8b8b8b);
-  font-size: 10px;
 }
 .workbench-empty {
   display: flex;
@@ -516,7 +492,7 @@
 .workbench .habits-panel {
   padding: 0;
   margin: 0;
-  max-width: 860px;
+  max-width: none;
   border: 0;
   background: transparent;
 }
@@ -924,11 +900,6 @@
   padding-top: 6px;
   white-space: nowrap;
 }
-.workbench .inspiration-row-actions time {
-  margin: 0 8px 0 0;
-  color: light-dark(#a4adba, #8b8b8b);
-  font-size: 10px;
-}
 .workbench .inspiration-topic-control {
   margin: 0;
 }
@@ -1015,7 +986,7 @@ html[data-window='main'] [data-slot='popover-content'] {
   border-color: light-dark(#e5eaf1, #393939);
   font-family: inherit;
 }
-html[data-window='main'] .inspiration-topic-picker {
+html[data-window='main'] .action-popover {
   position: relative;
   box-sizing: border-box;
   right: auto;
@@ -1026,6 +997,7 @@ html[data-window='main'] .inspiration-topic-picker {
   scrollbar-gutter: auto;
   padding: 12px;
   border-radius: 10px;
+  font-size: 12px;
 }
 html[data-window='main'] .inspiration-topic-picker-body {
   display: flex;
@@ -1047,7 +1019,8 @@ html[data-window='main'] .inspiration-topic-picker-options {
   scrollbar-color: var(--app-scrollbar) transparent;
   margin-top: 4px;
 }
-html[data-window='main'] .inspiration-topic-picker input:not([type='checkbox']) {
+html[data-window='main'] .action-popover input:not([type='checkbox']),
+html[data-window='main'] .action-popover select {
   width: 100%;
   height: 34px;
   padding: 6px 10px;
@@ -1059,7 +1032,8 @@ html[data-window='main'] .inspiration-topic-picker input:not([type='checkbox']) 
   outline: none;
   box-shadow: none;
 }
-html[data-window='main'] .inspiration-topic-picker input:not([type='checkbox']):focus {
+html[data-window='main'] .action-popover input:not([type='checkbox']):focus,
+html[data-window='main'] .action-popover select:focus {
   border-color: var(--app-accent-border);
 }
 html[data-window='main'] .inspiration-topic-picker .clearable-input:has(.input-clear) > input {
@@ -1102,7 +1076,7 @@ html[data-window='main'] .inspiration-topic-picker form input {
   flex: 1;
   min-width: 0;
 }
-html[data-window='main'] .inspiration-topic-picker-header {
+html[data-window='main'] .action-popover-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1111,7 +1085,7 @@ html[data-window='main'] .inspiration-topic-picker-header {
   font-size: 12px;
   color: var(--app-muted);
 }
-html[data-window='main'] .inspiration-topic-picker-header button,
+html[data-window='main'] .action-popover-header button,
 html[data-window='main'] .inspiration-topic-picker button[type='submit'] {
   display: grid;
   place-items: center;
@@ -1140,9 +1114,6 @@ html[data-window='main'] .inspiration-topic-error {
   }
   .workbench-header-actions {
     gap: 12px;
-  }
-  .workbench-completion {
-    display: none;
   }
   .workbench .inspiration-workbench {
     grid-template-columns: 170px minmax(0, 1fr);
@@ -1468,9 +1439,6 @@ html[data-window='main'] .inspiration-topic-error {
     padding: 0;
     border: 0;
   }
-  .workbench .inspiration-row-actions time {
-    display: none;
-  }
 }
 @media (max-width: 900px) {
   .workbench .inspiration-row {
@@ -1521,23 +1489,184 @@ html[data-window='main']:has(.workbench-main-inspiration) {
   overflow: hidden;
 }
 
-.workbench .habit-view-switch {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 22px;
-}
-.workbench .habit-view-switch button[aria-pressed='true'] {
-  background: var(--app-hover);
-  color: var(--app-accent);
-}
-.workbench .habit-view-switch span {
-  font-size: 11px;
-  color: var(--app-muted);
-}
 .workbench .habit-archived-description {
   display: block;
   padding: 6px 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+/* Metadata shares the second line across main-window lists. */
+.workbench .list-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 3px 0 0;
+  padding: 0 4px;
+  color: var(--app-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.workbench .created-time {
+  white-space: nowrap;
+}
+.workbench .main-list-content {
+  min-width: 0;
+}
+.workbench .task-mini-progress {
+  flex: 0 0 68px;
+}
+/* List filters sit below the page title, aligned with the content. */
+.workbench .archive-view-switch {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex: none;
+  margin: 0 0 16px;
+  border-bottom: 1px solid var(--workspace-line);
+}
+.workbench .archive-view-switch .archive-filter {
+  position: relative;
+  min-height: 30px;
+  padding: 0 2px 6px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+  transition: color 120ms;
+}
+.workbench .archive-filter:hover {
+  color: var(--app-text);
+}
+.workbench .archive-filter[aria-pressed='true'] {
+  color: var(--app-accent);
+  font-weight: 600;
+}
+.workbench .archive-filter::after {
+  content: '';
+  position: absolute;
+  right: 2px;
+  bottom: -1px;
+  left: 2px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--app-accent);
+  transform: scaleX(0);
+  transition: transform 160ms;
+}
+.workbench .archive-filter[aria-pressed='true']::after {
+  transform: scaleX(1);
+}
+
+/* Keep the title and filters fixed; each list owns the remaining viewport. */
+html[data-window='main']:has(.workbench-main-list-page) {
+  overflow: hidden;
+  scrollbar-gutter: auto;
+}
+.workbench .workbench-main-list-page {
+  display: flex;
+  flex-direction: column;
+  max-width: none;
+  height: 100vh;
+  padding-right: 0;
+  padding-bottom: 0;
+  overflow: hidden;
+}
+.workbench-main-list-page > .workbench-header,
+.workbench-main-inspiration > .workbench-header {
+  flex: none;
+  min-height: 0;
+  padding-top: 30px;
+  padding-bottom: 10px;
+}
+.workbench-main-list-page > .workbench-header {
+  padding-right: 20px;
+}
+.workbench-main-list-page > .archive-view-switch {
+  margin-right: 20px;
+}
+.workbench-main-list-page > .workbench-split,
+.workbench-main-list-page > .workbench-habit-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--app-scrollbar) transparent;
+  overscroll-behavior: contain;
+  padding-right: 12px;
+  padding-bottom: 24px;
+}
+
+/* Separators belong between rows, leaving the end of each list open. */
+.workbench .task-row:nth-last-child(1 of .task-row),
+.workbench .note-archive-row:last-child,
+.workbench .habit-list > li:last-child,
+.workbench .inspiration-item:nth-last-child(1 of .inspiration-item) {
+  border-bottom: 0;
+}
+
+/* Group tasks into two quiet surfaces, keeping rows open and compact. */
+.workbench .task-card-group {
+  min-width: 0;
+  padding: 12px 14px 4px;
+  border: 1px solid var(--workspace-line);
+  border-radius: 10px;
+  background: var(--workspace-soft);
+}
+.workbench .task-card-group + .task-card-group {
+  margin-top: 16px;
+}
+.workbench .task-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  margin-bottom: 4px;
+}
+.workbench .task-card-heading h2 {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+}
+.workbench .task-card-count {
+  color: var(--app-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.workbench .task-card-empty {
+  margin: 0;
+  padding: 12px 0 16px;
+  color: var(--app-muted);
+  font-size: 12px;
+}
+
+.workbench .archive-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.workbench .archive-filter-count {
+  font-size: 11px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+/* Keep breathing room after the final task card, including at the scroll limit. */
+.workbench-main-list-page > .workbench-split {
+  padding-bottom: 0;
+}
+.workbench .workbench-list::after {
+  content: '';
+  display: block;
+  height: 16px;
 }

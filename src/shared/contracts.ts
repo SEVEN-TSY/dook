@@ -66,6 +66,7 @@ export interface DesktopApi {
   deleteArchivedHabit: (id: string) => Promise<ApiResult<boolean>>
   createHabit: (description: string) => Promise<ApiResult<Habit>>
   createHabitFromTask: (taskId: string) => Promise<ApiResult<Habit>>
+  setHabitSchedule: (id: string, schedule: HabitSchedule) => Promise<ApiResult<Habit>>
   updateHabit: (id: string, description: string) => Promise<ApiResult<Habit>>
   deleteHabit: (id: string) => Promise<ApiResult<boolean>>
   listToday: () => Promise<ApiResult<TodayTasks>>
@@ -159,7 +160,17 @@ export interface DesktopState {
 
 export type WindowKind = 'main' | 'note'
 
+export interface HabitSchedule {
+  kind: 'daily' | 'weekly' | 'interval'
+  time: string
+  weekdays?: number[]
+  intervalDays?: number
+  startsOn?: string
+}
+
 export interface Habit {
+  schedule?: HabitSchedule
+  createdAt?: string | null
   id: string
   description: string
 }
@@ -171,6 +182,7 @@ export interface Subitem {
 }
 
 export interface Task {
+  createdAt?: string | null
   id: string
   description: string
   date: string

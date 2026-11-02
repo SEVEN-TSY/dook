@@ -47,15 +47,19 @@ if (!app.requestSingleInstanceLock()) {
         }
       }
       let date = localDate(new Date())
+      let checkedMinute = ''
       const dateTimer = setInterval(() => {
-        const next = localDate(new Date())
-        if (date !== next) {
+        const now = new Date()
+        const next = localDate(now)
+        const minute = `${next}:${now.getHours()}:${now.getMinutes()}`
+        if (checkedMinute !== minute) {
           try {
-            service.ensureDailyTasks()
+            const generated = service.ensureDailyTasks()
+            checkedMinute = minute
+            if (date !== next || generated) changed()
             date = next
-            changed()
           } catch (error) {
-            console.error('习惯每日任务生成失败，稍后重试：', error)
+            console.error('习惯任务生成失败，稍后重试：', error)
           }
         }
       }, 1000)

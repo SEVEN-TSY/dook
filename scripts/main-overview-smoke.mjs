@@ -49,7 +49,7 @@ export async function mainOverviewSmoke({
     () =>
       js(
         main,
-        `document.querySelector('.workbench-completion').textContent.trim() === '1 / 3 已完成'`
+        `document.querySelector('[aria-label="当前任务"] .archive-filter-count').textContent.trim() === '1/3'`
       ),
     '完成统计同步'
   )
@@ -75,7 +75,7 @@ export async function mainOverviewSmoke({
   assert.deepEqual(await counts(), [2, 1, 1], '隐藏的持续推进不计入总数')
   await js(note, `window.myTodo.archiveTask('${task.id}')`)
   await waitFor(async () => (await counts())[0] === 1, '归档更新任务总数')
-  await click(main, '[data-testid=task-archive-toggle]')
+  await click(main, '.archive-view-switch [aria-label="已归档任务"]')
   const row = `[data-archived-task-id="${task.id}"]`
   await waitFor(
     () => js(main, `Boolean(document.querySelector('${row}')?.checkVisibility())`),

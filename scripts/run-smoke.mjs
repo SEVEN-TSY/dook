@@ -20,6 +20,8 @@ writeFileSync(
 const env = { ...process.env, MYTODO_SMOKE_DATA: mkdtempSync(resolve(root, '.local/smoke/data-')) }
 delete env.ELECTRON_RUN_AS_NODE
 const phases = [
+  'window-controls',
+  'list-metadata',
   'habit-archive',
   'drag',
   'dock',

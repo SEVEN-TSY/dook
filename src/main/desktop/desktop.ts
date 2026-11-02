@@ -1,26 +1,12 @@
-import { dialog, Menu, nativeImage, nativeTheme, Tray } from 'electron'
+import { dialog, Menu, nativeTheme, Tray } from 'electron'
 import type { BrowserWindow } from 'electron'
 import type { DesktopState, MainPage, WindowKind } from '../../shared/contracts'
 import { WINDOW_STATE } from '../../shared/channels'
-import { createWindow, loadWindow } from './window'
+import { createWindow, loadWindow, mainWindowTitleBar } from './window'
 import { NoteController } from './note-controller'
 import { SaveBarrier } from './save-barrier'
 import { readPreferences } from './preferences'
-
-function trayImage() {
-  const pixels = Buffer.alloc(16 * 16 * 4)
-  for (let y = 1; y < 15; y++)
-    for (let x = 1; x < 15; x++) {
-      const offset = (y * 16 + x) * 4
-      pixels.set([196, 111, 82, 255], offset)
-      if (
-        (x >= 4 && x <= 7 && Math.abs(y - x - 3) <= 1) ||
-        (x >= 7 && x <= 12 && Math.abs(y + x - 17) <= 1)
-      )
-        pixels.set([255, 255, 255, 255], offset)
-    }
-  return nativeImage.createFromBitmap(pixels, { width: 16, height: 16 })
-}
+import { appIcon } from './brand'
 
 /** 窗口与托盘的唯一所有者；任务规则仍交给共享应用服务。 */
 export class Desktop {
@@ -49,7 +35,7 @@ export class Desktop {
 
   startTray() {
     if (this.tray) return
-    this.tray = new Tray(trayImage())
+    this.tray = new Tray(appIcon().resize({ width: 32, height: 32 }))
     this.tray.setToolTip('myTodo')
     this.tray.on('click', () => {
       void this.openWindow('note')
@@ -141,8 +127,10 @@ export class Desktop {
     if (nativeTheme.themeSource !== appearance) nativeTheme.themeSource = appearance
     for (const window of this.windows.values())
       if (!window.isDestroyed()) {
-        if (window === this.windows.get('main'))
+        if (window === this.windows.get('main')) {
           window.setBackgroundColor(nativeTheme.shouldUseDarkColors ? '#202020' : '#fafbfe')
+          window.setTitleBarOverlay(mainWindowTitleBar())
+        }
         window.webContents.send(WINDOW_STATE, this.state())
       }
   }

@@ -82,7 +82,11 @@ export async function listInteractionSmoke({ main, note, js, click, input, waitF
   )
   await input(main, '[data-testid=task-edit]', '   ')
   await waitFor(
-    () => js(main, `document.querySelector('.app-toast')?.textContent === '任务描述不能为空。'`),
+    () =>
+      js(
+        main,
+        `document.querySelector('[data-sonner-toast][data-type=error] [data-title]')?.textContent === '任务描述不能为空。'`
+      ),
     '空白校验使用小toast'
   )
   assert.equal(
@@ -91,7 +95,7 @@ export async function listInteractionSmoke({ main, note, js, click, input, waitF
     'toast不抢编辑焦点'
   )
   await capture(main, 'validation-toast.png')
-  await waitFor(() => js(main, `!document.querySelector('.app-toast')`), 'toast自动消失')
+  await waitFor(() => js(main, `!document.querySelector('[data-sonner-toast]')`), 'toast自动消失')
   assert.equal(
     await js(main, `document.querySelector('[data-testid=task-edit]').value`),
     '   ',
@@ -122,6 +126,66 @@ export async function listInteractionSmoke({ main, note, js, click, input, waitF
     '新增排在置顶之后普通首位'
   )
   const long = '长任务内容'.repeat(30) + '末尾'
+  const alignmentTask = (await js(note, 'window.myTodo.listToday()')).data.tasks.find(
+    (task) => task.description === '便签新任务'
+  )
+  const alignmentSelector = `[data-task-id="${alignmentTask.id}"]`
+  const measureEditor = () =>
+    js(
+      note,
+      `(() => {
+    const row = document.querySelector(${JSON.stringify(alignmentSelector)});
+    const field = row.querySelector('[data-testid=task-edit], [data-testid=task-description]');
+    const rect = field.getBoundingClientRect();
+    const style = getComputedStyle(field);
+    const progress = row.querySelector('.task-progress');
+    return {
+      x: rect.x + parseFloat(style.paddingLeft),
+      y: rect.y + parseFloat(style.paddingTop),
+      width: rect.width,
+      height: rect.height - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom),
+      rowHeight: row.getBoundingClientRect().height,
+      progressY: progress?.getBoundingClientRect().y ?? null,
+      progressHeight: progress?.getBoundingClientRect().height ?? null
+    };
+  })()`
+    )
+  for (const multiDay of [false, true]) {
+    if (multiDay) {
+      await js(note, `window.myTodo.convertToMultiDay('${alignmentTask.id}')`)
+      await waitFor(
+        () => js(note, `Boolean(document.querySelector('${alignmentSelector} .task-progress'))`),
+        '持续推进进度就绪'
+      )
+      await click(note, '[data-note-group="multi-day"]')
+    }
+    const before = await measureEditor()
+    await click(note, `${alignmentSelector} [data-testid=task-description]`)
+    await waitFor(
+      () =>
+        js(note, `Boolean(document.querySelector('${alignmentSelector} [data-testid=task-edit]'))`),
+      '便签原地编辑就绪'
+    )
+    const editingLayout = await measureEditor()
+    if (multiDay) {
+      assert.equal(editingLayout.height, 22, '持续推进保留34px编辑框与上下6px留白')
+      assert.equal(editingLayout.x, before.x + 8, '持续推进保留原编辑框左右留白')
+      assert.equal(editingLayout.progressHeight, 0, '持续推进编辑时沿用原有进度隐藏样式')
+    } else {
+      assert.deepEqual(editingLayout, before, '今天任务进入编辑时文字起点和尺寸保持对齐')
+    }
+    for (const value of ['', '短任务', long]) {
+      await input(note, '[data-testid=task-edit]', value, null)
+      assert.deepEqual(await measureEditor(), editingLayout, '便签连续输入及清空时布局不抖动')
+    }
+    await input(note, '[data-testid=task-edit]', '便签新任务')
+    await waitFor(
+      () => js(note, `!document.querySelector('[data-testid=task-edit]')`),
+      '便签提交后退出编辑'
+    )
+    assert.deepEqual(await measureEditor(), before, '便签保存前后保持对齐')
+  }
+  await click(note, '.note-add-button')
   await input(note, '[data-testid=task-new]', long)
   await waitFor(
     () =>
@@ -162,7 +226,7 @@ export async function listInteractionSmoke({ main, note, js, click, input, waitF
   await capture(main, 'inspiration-edge-layout.png')
   const habit = (await js(main, `window.myTodo.createHabit('共用习惯编辑')`)).data
   await click(main, '.workbench-nav [aria-label="习惯"]')
-  await click(main, `[data-habit-id="${habit.id}"] [data-testid=habit-edit]`)
+  await click(main, `[data-habit-id="${habit.id}"] [data-testid=habit-description]`)
   assert.equal(
     await js(
       main,
@@ -182,7 +246,7 @@ export async function listInteractionSmoke({ main, note, js, click, input, waitF
     () =>
       js(
         main,
-        `document.querySelector('.app-toast')?.textContent === '习惯描述不能为空。'`
+        `document.querySelector('[data-sonner-toast][data-type=error] [data-title]')?.textContent === '习惯描述不能为空。'`
       ),
     '空白习惯保留编辑并提示'
   )

@@ -1,3 +1,4 @@
+import { listMetadataSmoke } from './list-metadata-smoke.mjs'
 import { habitArchiveSmoke } from './habit-archive-smoke.mjs'
 import { noteJottingsSmoke } from './note-jottings-smoke.mjs'
 import { appearanceSmoke } from './appearance-smoke.mjs'
@@ -815,6 +816,46 @@ async function runSmoke() {
     menuClick('打开主界面')
     let main = await waitFor(() => findWindow('main'), '托盘打开主界面')
     assert.ok(main && note)
+    if (phase === 'window-controls') {
+      await waitFor(
+        () => js(main, `navigator.windowControlsOverlay?.visible`),
+        '原生窗口按钮内嵌于内容区'
+      )
+      for (const appearance of ['light', 'dark']) {
+        await js(main, `(async () => {
+          const { settings } = (await window.myTodo.getWindowState()).data;
+          const result = await window.myTodo.updateSettings({ ...settings, appearance: '${appearance}' });
+          if (!result.ok) throw new Error(result.error);
+        })()`)
+        await waitFor(
+          () => js(main, `document.documentElement.dataset.theme === '${appearance}'`),
+          '窗口外观同步'
+        )
+        assert.equal(await js(main, `(() => {
+          const drag = document.querySelector('.main-window-drag-region');
+          const rect = drag.getBoundingClientRect();
+          const title = navigator.windowControlsOverlay.getTitlebarAreaRect();
+          const add = document.querySelector('.composer-toggle').getBoundingClientRect();
+          return getComputedStyle(drag).getPropertyValue('-webkit-app-region') === 'drag'
+            && rect.height > 0 && rect.right <= title.right + 1
+            && rect.bottom <= add.top;
+        })()`), true, '顶部可拖动且不遮挡窗口按钮和新增按钮')
+      }
+      main.maximize()
+      await waitFor(() => main.isMaximized(), '主界面最大化')
+      main.unmaximize()
+      await waitFor(() => !main.isMaximized(), '主界面还原')
+      main.minimize()
+      await waitFor(() => !main.isVisible(), '最小化隐藏到托盘')
+      menuClick('打开主界面')
+      await waitFor(() => main.isVisible() && !main.isMinimized(), '从托盘恢复主界面')
+      main.close()
+      await waitFor(() => !main.isVisible(), '关闭隐藏到托盘')
+      assert.equal(main.isDestroyed(), false, '关闭后保留主界面')
+      console.log('Electron embedded window controls passed')
+      menuClick('退出')
+      return
+    }
     if (phase.startsWith('note-jottings-')) {
       await noteJottingsSmoke({
         main,
@@ -847,7 +888,17 @@ async function runSmoke() {
       return
     }
     if (phase === 'habit-archive') {
-      await habitArchiveSmoke({ main, note, js, click, input, waitFor, assert })
+      await habitArchiveSmoke({
+        main,
+        note,
+        js,
+        click,
+        input,
+        waitFor,
+        assert,
+        capture: async (window, name) =>
+          writeFileSync(resolve(output, name), (await window.webContents.capturePage()).toPNG())
+      })
       console.log('Electron habit archive smoke passed')
       menuClick('退出')
       return
@@ -1088,7 +1139,7 @@ async function runSmoke() {
           () =>
             js(
               main,
-              `document.querySelector('.inspiration-group-title')?.textContent === '未归类'`
+              `document.querySelector('.inspiration-group-title')?.textContent === '无归类'`
             ),
           '删除当前主题后切组'
         )
@@ -1297,7 +1348,7 @@ async function runSmoke() {
           () =>
             js(
               main,
-              `document.querySelector('[role=alert]')?.textContent.includes('主题名称不能为空')`
+              `document.querySelector('[role=alert], [data-sonner-toast][data-type=error] [data-title]')?.textContent.includes('主题名称不能为空')`
             ),
           '创建失败提示'
         )
@@ -1343,9 +1394,9 @@ async function runSmoke() {
           () =>
             js(
               main,
-              `document.querySelector('.inspiration-group-title')?.textContent === '未归类'`
+              `document.querySelector('.inspiration-group-title')?.textContent === '无归类'`
             ),
-          '重启进入未归类'
+          '重启进入无归类'
         )
         await js(
           main,
@@ -1389,6 +1440,21 @@ async function runSmoke() {
         )
       }
       console.log(`Electron topics smoke passed: ${phase}`)
+      menuClick('退出')
+      return
+    }
+    if (phase === 'list-metadata') {
+      await listMetadataSmoke({
+        main,
+        note,
+        js,
+        click,
+        input,
+        waitFor,
+        capture: async (window, name) =>
+          writeFileSync(resolve(output, name), (await window.webContents.capturePage()).toPNG())
+      })
+      console.log('Electron list metadata smoke passed')
       menuClick('退出')
       return
     }
@@ -1484,7 +1550,7 @@ async function runSmoke() {
         lock.exec('BEGIN IMMEDIATE')
         await input(main, '[data-testid=task-new]', '失败后保留草稿')
         await waitFor(
-          () => js(main, 'Boolean(document.querySelector("[role=alert]"))'),
+          () => js(main, 'Boolean(document.querySelector("[role=alert], [data-sonner-toast][data-type=error] [data-title]"))'),
           '保存失败反馈'
         )
         assert.equal(
@@ -1720,8 +1786,8 @@ async function runSmoke() {
           main,
           `document.querySelector('.inspiration-nav-item .inspiration-heading').textContent`
         ),
-        '未归类',
-        '未归类排在第一项'
+        '无归类',
+        '无归类排在第一项'
       )
       await chooseGroup('产品构想')
       await waitFor(
@@ -2347,7 +2413,7 @@ async function runSmoke() {
           )
         await input(window, '[data-testid=task-edit]', '   ')
         await waitFor(
-          () => js(window, 'Boolean(document.querySelector("[role=alert]"))'),
+          () => js(window, 'Boolean(document.querySelector("[role=alert], [data-sonner-toast][data-type=error] [data-title]"))'),
           '空白描述校验'
         )
         await input(
@@ -2520,7 +2586,7 @@ async function runSmoke() {
           '失败后保留输入'
         )
         assert.match(
-          await js(note, 'document.querySelector("[role=alert]").textContent'),
+          await js(note, 'document.querySelector("[role=alert], [data-sonner-toast][data-type=error] [data-title]").textContent'),
           /locked|锁/i
         )
         assert.doesNotMatch(

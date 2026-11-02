@@ -1,3 +1,4 @@
+import { parseHabitSchedule } from './habit-schedule'
 import type {
   CoreProbe,
   StorageProbe,
@@ -38,7 +39,8 @@ export class AppService {
   }
 
   restoreHabit(id: string): void {
-    this.habitStore().restore(this.taskId(id), localDate(this.now()))
+    const now = this.now()
+    this.habitStore().restore(this.taskId(id), localDate(now), now.toISOString())
   }
 
   deleteArchivedHabit(id: string): void {
@@ -48,11 +50,24 @@ export class AppService {
   createHabit(description: string): Habit {
     if (typeof description !== 'string' || !description.trim())
       throw new Error('习惯描述不能为空。')
-    return this.habitStore().create(description.trim(), localDate(this.now()))
+    const now = this.now()
+    return this.habitStore().create(description.trim(), localDate(now), now.toISOString())
   }
 
   createHabitFromTask(taskId: string): Habit {
-    return this.habitStore().createFromTask(this.taskId(taskId), localDate(this.now()))
+    const now = this.now()
+    return this.habitStore().createFromTask(this.taskId(taskId), localDate(now), now.toISOString())
+  }
+
+  setHabitSchedule(id: string, value: unknown): Habit {
+    const schedule = parseHabitSchedule(value)
+    const now = this.now()
+    return this.habitStore().setSchedule(
+      this.taskId(id),
+      schedule,
+      localDate(now),
+      now.toISOString()
+    )
   }
 
   updateHabit(id: string, description: string): Habit {
@@ -68,7 +83,8 @@ export class AppService {
   }
 
   ensureDailyTasks(): boolean {
-    return this.features.habits?.ensureToday(localDate(this.now())) ?? false
+    const now = this.now()
+    return this.features.habits?.ensureToday(localDate(now), now.toISOString()) ?? false
   }
 
   private habitStore(): HabitStore {
@@ -204,10 +220,11 @@ export class AppService {
   createTask(description: string, expectedDate?: string): Task {
     if (typeof description !== 'string' || !description.trim())
       throw new Error('任务描述不能为空。')
-    const date = localDate(this.now())
+    const now = this.now()
+    const date = localDate(now)
     if (expectedDate !== undefined && expectedDate !== date)
       throw new Error('日期已切换，请重新记录今天任务。未保存的输入仍保留。')
-    return this.taskStore().create(description.trim(), date)
+    return this.taskStore().create(description.trim(), date, now.toISOString())
   }
 
   updateTask(id: string, description: string): Task {

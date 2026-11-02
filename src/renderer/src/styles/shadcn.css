@@ -37,7 +37,8 @@
 [data-slot='button'],
 [data-slot='toggle'],
 [data-slot='toggle-group-item'],
-[data-slot='switch'] {
+[data-slot='switch'],
+[data-slot='select-trigger'] {
   border: 0 solid var(--color-border);
   padding: 0;
   background: transparent;
@@ -53,7 +54,8 @@
 }
 
 /* DropdownMenu needs the border reset normally supplied by Preflight. */
-[data-slot='dropdown-menu-content'] {
+[data-slot='dropdown-menu-content'],
+[data-slot='select-content'] {
   border-style: solid;
   border-color: var(--color-border);
   font-family: inherit;

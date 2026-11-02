@@ -7,7 +7,11 @@ files:
   - package.json
 asar: true
 npmRebuild: false
+extraResources:
+  - from: resources/app-icon.png
+    to: resources/app-icon.png
 win:
+  icon: resources/app-icon.ico
   target:
     - target: nsis
       arch: [x64]

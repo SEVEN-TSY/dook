@@ -24,7 +24,7 @@
 - `main/core/app-service.ts`提供任务、子事项、习惯和小记用例；通过可注入时钟确定电脑本地日期。多天任务进度、子事项完成联动与当天可见性沿用同一业务入口。
 - `main/core/tasks.ts`定义TaskStore和本地日期转换；习惯及小记各有独立存储接口，通过AppService的可选features参数注入。
 - `main/storage/repositories/tasks.ts`实现任务及子事项持久化；habits仓储以事务写入习惯、任务和每日生成记录，inspirations仓储保存原始想法及按序补充。
-- `main/desktop/window.ts`创建普通主界面与约334px宽、不占任务栏的无标题栏便签。
+- `main/desktop/window.ts`创建隐藏系统标题栏、右上角内嵌原生窗口按钮的主界面与约334px宽、不占任务栏的无标题栏便签。主界面使用titleBarOverlay保留原生最小化、最大化／还原和关闭行为，按钮外观随主题同步；渲染层顶部空白区提供原生拖动区域。
 - `main/desktop/desktop.ts`管理窗口唯一性、唯一托盘、恢复、隐藏及退出前的保存流程。
 - `main/desktop/note-controller.ts`管理自由置顶选择与贴边强制置顶、即时悬停呼出、600毫秒离开收回交互及操作保护。
 - `main/desktop/note-geometry.ts`检查屏幕组合的外侧边缘并限制可见位置；屏幕变化由便签控制器恢复。
@@ -133,7 +133,7 @@ Electron分类场景还可分别运行node scripts/run-smoke.mjs multiday和node
 
 ## 小记界面细节
 
-`renderer/src/features/inspirations/InspirationPanel.tsx`只承载分组导航、分页列表、正文原地编辑和主题归集；默认主题视角及未归类。主题和日期在组件生命周期内各自保留分组、加载页数及滚动位置，重启不恢复浏览位置，不再维护详情选中状态。
+`renderer/src/features/inspirations/InspirationPanel.tsx`只承载分组导航、分页列表、正文原地编辑和主题归集；默认主题视角及无归类。主题和日期在组件生命周期内各自保留分组、加载页数及滚动位置，重启不恢复浏览位置，不再维护详情选中状态。
 
 普通与已归档小记不渲染详情、历史补充或追加入口。`appendInspiration`、仓储及已有补充数据继续保留，领域仍支持持续补充。新增与原地编辑沿用`useInspirationInput`及`useSerialSave`；`InlineComposer`统一任务、习惯及小记新增表面，默认通过`onValueChange`清除草稿；与`ClearableInput`、`ClearableTextarea`共用`ClearButton`及透明清除样式，保留焦点且不提交。`ClearableTextarea`提供正文清除及输入区域内部焦点移动保护，正文编辑随内容增高，列表单行省略。
 
@@ -153,3 +153,21 @@ NotePages使任务和当天小记列表保持挂载，通过横向轨道切页�
 便签小记的已归档分组通过现有listInspirationPage的archive查询读取分页，按首次记录的本地日期筛选今天内容，复用变更广播刷新计数和内容。NotePages保留独立折叠状态，恢复和永久删除由TasksPage沿用保存屏障、共用删除确认及现有API处理；日常列表和数量仍只统计当天未归档小记。
 
 习惯归档通过HabitStore、AppService及白名单IPC串联；habits.archived持久化状态，每日生成仅遍历未归档习惯。归档事务移除当天任务，恢复事务重新生成当天任务，永久删除仅允许归档习惯且保留历史任务。
+
+## 列表创建时间与归档入口
+
+v14为tasks、habits追加可空created_at。AppService通过同一次核心时钟读数传入本地日期及ISO创建时间，仓储覆盖普通创建、从任务建立习惯和每日任务生成；读取及更新结果带回createdAt，旧记录保留null。编辑、转换、归档与恢复不改写原创建时间。
+
+主界面通过共享CreatedTime及纯函数shared/created-time.ts统一列表第二行格式。TasksPage持有任务与习惯的独立归档筛选状态，标题下方靠左的“全部／已归档”标签栏切换普通与仅归档视图，HabitsPanel接收筛选状态；便签继续使用折叠分组。任务DropdownMenu关闭模态滚动锁定，保留原布局与滚动位置。`node scripts/run-smoke.mjs list-metadata`覆盖菜单几何稳定、进度条可见、时间展示及归档筛选。
+
+任务与习惯页的workbench-main-list-page采用视口高度的列布局，标题及筛选栏固定占位，workbench-split和workbench-habit-page分别承载剩余空间内的独立滚动；根页面不滚动。
+
+主界面普通任务按noteGroups分别渲染task-card-group，两个卡组共享原有任务行与操作逻辑，不再使用首个多天任务行上的绝对定位组标题；便签分组维持原有实现。
+
+## 习惯定时周期
+
+v15为habits增加可空schedule JSON；旧记录不设置周期，沿用每日生成。HabitSchedule通过DesktopApi.setHabitSchedule、固定IPC及AppService传递，核心层验证周期、星期和时间；仓储以事务更新周期及生成当前到期任务。habit-schedule.ts按本地时间及日历日期判断每天、每周与间隔周期；间隔日差使用UTC日期避免夏令时日长变化。现有habit_generations保证单日唯一，不补历史。
+
+主进程保留每秒时钟检查，仅在分钟变化时调用ensureDailyTasks；生成失败不推进检查点，下秒重试。跨日或新任务生成后广播；启动仍检查当天到期任务。恢复习惯同样经过周期判断。
+
+HabitSchedulePopover复用现有Popover及箭头、关闭入口，使用236px宽紧凑浮窗。HabitsPanel将当前与归档数量向TasksPage同步；正文编辑保留，移除独立编辑按钮。tests/habit-schedule.test.ts覆盖生成时间、星期、间隔、重启、单日去重、无效输入与事务回滚；habit-archive smoke覆盖实际浮窗保存、失败保留、取消、数量同步和归档恢复。

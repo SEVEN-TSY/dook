@@ -1350,6 +1350,13 @@ h1 {
   min-height: 48px;
   padding: 3px 2px;
 }
+.note .task-row[data-task-kind='multi-day'] {
+  height: 56px;
+  min-height: 56px;
+}
+.note .task-row[data-task-kind='multi-day'] .task-progress {
+  margin-top: 4px;
+}
 .note .task-content {
   overflow: hidden;
 }
@@ -1361,21 +1368,30 @@ h1 {
   padding: 0;
 }
 .note .task-edit-form {
-  height: 34px;
+  height: 20px;
   width: 100%;
 }
 .note .task-content:has(.task-edit-form) {
   overflow: visible;
 }
 .note .task-edit-input {
-  padding: 6px 8px;
+  inset: -6px 0;
+  height: calc(100% + 12px);
+  padding: 6px 0;
   overflow: hidden;
   scrollbar-width: none;
   border-radius: 5px;
   background: var(--app-accent-soft);
 }
-.note .task-content:has(.task-edit-form) .task-progress,
-.note .task-content:has(.task-edit-form) .habit-source {
+.note [data-task-kind='multi-day'] .task-edit-form {
+  height: 34px;
+}
+.note [data-task-kind='multi-day'] .task-edit-input {
+  inset: 0;
+  height: 100%;
+  padding: 6px 8px;
+}
+.note [data-task-kind='multi-day'] .task-content:has(.task-edit-form) .task-progress {
   display: none;
 }
 .note .habit-source {
