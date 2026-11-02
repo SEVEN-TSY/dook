@@ -341,8 +341,8 @@ export async function noteArchiveSmoke({
   await js(note, `window.myTodo.setTaskCompleted('${multi.id}', false)`)
   await js(main, `window.myTodo.openWindow('main', 'task')`)
   await waitFor(
-    () => js(main, `Boolean(document.querySelector('[data-task-id="${multi.id}"]'))`),
-    '主界面多天任务不受影响'
+    () => js(main, `!document.querySelector('[data-task-id="${multi.id}"]')`),
+    '主界面同步隐藏多天任务'
   )
   await capture(note, 'note-archive.png')
   await js(main, `window.myTodo.openWindow('main', 'settings')`)

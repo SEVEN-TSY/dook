@@ -81,37 +81,40 @@ export function TasksPage({
   const taskAdded = useTaskInput(today?.date, refresh, setError)
   const [loadedInspirationCount, setInspirationCount] = useState<number>()
   const inspirationCount = loadedInspirationCount ?? 0
+  const habitCount =
+    today?.tasks.filter((task) => task.habitId && task.date === today.date).length ?? 0
   const showMultiDay = desktop?.settings.showMultiDay ?? true
-  const { total, completed } = summarizeTasks(today?.tasks, kind !== 'note' || showMultiDay)
+  const visibleTasks = today?.tasks.filter((task) => showMultiDay || task.kind === 'today') ?? []
+  const { total, completed } = summarizeTasks(visibleTasks)
   const taskSummary = useSummaryMotion(kind === 'note' && today ? total : undefined, true)
   const inspirationSummary = useSummaryMotion(kind === 'note' ? loadedInspirationCount : undefined)
-  const inspirationCountVersion = useRef(0)
-  const refreshInspirationCount = useCallback(async () => {
-    if (kind !== 'note') return
-    const version = ++inspirationCountVersion.current
+  const categoryCountVersion = useRef(0)
+  const refreshCategoryCounts = useCallback(async () => {
+    const version = ++categoryCountVersion.current
     try {
       const ideas = unwrap(await getDesktopApi().listInspirations())
       const date = new Date().toDateString()
       const count = ideas.filter(
         (idea) => idea.createdAt && new Date(idea.createdAt).toDateString() === date
       ).length
-      if (version === inspirationCountVersion.current) setInspirationCount(count)
+      if (version === categoryCountVersion.current) {
+        setInspirationCount(count)
+      }
     } catch (error) {
-      if (version === inspirationCountVersion.current)
-        setError(error instanceof Error ? error.message : '读取灵感数量失败。')
+      if (version === categoryCountVersion.current)
+        setError(error instanceof Error ? error.message : '读取分类数量失败。')
     }
-  }, [kind, setError])
+  }, [setError])
   useEffect(() => {
-    if (kind !== 'note') return
-    void refreshInspirationCount()
-    const unsubscribe = getDesktopApi().onTasksChanged(() => void refreshInspirationCount())
-    window.addEventListener('focus', refreshInspirationCount)
+    void refreshCategoryCounts()
+    const unsubscribe = getDesktopApi().onTasksChanged(() => void refreshCategoryCounts())
+    window.addEventListener('focus', refreshCategoryCounts)
     return () => {
-      inspirationCountVersion.current++
+      categoryCountVersion.current++
       unsubscribe()
-      window.removeEventListener('focus', refreshInspirationCount)
+      window.removeEventListener('focus', refreshCategoryCounts)
     }
-  }, [kind, refreshInspirationCount])
+  }, [refreshCategoryCounts])
   const inspirationAdded = useInspirationInput(
     async (text, id) =>
       unwrap(
@@ -119,7 +122,7 @@ export function TasksPage({
           ? getDesktopApi().updateInspiration(id, text)
           : getDesktopApi().createInspiration(text))
       ),
-    refreshInspirationCount,
+    refreshCategoryCounts,
     setError
   )
   const added = newKind === 'task' ? taskAdded : inspirationAdded
@@ -265,8 +268,67 @@ export function TasksPage({
       setError(error instanceof Error ? error.message : '窗口操作失败。')
     }
   }
+  const archiveList = (
+    <>
+      <button
+        type="button"
+        className="note-group-heading"
+        data-note-group="archived"
+        data-testid="task-archive-toggle"
+        hidden={total === 0 && archived.length === 0}
+        aria-expanded={archiveExpanded}
+        onClick={() => setArchiveExpanded((expanded) => !expanded)}
+      >
+        <svg viewBox="0 0 12 12" width="12" height="12" fill="none" aria-hidden="true">
+          <path
+            d={archiveExpanded ? 'm3 4.5 3 3 3-3' : 'm4.5 3 3 3-3 3'}
+            stroke="currentColor"
+            strokeWidth="1.3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        已归档<span className="note-group-count">{archived.length}</span>
+      </button>
+      <div hidden={!archiveExpanded} aria-label="已归档任务">
+        {archived.map((task) => (
+          <div className="note-archive-row" key={task.id} data-archived-task-id={task.id}>
+            <span className="note-archive-description" title={task.description}>
+              {task.description}
+            </span>
+            <div className="note-archive-actions">
+              <button
+                type="button"
+                className="task-delete note-archive-delete"
+                title="永久删除"
+                aria-label={`永久删除：${task.description}`}
+                disabled={busy}
+                onClick={async () => {
+                  if (await flush.current()) await deleteArchived(task.id)
+                }}
+              >
+                <TaskActionIcon name="delete" />
+              </button>
+              <button
+                type="button"
+                className="task-pin"
+                title="恢复任务"
+                aria-label={`恢复：${task.description}`}
+                disabled={busy}
+                onClick={async () => {
+                  if (await flush.current()) await restore(task.id)
+                }}
+              >
+                <TaskActionIcon name="restore" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  )
   if (kind === 'main') {
-    const selected = today?.tasks.find((task) => task.id === selectedTask)
+    const selected = visibleTasks.find((task) => task.id === selectedTask)
     const navigate = async (next: typeof page) => {
       if (!(await flush.current())) return
       setPage(next)
@@ -304,7 +366,9 @@ export function TasksPage({
               >
                 <AppIcon name={id} />
                 <span>{label}</span>
-                {id === 'task' && <span className="nav-count">{total - completed}</span>}
+                <span className="nav-count" title={`今天的${label}数量`}>
+                  {{ task: total, habit: habitCount, inspiration: inspirationCount }[id]}
+                </span>
               </button>
             ))}
             <button
@@ -400,7 +464,7 @@ export function TasksPage({
                 }}
                 onCompositionEnd={taskAdded.endComposition}
               />
-              {today?.tasks.length === 0 && (
+              {today && total === 0 && (
                 <div className="workbench-empty">
                   <span className="empty-icon" aria-hidden="true">
                     ✓
@@ -418,14 +482,14 @@ export function TasksPage({
                   </span>
                 </div>
               )}
-              {today?.tasks.map((task, index) => (
+              {visibleTasks.map((task, index) => (
                 <div
                   key={task.id}
                   data-task-id={task.id}
                   data-task-kind={task.kind}
-                  className={`task-row ${task.completed ? 'completed' : ''} ${task.kind === 'multi-day' && today.tasks[index - 1]?.kind !== 'multi-day' ? 'multi-day-start' : ''} ${selectedTask === task.id ? 'selected' : ''}`}
+                  className={`task-row ${task.completed ? 'completed' : ''} ${task.kind === 'multi-day' && visibleTasks[index - 1]?.kind !== 'multi-day' ? 'multi-day-start' : ''} ${selectedTask === task.id ? 'selected' : ''}`}
                 >
-                  {task.kind === 'multi-day' && today.tasks[index - 1]?.kind !== 'multi-day' && (
+                  {task.kind === 'multi-day' && visibleTasks[index - 1]?.kind !== 'multi-day' && (
                     <span className="group-label">
                       持续推进
                       <small>
@@ -547,6 +611,7 @@ export function TasksPage({
                   </DropdownMenu>
                 </div>
               ))}
+              {archiveList}
             </div>
             {selected && (
               <aside className="workbench-detail" aria-label="任务详情">
@@ -974,60 +1039,7 @@ export function TasksPage({
             ))}
           </Fragment>
         ))}
-        <button
-          type="button"
-          className="note-group-heading"
-          data-note-group="archived"
-          hidden={total === 0 && archived.length === 0}
-          aria-expanded={archiveExpanded}
-          onClick={() => setArchiveExpanded((expanded) => !expanded)}
-        >
-          <svg viewBox="0 0 12 12" width="12" height="12" fill="none" aria-hidden="true">
-            <path
-              d={archiveExpanded ? 'm3 4.5 3 3 3-3' : 'm4.5 3 3 3-3 3'}
-              stroke="currentColor"
-              strokeWidth="1.3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          已归档<span className="note-group-count">{archived.length}</span>
-        </button>
-        <div hidden={!archiveExpanded} aria-label="已归档任务">
-          {archived.map((task) => (
-            <div className="note-archive-row" key={task.id} data-archived-task-id={task.id}>
-              <span className="note-archive-description" title={task.description}>
-                {task.description}
-              </span>
-              <div className="note-archive-actions">
-                <button
-                  type="button"
-                  className="task-delete note-archive-delete"
-                  title="永久删除"
-                  aria-label={`永久删除：${task.description}`}
-                  disabled={busy}
-                  onClick={async () => {
-                    if (await flush.current()) await deleteArchived(task.id)
-                  }}
-                >
-                  <TaskActionIcon name="delete" />
-                </button>
-                <button
-                  type="button"
-                  className="task-pin"
-                  title="恢复任务"
-                  aria-label={`恢复：${task.description}`}
-                  disabled={busy}
-                  onClick={async () => {
-                    if (await flush.current()) await restore(task.id)
-                  }}
-                >
-                  <TaskActionIcon name="restore" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+        {archiveList}
       </div>
       {error && (
         <p className="task-error" role="alert">

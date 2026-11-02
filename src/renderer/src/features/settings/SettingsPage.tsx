@@ -170,7 +170,7 @@ export function SettingsPage({ state, hidden }: { state: DesktopState | null; hi
         <label className="setting-row">
           <span>
             <strong>显示持续推进</strong>
-            <small>关闭后便签只显示这就去做和已归档，任务仍保留在主界面。</small>
+            <small>关闭后主界面和便签均隐藏持续推进，不计入任务统计，任务数据仍保留。</small>
           </span>
           <Switch
             data-testid="show-multi-day"

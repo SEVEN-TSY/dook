@@ -31,7 +31,7 @@
 - `main/desktop/preferences.ts`读写窗口偏好；`save-barrier.ts`按窗口身份关联保存请求与回复。
 - `main/desktop/ipc.ts`只接受注册窗口主Frame的请求，校验参数并包装结果；删除调用系统确认框一次，取消不修改数据。
 - `preload/index.ts`显式暴露DesktopApi；订阅返回清理函数。
-- `renderer/src/features/tasks/TasksPage.tsx`是两端共用的分类界面；主界面采用左侧任务、习惯、灵感同级导航及底部设置入口，桌面便签以灯泡和数量提供灵感页快捷入口；SubitemsPanel、HabitsPanel和InspirationPanel分别承载子事项、主界面习惯管理及灵感编辑。
+- `renderer/src/features/tasks/TasksPage.tsx`是两端共用的分类界面；主界面采用左侧任务、习惯、灵感同级导航及底部设置入口，三个类别均订阅变更并显示当天数量：当天可见任务、当天习惯任务、当天新增灵感；两端共用已归档任务列表，“显示持续推进”同时控制两端可见性与统计。桌面便签以灯泡和当天数量提供灵感页快捷入口；SubitemsPanel、HabitsPanel和InspirationPanel分别承载子事项、主界面习惯管理及灵感编辑。
 - `renderer/src/features/tasks/useTasks.ts`读取列表、订阅通知、协调操作及错误，丢弃过时列表响应。
 - `renderer/src/features/tasks/NoteTransition.tsx`以独立共享表面完成胶囊与便签的FLIP投影、圆角校正及内容交接；动画完成后按版本向主进程握手，避免过早收缩原生窗口。
 - `renderer/src/features/tasks/useTaskInput.ts`串行协调同一轮输入的创建和更新，不阻塞继续输入；任务组件在设置页和收起状态保持挂载。

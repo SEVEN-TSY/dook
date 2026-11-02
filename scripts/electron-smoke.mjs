@@ -1,5 +1,6 @@
 import { subitemsSmoke } from './subitems-smoke.mjs'
 import { noteArchiveSmoke } from './note-archive-smoke.mjs'
+import { mainOverviewSmoke } from './main-overview-smoke.mjs'
 import { habitsSmoke } from './smoke-habits.mjs'
 import { app, BrowserWindow, dialog, Tray, screen } from 'electron'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -790,6 +791,22 @@ async function runSmoke() {
     menuClick('打开主界面')
     let main = await waitFor(() => findWindow('main'), '托盘打开主界面')
     assert.ok(main && note)
+    if (phase === 'main-overview') {
+      await mainOverviewSmoke({
+        main,
+        note,
+        js,
+        click,
+        waitFor,
+        assert,
+        dialog,
+        capture: async (window, name) =>
+          writeFileSync(resolve(output, name), (await window.webContents.capturePage()).toPNG())
+      })
+      console.log('Electron main overview smoke passed')
+      menuClick('退出')
+      return
+    }
     if (phase.startsWith('note-archive-')) {
       await noteArchiveSmoke({
         phase,
@@ -814,10 +831,7 @@ async function runSmoke() {
         () => js(main, 'Boolean(document.querySelector(".workbench-header h1"))'),
         '工作台就绪'
       )
-      await js(
-        main,
-        `Array.from(document.querySelectorAll('.workbench-nav button')).find(x => x.textContent === '灵感').click()`
-      )
+      await js(main, `document.querySelector('.workbench-nav [aria-label="灵感"]').click()`)
       await js(
         main,
         `Array.from(document.querySelectorAll('.inspiration-views button')).find(x => x.textContent === '主题').click()`
@@ -1097,10 +1111,7 @@ async function runSmoke() {
         () => js(main, 'Boolean(document.querySelector(".workbench-header h1"))'),
         '工作台就绪'
       )
-      await js(
-        main,
-        `Array.from(document.querySelectorAll('.workbench-nav button')).find(x => x.textContent === '灵感').click()`
-      )
+      await js(main, `document.querySelector('.workbench-nav [aria-label="灵感"]').click()`)
       if (phase === 'topics-create') {
         await click(main, '.primary-button')
         await input(main, '[data-testid=task-new]', '跨窗口主题灵感')
@@ -1398,10 +1409,7 @@ async function runSmoke() {
       )
       await click(main, '[data-task-id] input[type=checkbox]')
       await waitFor(async () => (await rows(note))[0].completed, '完成状态同步')
-      await js(
-        main,
-        `Array.from(document.querySelectorAll('.workbench-nav button')).find(x => x.textContent === '习惯').click()`
-      )
+      await js(main, `document.querySelector('.workbench-nav [aria-label="习惯"]').click()`)
       await click(main, '.primary-button')
       await input(main, '[data-testid=habit-new]', '习惯待继续草稿', null)
       await click(main, '.primary-button')
@@ -1427,10 +1435,7 @@ async function runSmoke() {
         () => js(main, `document.activeElement?.dataset.testid === 'habit-new'`),
         '保存后保留习惯输入焦点，支持连续新增'
       )
-      await js(
-        main,
-        `Array.from(document.querySelectorAll('.workbench-nav button')).find(x => x.textContent === '灵感').click()`
-      )
+      await js(main, `document.querySelector('.workbench-nav [aria-label="灵感"]').click()`)
       writeFileSync(
         resolve(output, 'inspiration-new.png'),
         (await main.webContents.capturePage()).toPNG()
