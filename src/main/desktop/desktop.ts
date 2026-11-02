@@ -28,6 +28,7 @@ export class Desktop {
   private readonly loading = new Map<WindowKind, Promise<void>>()
   private readonly hiding = new Map<BrowserWindow, Promise<void>>()
   private readonly visibleIntent = new Map<BrowserWindow, boolean>()
+  private readonly interactions = new Set<BrowserWindow>()
   private tray?: Tray
   private note?: NoteController
   private exiting = false
@@ -77,8 +78,10 @@ export class Desktop {
     if (!window || window.isDestroyed()) {
       window = createWindow(kind)
       this.windows.set(kind, window)
-      if (kind === 'note')
+      if (kind === 'note') {
         this.note = new NoteController(window, this.directory, () => this.broadcast())
+        this.note.setInteraction(this.interactions.size > 0)
+      }
       const current = window
       window.on('close', (event) => {
         if (this.exiting) return
@@ -89,6 +92,7 @@ export class Desktop {
         if (kind === 'main' && !this.exiting) void this.hide(current)
       })
       window.on('closed', () => {
+        this.setInteraction(current, false)
         this.windows.delete(kind)
         this.visibleIntent.delete(current)
       })
@@ -150,7 +154,9 @@ export class Desktop {
     if (window === this.windows.get('note')) this.note?.togglePin()
   }
   setInteraction(window: BrowserWindow, active: boolean) {
-    if (window === this.windows.get('note')) this.note?.setInteraction(active)
+    if (active) this.interactions.add(window)
+    else this.interactions.delete(window)
+    this.note?.setInteraction(this.interactions.size > 0)
   }
   setNoteDragging(window: BrowserWindow, active: boolean) {
     if (!this.preparingQuit && !this.exiting && window === this.windows.get('note'))

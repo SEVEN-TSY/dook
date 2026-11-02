@@ -25,11 +25,28 @@ export async function deleteConfirmationSmoke({
     () => js(main, `Boolean(document.querySelector('[data-task-id="${task.id}"]'))`),
     '任务同步'
   )
+  const focus = (window, selector) =>
+    js(window, `document.querySelector(${JSON.stringify(selector)}).focus()`)
+  const expectFocus = async (window, selector, message) => {
+    await js(
+      window,
+      'new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))'
+    )
+    assert.equal(
+      await js(
+        window,
+        `document.activeElement === document.querySelector(${JSON.stringify(selector)})`
+      ),
+      true,
+      `${message}；当前焦点：${await js(window, 'document.activeElement?.outerHTML.slice(0, 180)')}`
+    )
+  }
   const openDelete = async () => {
     await js(
       main,
       `document.querySelector('[data-task-id="${task.id}"] .task-more').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, ctrlKey: false, pointerType: 'mouse' }))`
     )
+    await focus(main, '[data-testid=task-delete]')
     await click(main, '[data-testid=task-delete]')
     await waitFor(
       () => js(main, 'Boolean(document.querySelector("[role=alertdialog]"))'),
@@ -39,6 +56,11 @@ export async function deleteConfirmationSmoke({
   await openDelete()
   assert.equal(await js(main, 'document.querySelectorAll("[role=alertdialog]").length'), 1)
   await click(main, '[data-testid=delete-cancel]')
+  await expectFocus(
+    main,
+    `[data-task-id="${task.id}"] .task-more`,
+    '取消菜单删除后恢复原任务菜单按钮焦点'
+  )
   assert.ok(
     (await js(note, 'window.myTodo.listToday()')).data.tasks.some((x) => x.id === task.id),
     '取消保留任务'
@@ -62,6 +84,13 @@ export async function deleteConfirmationSmoke({
   )
   assert.equal(await js(note, 'Boolean(document.querySelector("[role=alertdialog]"))'), false)
   await click(note, '[data-testid=task-archive-toggle]')
+  await focus(note, `[aria-label="恢复：${archived.description}"]`)
+  await focus(note, `[aria-label="永久删除：${archived.description}"]`)
+  await expectFocus(
+    note,
+    `[aria-label="永久删除：${archived.description}"]`,
+    '键盘聚焦便签永久删除入口'
+  )
   await click(note, `[aria-label="永久删除：${archived.description}"]`)
   await waitFor(
     () => js(note, 'Boolean(document.querySelector("[role=alertdialog]"))'),
@@ -100,6 +129,11 @@ export async function deleteConfirmationSmoke({
   }
   note.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' })
   await waitFor(() => js(note, '!document.querySelector("[role=alertdialog]")'), 'Esc取消')
+  await expectFocus(
+    note,
+    `[aria-label="永久删除：${archived.description}"]`,
+    '便签Esc取消后恢复永久删除按钮焦点'
+  )
   assert.ok(
     (await js(main, 'window.myTodo.listArchivedTasks()')).data.some((x) => x.id === archived.id)
   )
@@ -110,9 +144,16 @@ export async function deleteConfirmationSmoke({
       !(await js(main, 'window.myTodo.listArchivedTasks()')).data.some((x) => x.id === archived.id),
     '归档永久删除同步'
   )
+  await waitFor(
+    () => js(note, `!document.querySelector('[data-archived-task-id="${archived.id}"]')`),
+    '归档删除行已移除'
+  )
+  await expectFocus(note, '.task-list', '删除归档行后焦点保留在稳定的任务列表')
   const habit = (await js(note, `window.myTodo.createHabit('习惯删除验证')`)).data
   await click(main, '.workbench-nav [aria-label="习惯"]')
-  await click(main, `[data-habit-id="${habit.id}"] [data-testid=habit-delete]`)
+  const habitDelete = `[data-habit-id="${habit.id}"] [data-testid=habit-delete]`
+  await focus(main, habitDelete)
+  await click(main, habitDelete)
   await waitFor(
     () => js(main, 'Boolean(document.querySelector("[role=alertdialog]"))'),
     '习惯删除应用内确认'
@@ -121,14 +162,108 @@ export async function deleteConfirmationSmoke({
     await js(main, 'document.querySelector("[role=alertdialog]").textContent'),
     /已生成的任务会保留/
   )
-  await click(main, '[data-testid=delete-cancel]')
+  const mainProtectionBounds = note.getBounds()
+  const mainProtectionArea = screen.getDisplayMatching(mainProtectionBounds).workArea
+  const mainProtectionCursor = screen.getCursorScreenPoint
+  let mainProtectionPointer = { x: mainProtectionArea.x + 20, y: mainProtectionArea.y + 100 }
+  screen.getCursorScreenPoint = () => mainProtectionPointer
+  try {
+    note.setPosition(mainProtectionArea.x, mainProtectionArea.y + 60)
+    note.emit('moved')
+    await waitFor(
+      async () => (await js(note, 'window.myTodo.getWindowState()')).data.edge === 'left',
+      '主界面确认时便签贴边'
+    )
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    mainProtectionPointer = {
+      x: mainProtectionArea.x + mainProtectionArea.width / 2,
+      y: mainProtectionArea.y + mainProtectionArea.height / 2
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1100))
+    assert.equal(
+      (await js(note, 'window.myTodo.getWindowState()')).data.collapsed,
+      false,
+      '主界面确认期间便签不自动收起'
+    )
+    await click(note, '.note-add-button')
+    await expectFocus(note, '[data-testid=task-new]', '便签输入获得独立交互保护')
+    // 保持便签输入焦点，单独关闭主界面确认，验证两窗口保护互不覆盖。
+    await js(main, `document.querySelector('[data-testid=delete-cancel]').click()`)
+    await expectFocus(main, habitDelete, '主界面取消后恢复习惯删除按钮焦点')
+    await new Promise((resolve) => setTimeout(resolve, 1100))
+    assert.equal(
+      (await js(note, 'window.myTodo.getWindowState()')).data.collapsed,
+      false,
+      '主界面确认关闭后保留便签输入保护'
+    )
+    await focus(note, '.task-list')
+    await waitFor(
+      async () => (await js(note, 'window.myTodo.getWindowState()')).data.collapsed,
+      '主界面确认和便签输入均结束后恢复自动收起'
+    )
+    mainProtectionPointer = { x: mainProtectionArea.x + 20, y: mainProtectionArea.y + 100 }
+    await js(main, `window.myTodo.openWindow('note')`)
+    await waitFor(
+      async () => !(await js(note, 'window.myTodo.getWindowState()')).data.collapsed,
+      '继续展开便签'
+    )
+    await click(main, habitDelete)
+    await waitFor(
+      () => js(main, 'Boolean(document.querySelector("[role=alertdialog]"))'),
+      '关闭窗口前确认已打开'
+    )
+    mainProtectionPointer = {
+      x: mainProtectionArea.x + mainProtectionArea.width / 2,
+      y: mainProtectionArea.y + mainProtectionArea.height / 2
+    }
+    main.close()
+    await waitFor(() => !main.isVisible(), '确认所属主窗口隐藏')
+    await waitFor(
+      () => js(main, '!document.querySelector("[role=alertdialog]")'),
+      '隐藏主窗口取消确认'
+    )
+    await waitFor(
+      async () => (await js(note, 'window.myTodo.getWindowState()')).data.collapsed,
+      '隐藏确认所属窗口后释放便签保护'
+    )
+    await js(note, `window.myTodo.openWindow('main')`)
+    await waitFor(() => main.isVisible(), '重新打开主窗口')
+    assert.equal(
+      await js(main, 'Boolean(document.querySelector("[role=alertdialog]"))'),
+      false,
+      '重开主窗口不遗留旧确认'
+    )
+    assert.ok(
+      (await js(note, 'window.myTodo.listHabits()')).data.some((x) => x.id === habit.id),
+      '隐藏窗口取消不删除习惯'
+    )
+    mainProtectionPointer = { x: mainProtectionArea.x + 20, y: mainProtectionArea.y + 100 }
+    await js(main, `window.myTodo.openWindow('note')`)
+    await waitFor(
+      async () => !(await js(note, 'window.myTodo.getWindowState()')).data.collapsed,
+      '隐藏取消后继续展开便签'
+    )
+  } finally {
+    note.setBounds(mainProtectionBounds)
+    note.emit('moved')
+    screen.getCursorScreenPoint = mainProtectionCursor
+  }
   assert.ok((await js(note, 'window.myTodo.listHabits()')).data.some((x) => x.id === habit.id))
+  await click(main, habitDelete)
+  main.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' })
+  await waitFor(() => js(main, '!document.querySelector("[role=alertdialog]")'), '主界面Esc取消')
+  await expectFocus(main, habitDelete, '主界面Esc取消后恢复习惯删除按钮焦点')
   await click(main, `[data-habit-id="${habit.id}"] [data-testid=habit-delete]`)
   await click(main, '[data-testid=delete-confirm]')
   await waitFor(
     async () => !(await js(note, 'window.myTodo.listHabits()')).data.some((x) => x.id === habit.id),
     '习惯确认删除'
   )
+  await waitFor(
+    () => js(main, `!document.querySelector('[data-habit-id="${habit.id}"]')`),
+    '习惯删除行已移除'
+  )
+  await expectFocus(main, '.workbench-main', '删除习惯行后焦点保留在稳定的当前页面')
   assert.ok(
     (await js(note, 'window.myTodo.listToday()')).data.tasks.some((x) => x.habitId === habit.id),
     '删除习惯保留已生成任务'

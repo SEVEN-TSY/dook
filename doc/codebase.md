@@ -30,7 +30,7 @@
 - `main/desktop/note-geometry.ts`检查屏幕组合的外侧边缘并限制可见位置；屏幕变化由便签控制器恢复。
 - `main/desktop/preferences.ts`读写窗口偏好；`save-barrier.ts`按窗口身份关联保存请求与回复。
 - `main/desktop/ipc.ts`只接受注册窗口主Frame的请求，校验参数并包装结果；删除由渲染层共用应用内弹窗确认，再经白名单桥接调用AppService，取消不发起删除。`inspirationTopicDetails`复用已有服务查询主题名称及完整关联数量（含归档小记），用于确认提示。
-- `renderer/src/components/BackToList.tsx`统一返回列表按钮，沿用页面的草稿提交及失败保留；`DeleteConfirmation.tsx`使用Radix AlertDialog提供共用应用内确认、取消默认焦点及键盘操作。TasksPage把确认开启状态纳入便签交互保护。
+- `renderer/src/components/BackToList.tsx`统一返回列表按钮，沿用页面的草稿提交及失败保留；`DeleteConfirmation.tsx`使用Radix AlertDialog提供共用应用内确认、取消默认焦点及键盘操作；取消或Esc恢复原操作入口，确认后聚焦稳定的当前页面或任务列表，避免删除行卸载后丢失焦点。TasksPage把两窗口的确认开启状态纳入交互保护，Desktop按窗口合并确认与便签原有输入、拖动等交互状态，最后一个保护结束后恢复自动收起。隐藏或退出仍复用TasksPage每窗口唯一的保存回调：先取消所属窗口的删除确认，再执行原草稿保存，防止隐藏窗口遗留确认保护。
 - `preload/index.ts`显式暴露DesktopApi；订阅返回清理函数。
 - `renderer/src/features/tasks/TasksPage.tsx`是两端共用的分类界面；主界面采用左侧任务、习惯、灵感同级导航及底部设置入口，三个类别均订阅变更并显示当天数量：当天可见任务、当天习惯任务、当天新增灵感；两端共用已归档任务列表，“显示持续推进”同时控制两端可见性与统计。桌面便签以灯泡和当天数量提供灵感页快捷入口；SubitemsPanel、HabitsPanel和InspirationPanel分别承载子事项、主界面习惯管理及灵感编辑。
 - `renderer/src/features/tasks/useTasks.ts`读取列表、订阅通知、协调操作及错误，丢弃过时列表响应。
