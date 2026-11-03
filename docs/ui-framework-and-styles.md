@@ -1,6 +1,6 @@
 # 当前UI框架与样式结构
 
-更新日期：2026-11-03。依据当前工作区源码，包含尚未提交的界面改动。本文总结已实现的结构；旧调研、需求草案和截图中的效果不自动视为当前行为。本次同步清理失去引用的旧CSS和工程验证页，现行组件、主题及窗口交互继续沿用。
+更新日期：2026-11-03。本文总结当前已实现的结构；旧调研、需求草案和截图中的效果不自动视为当前行为。清理前代码已提交为23787fe，后续清理旧原型、合并说明并落实[清理清单](./reviews/style-migration-cleanup-2026-11-02.md)。
 
 ## 1. 整体结论
 
@@ -109,16 +109,17 @@ Enter提交、Ctrl+Enter换行和输入法保护已经形成共用处理；具�
 | 习惯设计中周期仍属提案                         | 周期浮窗已在当前业务界面使用，并接入Select、ToggleGroup    |
 | 任务列表以开放列表与详情为主                   | 已增加分组容器、归档切换和第二行创建时间，详情收敛为子事项 |
 
-上一份[清理候选清单](./reviews/style-migration-cleanup-2026-11-02.md)作为历史快照保留；本次已重新核对引用并落实下节清理，其余候选仍需结合新代码判断。
+[清理清单](./reviews/style-migration-cleanup-2026-11-02.md)已按原编号记录A／B／C全部处理结果。早期审美调研与参考图见[归档](./archive/README.md)，当前规则以现行设计语言及组件为准。
 
 ## 8. 本次清理与维护边界
 
 - 移除global.css与workbench.css中无引用的旧标题、输入、详情、提示等规则，以及已由Radix接管的input开关和details/summary菜单专属规则。
 - 移除旧`.tasks-page.main`布局、小记详情及其响应式样式。任务页仍使用`.workbench-split.has-detail`，对应规则保留；动态生成的便签边缘、动画、分类导航和输入类别规则也继续保留。
 - 删除未加载的layout.css、闲置DiagnosticsPage和useDiagnostics，以及仅由该页使用的Icon、StatusBadge。主进程诊断服务、桥接接口和MCP诊断工具保留。
-- 开发用A/B/C原型及其DEV入口、历史设计资料继续保留。更新codebase说明，并为接入调研和旧清理清单标明历史记录边界。
+- 移除开发用A/B/C原型、专属CSS、切换组件、预览脚本、DEV动态入口和npm命令，并清理原型专属space-label规则。原型源码可从清理前提交23787fe恢复。
+- 早期设计调研和旧主界面参考图归档，重组UI风格规范与主界面设计语言，合并接入说明，并更新需求、README和codebase入口。
 
-继续开发时，沿用现有分工：基础控件放components/ui，业务共用呈现放components或features/shared，主题语义放shared.css及shadcn.css，主界面布局放workbench.css，便签几何与窗口动效保留专用实现。清理依据当前渲染引用与分支，不批量删除仍被继承、由模板字符串生成或用于开发原型的选择器。
+继续开发时，沿用现有分工：基础控件放components/ui，业务共用呈现放components或features/shared，主题语义放shared.css及shadcn.css，主界面布局放workbench.css，便签几何与窗口动效保留专用实现。清理依据当前渲染引用与分支，不批量删除仍被继承或由模板字符串生成的选择器。
 
 ## 9. 清理验证
 
@@ -126,4 +127,4 @@ Enter提交、Ctrl+Enter换行和输入法保护已经形成共用处理；具�
 - `npm run build`通过，包含TypeScript检查和生产构建。
 - `node scripts/run-smoke.mjs appearance`与`note-jottings`的首次操作、重启阶段通过，覆盖浅深色、主题同步及便签小记。
 - `node scripts/run-smoke.mjs list-interaction`与`list-metadata`通过，覆盖共用编辑、列表操作、独立滚动区、固定标题和菜单布局。
-- 旧`workbench`场景在“未触发页面滚动”断言处失败：脚本向整页追加占位元素并期待页面滚动，当前页面已有固定高度的独立列表滚动区。此次清理保留了相关布局声明；该旧场景仍待随现行交互更新，本轮使用已覆盖当前布局的列表场景完成验证。
+- 后续清理重新执行`npm run build`和`node scripts/run-smoke.mjs workbench`均通过。workbench已更新为独立列表滚动、固定标题、列表正文编辑和子事项详情，创建时间验证采用time的datetime，任务数量不再依赖当天习惯是否到期；旧back-button导航也已更新。

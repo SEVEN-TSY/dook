@@ -920,7 +920,7 @@ h1 {
   margin-top: 4px;
 }
 
-/* 主界面与开发原型共用的基础控件。 */
+/* 主界面使用的基础控件。 */
 .primary-button {
   flex-shrink: 0;
   padding: 10px 16px;
@@ -953,12 +953,6 @@ h1 {
   border-radius: 7px;
   background: var(--app-accent);
   color: white;
-}
-.space-label {
-  padding: 0 10px 12px;
-  font-size: 11px;
-  font-weight: 500;
-  color: light-dark(#8290a2, #adadad);
 }
 .nav-icon {
   width: 18px;
@@ -994,7 +988,6 @@ h1 {
   background: var(--app-hover);
 }
 @media (max-width: 760px) {
-  .space-label,
   .nav-arrow {
     display: none;
   }

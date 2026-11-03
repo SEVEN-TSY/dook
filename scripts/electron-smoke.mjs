@@ -598,7 +598,7 @@ async function dockingSmoke(main, note) {
     await click(main, '[data-testid=edge-auto-hide]')
     await waitFor(async () => (await state(note)).settings.edgeAutoHide, '重新开启贴边开关')
     assert.equal((await state(note)).edge, null, '开启开关不自动吸附')
-    await js(main, 'document.querySelector(".back-button").click()')
+    await click(main, '.workbench-nav [aria-label="任务"]')
 
     // 在真实Electron窗口外侧替换屏幕拓扑，覆盖CI不能实际插拔的系统边界。
     const half = Math.floor(area.width / 2)
@@ -822,16 +822,22 @@ async function runSmoke() {
         '原生窗口按钮内嵌于内容区'
       )
       for (const appearance of ['light', 'dark']) {
-        await js(main, `(async () => {
+        await js(
+          main,
+          `(async () => {
           const { settings } = (await window.myTodo.getWindowState()).data;
           const result = await window.myTodo.updateSettings({ ...settings, appearance: '${appearance}' });
           if (!result.ok) throw new Error(result.error);
-        })()`)
+        })()`
+        )
         await waitFor(
           () => js(main, `document.documentElement.dataset.theme === '${appearance}'`),
           '窗口外观同步'
         )
-        assert.equal(await js(main, `(() => {
+        assert.equal(
+          await js(
+            main,
+            `(() => {
           const drag = document.querySelector('.main-window-drag-region');
           const rect = drag.getBoundingClientRect();
           const title = navigator.windowControlsOverlay.getTitlebarAreaRect();
@@ -839,7 +845,11 @@ async function runSmoke() {
           return getComputedStyle(drag).getPropertyValue('-webkit-app-region') === 'drag'
             && rect.height > 0 && rect.right <= title.right + 1
             && rect.bottom <= add.top;
-        })()`), true, '顶部可拖动且不遮挡窗口按钮和新增按钮')
+        })()`
+          ),
+          true,
+          '顶部可拖动且不遮挡窗口按钮和新增按钮'
+        )
       }
       main.maximize()
       await waitFor(() => main.isMaximized(), '主界面最大化')
@@ -1512,16 +1522,22 @@ async function runSmoke() {
         }
         const header = document.querySelector('.workbench-header');
         const width = header.getBoundingClientRect().width;
+        const top = header.getBoundingClientRect().top;
+        const list = document.querySelector('.workbench-split');
+        const listWidth = list.clientWidth;
         const spacer = document.createElement('div');
         spacer.style.height = '200vh';
-        document.querySelector('.workbench-main').append(spacer);
+        document.querySelector('.workbench-list').append(spacer);
         try {
           await frame();
-          if (document.scrollingElement.scrollHeight <= document.scrollingElement.clientHeight)
-            throw new Error('未触发页面滚动');
-          if (header.getBoundingClientRect().width !== width)
-            throw new Error('页面滚动条出现后内容宽度变化');
-        } finally { spacer.remove(); }
+          if (list.scrollHeight <= list.clientHeight) throw new Error('未触发列表滚动');
+          list.scrollTop = list.scrollHeight;
+          await frame();
+          if (list.scrollTop <= 0 || window.scrollY !== 0) throw new Error('列表未独立滚动');
+          if (header.getBoundingClientRect().width !== width || list.clientWidth !== listWidth)
+            throw new Error('列表滚动条出现后内容宽度变化');
+          if (header.getBoundingClientRect().top !== top) throw new Error('列表滚动带动了标题');
+        } finally { spacer.remove(); list.scrollTop = 0; }
       })()`
       )
       assert.equal(
@@ -1550,7 +1566,11 @@ async function runSmoke() {
         lock.exec('BEGIN IMMEDIATE')
         await input(main, '[data-testid=task-new]', '失败后保留草稿')
         await waitFor(
-          () => js(main, 'Boolean(document.querySelector("[role=alert], [data-sonner-toast][data-type=error] [data-title]"))'),
+          () =>
+            js(
+              main,
+              'Boolean(document.querySelector("[role=alert], [data-sonner-toast][data-type=error] [data-title]"))'
+            ),
           '保存失败反馈'
         )
         assert.equal(
@@ -1590,12 +1610,25 @@ async function runSmoke() {
       main.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Down' })
       main.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Down' })
       await click(main, '[data-testid=task-details]')
-      await click(main, '.detail-description')
-      await input(main, '[data-testid=task-edit]', '更新工作台任务', null)
+      assert.equal(
+        await js(main, `document.querySelector('[data-testid=subitem-new]').checkVisibility()`),
+        true,
+        '任务详情默认展开子事项'
+      )
+      assert.equal(
+        await js(
+          main,
+          `Boolean(document.querySelector('.workbench-detail .detail-description, .workbench-detail [data-testid=task-edit]'))`
+        ),
+        false,
+        '任务详情不再重复描述编辑'
+      )
       await click(main, '.detail-back')
+      await click(main, '[data-testid=task-description]')
+      await input(main, '[data-testid=task-edit]', '更新工作台任务')
       await waitFor(
         async () => (await rows(note))[0].description === '更新工作台任务',
-        '任务详情同步'
+        '列表正文编辑同步'
       )
       await click(main, '[data-task-id] input[type=checkbox]')
       await waitFor(async () => (await rows(note))[0].completed, '完成状态同步')
@@ -1800,8 +1833,8 @@ async function runSmoke() {
         '一次只展示一组'
       )
       assert.match(
-        await js(main, `document.querySelector('.inspiration-row time').textContent`),
-        /^\d{4}-\d{2}-\d{2}$/
+        await js(main, `document.querySelector('.inspiration-row time').getAttribute('datetime')`),
+        /^\d{4}-\d{2}-\d{2}T/
       )
       await chooseGroup('工作流')
       await waitFor(
@@ -2073,7 +2106,7 @@ async function runSmoke() {
         '任务页面就绪'
       )
       await waitFor(
-        () => js(main, `document.querySelectorAll('[data-task-id]').length >= 5`),
+        () => js(main, `document.querySelectorAll('[data-task-id]').length >= 4`),
         '任务工作台完整状态'
       )
       await captureDesign('workbench-overview.png')
@@ -2413,7 +2446,11 @@ async function runSmoke() {
           )
         await input(window, '[data-testid=task-edit]', '   ')
         await waitFor(
-          () => js(window, 'Boolean(document.querySelector("[role=alert], [data-sonner-toast][data-type=error] [data-title]"))'),
+          () =>
+            js(
+              window,
+              'Boolean(document.querySelector("[role=alert], [data-sonner-toast][data-type=error] [data-title]"))'
+            ),
           '空白描述校验'
         )
         await input(
@@ -2586,7 +2623,10 @@ async function runSmoke() {
           '失败后保留输入'
         )
         assert.match(
-          await js(note, 'document.querySelector("[role=alert], [data-sonner-toast][data-type=error] [data-title]").textContent'),
+          await js(
+            note,
+            'document.querySelector("[role=alert], [data-sonner-toast][data-type=error] [data-title]").textContent'
+          ),
           /locked|锁/i
         )
         assert.doesNotMatch(
@@ -2619,7 +2659,7 @@ async function runSmoke() {
       await click(note, '[data-testid=note-pin]')
       await waitFor(() => note.isAlwaysOnTop(), '图钉临时开启')
       assert.equal((await state(main)).settings.defaultAlwaysOnTop, false, '图钉不改变启动默认值')
-      await js(main, 'document.querySelector(".back-button").click()')
+      await click(main, '.workbench-nav [aria-label="任务"]')
     } else {
       assert.equal(note.isAlwaysOnTop(), false, '重启采用设置默认值')
     }

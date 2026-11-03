@@ -67,12 +67,6 @@
   padding: 0 14px 20px;
   gap: 6px;
 }
-.workbench .space-label {
-  padding: 0 12px 10px;
-  font-size: 10px;
-  color: light-dark(#9299a7, #adadad);
-  letter-spacing: 1px;
-}
 .workbench-nav button {
   display: flex;
   align-items: center;
@@ -1044,7 +1038,6 @@ html[data-window='main'] .inspiration-topic-error {
     padding: 24px 20px 30px;
   }
   .workbench-brand > div,
-  .workbench .space-label,
   .workbench-nav button > span,
   .workbench .nav-count {
     display: none;
