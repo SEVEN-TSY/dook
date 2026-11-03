@@ -19,41 +19,44 @@ writeFileSync(
 )
 const env = { ...process.env, MYTODO_SMOKE_DATA: mkdtempSync(resolve(root, '.local/smoke/data-')) }
 delete env.ELECTRON_RUN_AS_NODE
-const phases = [
-  'toast',
-  'window-controls',
-  'list-metadata',
-  'habit-archive',
-  'drag',
-  'dock',
-  'lifecycle',
-  'workbench',
-  'list-interaction',
-  'main-overview',
-  'delete-confirmation'
-].includes(process.argv[2])
-  ? [process.argv[2]]
-  : process.argv[2] === 'note-jottings'
-    ? ['note-jottings-create', 'note-jottings-restart']
-    : process.argv[2] === 'appearance'
-      ? ['appearance-create', 'appearance-restart']
-      : process.argv[2] === 'topic-refinement'
-        ? ['topic-refinement-create', 'topic-refinement-restart']
-        : process.argv[2] === 'inspiration-page'
-          ? ['inspiration-page-create', 'inspiration-page-restart']
-          : process.argv[2] === 'note-archive'
-            ? ['note-archive-create', 'note-archive-restart']
-            : process.argv[2] === 'topic-management'
-              ? ['topic-management-create', 'topic-management-restart']
-              : process.argv[2] === 'topics'
-                ? ['topics-create', 'topics-restart']
-                : process.argv[2] === 'order'
-                  ? ['order-create', 'order-restart']
-                  : process.argv[2] === 'multiday'
-                    ? ['multiday-create', 'multiday-restart']
-                    : process.argv[2] === 'subitems'
-                      ? ['subitems-create', 'subitems-restart']
-                      : ['create', 'restart']
+const phases =
+  process.argv[2] === 'task-inline'
+    ? ['task-inline-create', 'task-inline-restart']
+    : [
+          'toast',
+          'window-controls',
+          'list-metadata',
+          'habit-archive',
+          'drag',
+          'dock',
+          'lifecycle',
+          'workbench',
+          'list-interaction',
+          'main-overview',
+          'delete-confirmation'
+        ].includes(process.argv[2])
+      ? [process.argv[2]]
+      : process.argv[2] === 'note-jottings'
+        ? ['note-jottings-create', 'note-jottings-restart']
+        : process.argv[2] === 'appearance'
+          ? ['appearance-create', 'appearance-restart']
+          : process.argv[2] === 'topic-refinement'
+            ? ['topic-refinement-create', 'topic-refinement-restart']
+            : process.argv[2] === 'inspiration-page'
+              ? ['inspiration-page-create', 'inspiration-page-restart']
+              : process.argv[2] === 'note-archive'
+                ? ['note-archive-create', 'note-archive-restart']
+                : process.argv[2] === 'topic-management'
+                  ? ['topic-management-create', 'topic-management-restart']
+                  : process.argv[2] === 'topics'
+                    ? ['topics-create', 'topics-restart']
+                    : process.argv[2] === 'order'
+                      ? ['order-create', 'order-restart']
+                      : process.argv[2] === 'multiday'
+                        ? ['multiday-create', 'multiday-restart']
+                        : process.argv[2] === 'subitems'
+                          ? ['subitems-create', 'subitems-restart']
+                          : ['create', 'restart']
 for (const phase of phases) {
   const code = await new Promise((resolveExit, reject) => {
     const child = spawn(electron, [runner], {

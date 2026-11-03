@@ -170,11 +170,11 @@ export async function habitArchiveSmoke({
     main,
     `document.querySelector('[data-task-id="${task.id}"] .task-more').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, ctrlKey: false, pointerType: 'mouse' }))`
   )
-  await click(main, '[data-testid=task-details]')
+  await click(main, '[data-testid=task-convert]')
+  await click(main, '[aria-label="新增子事项"]')
   await waitFor(
-    () =>
-      js(main, `Boolean(document.querySelector('.workbench-detail [data-testid=subitem-new]'))`),
-    '详情默认展开子事项'
+    () => js(main, `Boolean(document.querySelector('.subitems-panel [data-testid=subitem-new]'))`),
+    '转换后行内展开子事项'
   )
   assert.equal(
     await js(
@@ -183,7 +183,7 @@ export async function habitArchiveSmoke({
     ),
     false
   )
-  await input(main, '.workbench-detail [data-testid=subitem-new]', '详情添加子事项')
+  await input(main, '.subitems-panel [data-testid=subitem-new]', '详情添加子事项')
   await waitFor(
     async () => (await tasks()).find((x) => x.id === task.id)?.subitems?.length === 1,
     '子事项新增可用'

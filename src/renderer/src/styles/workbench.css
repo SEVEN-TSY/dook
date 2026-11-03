@@ -1537,3 +1537,83 @@ html[data-window='main']:has(.workbench-main-list-page) {
   display: block;
   height: 16px;
 }
+
+/* Task and subitems share one surface in the main list. */
+.workbench .task-inline-card {
+  min-width: 0;
+  border-bottom: 1px solid var(--app-border);
+}
+.workbench .task-inline-card > .task-row {
+  border-bottom: 0;
+}
+.workbench .task-inline-card:has(.subitems-panel) {
+  background: var(--app-hover);
+  border-radius: 8px;
+}
+.workbench .task-expand {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  color: var(--app-muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.workbench .task-expand[aria-expanded='true'] svg {
+  transform: rotate(90deg);
+}
+.workbench .task-inline-card .subitems-panel {
+  margin: 0 12px 12px 24px;
+  padding: 4px 0 4px 14px;
+  border-left: 1px solid var(--app-border);
+}
+.workbench .subitems-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--app-muted);
+  font-size: 11px;
+}
+.workbench .subitems-toolbar button {
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--app-accent);
+  cursor: pointer;
+}
+.workbench .subitems-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 0;
+}
+.workbench .subitems-progress button {
+  border: 1px solid var(--app-border);
+  border-radius: 5px;
+  background: var(--app-surface);
+  padding: 3px 7px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.workbench .subitems-progress button[aria-pressed='true'] {
+  color: var(--app-accent);
+  border-color: currentColor;
+}
+.workbench .readonly-description {
+  user-select: text;
+  cursor: text;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.workbench .readonly-description.is-expanded,
+.workbench .readonly-description.is-expanded span {
+  white-space: pre-wrap;
+  overflow: visible;
+  overflow-wrap: anywhere;
+}
+.workbench .subitem-description {
+  flex: 1;
+  min-width: 0;
+}

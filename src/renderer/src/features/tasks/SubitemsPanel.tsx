@@ -1,3 +1,5 @@
+import { ReadonlyDescription } from '../shared/ReadonlyDescription'
+import { Plus } from 'lucide-react'
 import { TaskCheck } from '../../components/TaskCheck'
 import { ClearableInput } from '../../components/ui/clearable-input'
 import { useEffect, useRef, useState } from 'react'
@@ -6,7 +8,6 @@ import { getDesktopApi, unwrap } from '../../platform/desktop'
 import { useSerialSave } from '../shared/useSerialSave'
 
 interface Props {
-  defaultExpanded?: boolean
   task: Task
   changed: () => Promise<void>
   report: (message: string) => void
@@ -20,15 +21,8 @@ interface Draft {
   observed?: boolean
 }
 
-export function SubitemsPanel({
-  task,
-  changed,
-  report,
-  onSaveReady,
-  onInteraction,
-  defaultExpanded = false
-}: Props) {
-  const [expanded, setExpanded] = useState(defaultExpanded)
+export function SubitemsPanel({ task, changed, report, onSaveReady, onInteraction }: Props) {
+  const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState<Draft>({ text: '', saved: '' })
   const current = useRef(draft)
   const [mutating, setMutating] = useState(false)
@@ -49,7 +43,7 @@ export function SubitemsPanel({
     async (session) => {
       const text = session.text.trim()
       if (!text) {
-        if (session.id) {
+        if (session.id || session.text.length > 0) {
           report('子事项内容不能为空。')
           return 'blocked'
         }
@@ -78,7 +72,10 @@ export function SubitemsPanel({
     report,
     '子事项保存失败，请重试。'
   )
-  save.current = saveDraft
+  save.current = () => {
+    if (composing.current) report('请先完成输入法选字，再切换任务。')
+    return saveDraft()
+  }
   const busy = saving || mutating
   useEffect(() => {
     const session = current.current
@@ -151,82 +148,108 @@ export function SubitemsPanel({
   const subitems = task.subitems ?? []
   return (
     <section className="subitems-panel">
-      <button
-        className="subitems-toggle"
-        data-testid="subitems-toggle"
-        aria-expanded={expanded}
-        onClick={async () => {
-          if (await save.current()) setExpanded(!expanded)
-        }}
-      >
-        {expanded ? '⌄' : '›'}{' '}
-        {subitems.length
-          ? `子事项 ${subitems.filter((item) => item.completed).length}／${subitems.length}`
-          : '添加子事项'}
-      </button>
-      {expanded && (
-        <div className="subitems-list">
-          {subitems.map((item) => (
-            <div
-              className={`subitem-row ${item.completed ? 'subitem-completed' : ''}`}
-              key={item.id}
-              data-subitem-id={item.id}
+      <div className="subitems-toolbar">
+        <span>
+          子事项 {subitems.filter((item) => item.completed).length}／{subitems.length}
+        </span>
+        <button
+          type="button"
+          aria-label="新增子事项"
+          aria-expanded={adding}
+          onClick={async () => {
+            if (await save.current()) setAdding(!adding)
+          }}
+        >
+          <Plus size={14} />
+        </button>
+      </div>
+      {!subitems.length && (
+        <div className="subitems-progress" role="group" aria-label="任务进度">
+          {[0, 25, 50, 75, 100].map((value) => (
+            <button
+              type="button"
+              key={value}
+              aria-pressed={task.progress === value}
+              disabled={busy}
+              onClick={() =>
+                void mutate(async () =>
+                  unwrap(await getDesktopApi().setTaskProgress(task.id, value))
+                )
+              }
             >
-              <TaskCheck
-                checked={item.completed}
-                disabled={busy}
-                aria-label={`完成子事项：${item.description}`}
-                onChange={() =>
-                  void mutate(async () =>
-                    unwrap(
-                      await getDesktopApi().setSubitemCompleted(task.id, item.id, !item.completed)
-                    )
-                  )
-                }
-              />
-              {draft.id === item.id ? (
-                <ClearableInput
-                  data-testid="subitem-edit"
-                  aria-label="编辑子事项"
-                  autoFocus
-                  {...inputProps}
-                />
-              ) : (
-                <button
-                  className="subitem-description"
-                  data-testid="subitem-description"
-                  disabled={busy}
-                  onClick={() => void beginEdit(item)}
-                >
-                  {item.description}
-                </button>
-              )}
-              <button
-                className="subitem-delete"
-                data-testid="subitem-delete"
-                aria-label={`删除子事项：${item.description}`}
-                disabled={busy}
-                onClick={() =>
-                  void mutate(async () =>
-                    unwrap(await getDesktopApi().deleteSubitem(task.id, item.id))
-                  )
-                }
-              >
-                ×
-              </button>
-            </div>
+              {value}%
+            </button>
           ))}
-          {!draft.id && (
-            <ClearableInput
-              className="subitem-new"
-              data-testid="subitem-new"
-              aria-label="新增子事项"
-              placeholder="记下一项子事项"
-              {...inputProps}
-            />
-          )}
         </div>
       )}
+      <div className="subitems-list">
+        {subitems.map((item) => (
+          <div
+            className={`subitem-row ${item.completed ? 'subitem-completed' : ''}`}
+            key={item.id}
+            data-subitem-id={item.id}
+          >
+            <TaskCheck
+              checked={item.completed}
+              disabled={busy}
+              aria-label={`完成子事项：${item.description}`}
+              onChange={() =>
+                void mutate(async () =>
+                  unwrap(
+                    await getDesktopApi().setSubitemCompleted(task.id, item.id, !item.completed)
+                  )
+                )
+              }
+            />
+            {item.completed ? (
+              <ReadonlyDescription
+                description={item.description}
+                className="subitem-description"
+                testId="subitem-description"
+              />
+            ) : draft.id === item.id ? (
+              <ClearableInput
+                data-testid="subitem-edit"
+                aria-label="编辑子事项"
+                autoFocus
+                {...inputProps}
+              />
+            ) : (
+              <button
+                className="subitem-description"
+                data-testid="subitem-description"
+                disabled={busy}
+                onClick={() => void beginEdit(item)}
+              >
+                {item.description}
+              </button>
+            )}
+            <button
+              className="subitem-delete"
+              data-testid="subitem-delete"
+              aria-label={`删除子事项：${item.description}`}
+              disabled={busy}
+              onClick={() =>
+                void mutate(async () =>
+                  unwrap(await getDesktopApi().deleteSubitem(task.id, item.id))
+                )
+              }
+            >
+              ×
+            </button>
+          </div>
+        ))}
+        {adding && !draft.id && (
+          <ClearableInput
+            autoFocus
+            className="subitem-new"
+            data-testid="subitem-new"
+            aria-label="新增子事项"
+            placeholder="记下一项子事项"
+            {...inputProps}
+          />
+        )}
+      </div>
     </section>
   )
 }

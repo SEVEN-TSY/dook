@@ -1,3 +1,4 @@
+import { taskInlineSmoke } from './task-inline-smoke.mjs'
 import { listMetadataSmoke } from './list-metadata-smoke.mjs'
 import { toastSmoke } from './toast-smoke.mjs'
 import { habitArchiveSmoke } from './habit-archive-smoke.mjs'
@@ -921,6 +922,23 @@ async function runSmoke() {
       menuClick('退出')
       return
     }
+    if (phase.startsWith('task-inline-')) {
+      await taskInlineSmoke({
+        phase,
+        main,
+        note,
+        js,
+        click,
+        input,
+        waitFor,
+        assert,
+        capture: async (window, name) =>
+          writeFileSync(resolve(output, name), (await window.webContents.capturePage()).toPNG())
+      })
+      console.log(`Electron ${phase} smoke passed`)
+      menuClick('退出')
+      return
+    }
     if (phase === 'main-overview') {
       await mainOverviewSmoke({
         main,
@@ -1461,7 +1479,12 @@ async function runSmoke() {
     }
     if (phase === 'toast') {
       await toastSmoke({
-        main, note, js, click, input, waitFor,
+        main,
+        note,
+        js,
+        click,
+        input,
+        waitFor,
         capture: async (window, name) =>
           writeFileSync(resolve(output, name), (await window.webContents.capturePage()).toPNG())
       })
@@ -1610,21 +1633,22 @@ async function runSmoke() {
       await js(main, `document.querySelector('[aria-label="更多操作：工作台任务"]').focus()`)
       main.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Down' })
       main.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Down' })
-      await click(main, '[data-testid=task-details]')
+      assert.equal(
+        await js(main, `Boolean(document.querySelector('[data-testid=task-details]'))`),
+        false,
+        '移除独立详情入口'
+      )
+      await click(main, '[data-testid=task-convert]')
+      await waitFor(
+        () => js(main, `Boolean(document.querySelector('[aria-label="新增子事项"]'))`),
+        '转换后行内展开'
+      )
+      await click(main, '[aria-label="新增子事项"]')
       assert.equal(
         await js(main, `document.querySelector('[data-testid=subitem-new]').checkVisibility()`),
-        true,
-        '任务详情默认展开子事项'
+        true
       )
-      assert.equal(
-        await js(
-          main,
-          `Boolean(document.querySelector('.workbench-detail .detail-description, .workbench-detail [data-testid=task-edit]'))`
-        ),
-        false,
-        '任务详情不再重复描述编辑'
-      )
-      await click(main, '.detail-back')
+      await click(main, '[aria-label^="折叠子事项"]')
       await click(main, '[data-testid=task-description]')
       await input(main, '[data-testid=task-edit]', '更新工作台任务')
       await waitFor(

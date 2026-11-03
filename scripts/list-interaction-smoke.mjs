@@ -187,7 +187,13 @@ export async function listInteractionSmoke({ main, note, js, click, input, waitF
     )
     assert.deepEqual(await measureEditor(), before, '便签保存前后保持对齐')
   }
-  await click(note, '.note-add-button')
+  if (
+    !(await js(
+      note,
+      `document.querySelector('.note-add-button').getAttribute('aria-expanded') === 'true'`
+    ))
+  )
+    await click(note, '.note-add-button')
   await input(note, '[data-testid=task-new]', long)
   await waitFor(
     () =>

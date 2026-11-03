@@ -3,18 +3,17 @@ import { BrandMark } from '../../components/BrandMark'
 import { Toast } from '../../components/Toast'
 import {
   ArrowUpRight,
-  ListTodo,
+  ChevronRight,
+  Archive,
   MoreHorizontal,
   Pin,
   PinOff,
   Repeat,
   SkipForward,
-  Trash2,
   TrendingUp,
   Zap
 } from 'lucide-react'
 import { useDeleteConfirmation } from '../../components/DeleteConfirmation'
-import { BackToList } from '../../components/BackToList'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -93,7 +92,6 @@ export function TasksPage({
     setError,
     refresh,
     complete,
-    remove,
     archive,
     restore,
     deleteArchived,
@@ -118,6 +116,22 @@ export function TasksPage({
   const [dropTarget, setDropTarget] = useState<{ id: string; before: boolean } | null>(null)
   const noteInput = useRef<HTMLInputElement>(null)
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
+  const expansionRequest = useRef(0)
+  const [menuTask, setMenuTask] = useState<string | null>(null)
+  const hoverMenu = useRef(false)
+  const menuClose = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(menuClose.current), [])
+  const keepMenu = () => clearTimeout(menuClose.current)
+  const leaveMenu = () => {
+    clearTimeout(menuClose.current)
+    menuClose.current = setTimeout(() => setMenuTask(null), 180)
+  }
+  const selectTask = async (id: string | null, conversion = false) => {
+    const request = ++expansionRequest.current
+    if (!(await flush.current()) || request !== expansionRequest.current) return
+    if (conversion && id && !(await convert(id))) return
+    if (request === expansionRequest.current) setSelectedTask(id)
+  }
   const [newKind, setNewKind] = useState<'task' | 'inspiration'>('task')
   const categorySwitch = useRef(0)
   const [todayIdeas, setTodayIdeas] = useState<Inspiration[]>([])
@@ -233,7 +247,6 @@ export function TasksPage({
       setPage(target)
       setNewKind(target === 'inspiration' ? 'inspiration' : 'task')
       setAdding(false)
-      setSelectedTask(null)
       setError('')
     })
     return () => {
@@ -444,13 +457,11 @@ export function TasksPage({
     </>
   )
   if (kind === 'main') {
-    const selected = visibleTasks.find((task) => task.id === selectedTask)
     const navigate = async (next: typeof page) => {
       if (!(await flush.current())) return
       setPage(next)
       setNewKind(next === 'inspiration' ? 'inspiration' : 'task')
       setAdding(false)
-      setSelectedTask(null)
       setError('')
     }
     return (
@@ -583,10 +594,7 @@ export function TasksPage({
             </div>
           )}
           <Toast message={error} onDismiss={() => setError('')} />
-          <div
-            className={`workbench-split ${selected ? 'has-detail' : ''}`}
-            hidden={page !== 'task'}
-          >
+          <div className="workbench-split" hidden={page !== 'task'}>
             <div className="workbench-list" aria-label="任务">
               <InlineComposer
                 ref={mainTaskInput}
@@ -645,196 +653,220 @@ export function TasksPage({
                         </p>
                       )}
                       {noteGroups[group].map((task) => (
-                        <div
-                          key={task.id}
-                          data-task-id={task.id}
-                          data-task-kind={task.kind}
-                          className={`task-row main-list-row ${task.completed ? 'completed' : ''} ${selectedTask === task.id ? 'selected' : ''}`}
-                        >
-                          <TaskCheck
-                            checked={task.completed}
-                            disabled={busy}
-                            aria-label={`完成：${task.description}`}
-                            onChange={() => void complete(task)}
-                          />
-                          <div className="task-content">
-                            <ListDescription
-                              description={task.description}
-                              editing={editing === task.id && selectedTask !== task.id}
-                              draft={edited}
-                              label="编辑任务描述"
-                              testId="task-edit"
-                              previewTestId="task-description"
-                              className="task-description"
-                              onEdit={async () => {
-                                if (task.habitId) {
-                                  await navigate('habit')
-                                  return
-                                }
-                                if (!(await flush.current())) return
-                                setSelectedTask(null)
-                                setEditing(task.id)
-                                edited.start(task)
-                              }}
+                        <div key={task.id} className="task-inline-card">
+                          <div
+                            data-task-id={task.id}
+                            data-task-kind={task.kind}
+                            className={`task-row main-list-row ${task.completed ? 'completed' : ''} ${selectedTask === task.id ? 'selected' : ''}`}
+                          >
+                            <TaskCheck
+                              checked={task.completed}
+                              disabled={busy}
+                              aria-label={`完成：${task.description}`}
+                              onChange={() =>
+                                void (async () => {
+                                  if (await flush.current()) await complete(task)
+                                })()
+                              }
                             />
-                            <p className="task-meta list-meta">
-                              {task.kind === 'multi-day' && (
-                                <>
-                                  <span className="task-mini-progress">
-                                    <span style={{ width: `${task.progress}%` }} />
-                                  </span>
-                                  <span>{task.progress}%</span>
-                                  {task.subitems?.length ? (
-                                    <span>
-                                      · 子事项{' '}
-                                      {task.subitems.filter((item) => item.completed).length}／
-                                      {task.subitems.length}
+                            <div className="task-content">
+                              <ListDescription
+                                description={task.description}
+                                editing={editing === task.id && !task.completed}
+                                readOnly={task.completed}
+                                draft={edited}
+                                label="编辑任务描述"
+                                testId="task-edit"
+                                previewTestId="task-description"
+                                className="task-description"
+                                onEdit={async () => {
+                                  if (task.habitId) {
+                                    await navigate('habit')
+                                    return
+                                  }
+                                  if (!(await flush.current())) return
+                                  setEditing(task.id)
+                                  edited.start(task)
+                                }}
+                              />
+                              <p className="task-meta list-meta">
+                                {task.kind === 'multi-day' && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="task-expand"
+                                      aria-label={`${selectedTask === task.id ? '折叠' : '展开'}子事项：${task.description}`}
+                                      aria-expanded={selectedTask === task.id}
+                                      onClick={() =>
+                                        void selectTask(selectedTask === task.id ? null : task.id)
+                                      }
+                                    >
+                                      <ChevronRight size={12} />
+                                    </button>
+                                    <span className="task-mini-progress">
+                                      <span style={{ width: `${task.progress}%` }} />
                                     </span>
-                                  ) : null}
-                                  <span aria-hidden="true">·</span>
-                                </>
-                              )}
-                              <CreatedTime value={task.createdAt} />
-                            </p>
-                          </div>
-                          {task.habitId && (
-                            <span
-                              className="task-habit-indicator"
-                              role="img"
-                              aria-label="来自习惯"
-                              title="来自习惯"
+                                    <span>{task.progress}%</span>
+                                    {task.subitems?.length ? (
+                                      <span>
+                                        · 子事项{' '}
+                                        {task.subitems.filter((item) => item.completed).length}／
+                                        {task.subitems.length}
+                                      </span>
+                                    ) : null}
+                                    <span aria-hidden="true">·</span>
+                                  </>
+                                )}
+                                <CreatedTime value={task.createdAt} />
+                              </p>
+                            </div>
+                            {task.habitId && (
+                              <span
+                                className="task-habit-indicator"
+                                role="img"
+                                aria-label="来自习惯"
+                                title="来自习惯"
+                              >
+                                <TaskActionIcon name="schedule" />
+                              </span>
+                            )}
+                            <DropdownMenu
+                              modal={false}
+                              open={menuTask === task.id}
+                              onOpenChange={(open) => {
+                                keepMenu()
+                                hoverMenu.current = false
+                                setMenuTask(open ? task.id : null)
+                              }}
                             >
-                              <TaskActionIcon name="schedule" />
-                            </span>
-                          )}
-                          <DropdownMenu modal={false}>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                className="task-more"
-                                disabled={busy}
-                                aria-label={`更多操作：${task.description}`}
-                                title="更多操作"
-                              >
-                                <MoreHorizontal />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                data-testid="task-details"
-                                onSelect={() => {
-                                  void (async () => {
-                                    if (await flush.current()) setSelectedTask(task.id)
-                                  })()
-                                }}
-                              >
-                                <ListTodo aria-hidden="true" />
-                                任务详情
-                              </DropdownMenuItem>
-                              {task.kind === 'today' && !task.habitId && (
-                                <>
-                                  <DropdownMenuItem
-                                    data-testid="task-convert"
-                                    onSelect={() => {
-                                      void (async () => {
-                                        if (await flush.current()) await convert(task.id)
-                                      })()
-                                    }}
-                                  >
-                                    <ArrowUpRight aria-hidden="true" />
-                                    转为多天任务
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    data-testid="task-to-habit"
-                                    onSelect={() => {
-                                      void (async () => {
-                                        if (await flush.current()) await addHabit(task.id)
-                                      })()
-                                    }}
-                                  >
-                                    <Repeat aria-hidden="true" />
-                                    添加为习惯
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                </>
-                              )}
-                              <DropdownMenuItem
-                                onSelect={() => {
-                                  void (async () => {
-                                    if (await flush.current()) await pin(task)
-                                  })()
-                                }}
-                              >
-                                {task.pinned ? (
-                                  <PinOff aria-hidden="true" />
-                                ) : (
-                                  <Pin aria-hidden="true" />
-                                )}
-                                {task.pinned ? '取消置顶' : '置顶任务'}
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                data-testid="task-delete"
-                                variant="destructive"
-                                onSelect={(event) => {
-                                  const menu = (event.target as HTMLElement).closest(
-                                    '[role="menu"]'
-                                  )
-                                  const trigger = document.getElementById(
-                                    menu?.getAttribute('aria-labelledby') ?? ''
-                                  )
-                                  void (async () => {
-                                    if (await flush.current()) {
-                                      if (task.habitId) await skipHabit(task.id)
-                                      else if (
-                                        await deletion.confirm(
-                                          {
-                                            title: '删除任务',
-                                            description: '永久删除这项任务？',
-                                            detail: `${task.description}。任务及其子事项将被永久删除，无法恢复。`
-                                          },
-                                          trigger
-                                        )
-                                      )
-                                        await remove(task.id)
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="task-more"
+                                  onPointerEnter={(event) => {
+                                    if (event.pointerType === 'mouse') {
+                                      keepMenu()
+                                      if (menuTask !== task.id) {
+                                        hoverMenu.current = true
+                                        setMenuTask(task.id)
+                                      }
                                     }
-                                  })()
+                                  }}
+                                  onPointerLeave={leaveMenu}
+                                  onPointerDown={() => {
+                                    hoverMenu.current = false
+                                  }}
+                                  onKeyDown={() => {
+                                    hoverMenu.current = false
+                                  }}
+                                  disabled={busy}
+                                  aria-label={`更多操作：${task.description}`}
+                                  title="更多操作"
+                                >
+                                  <MoreHorizontal />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent
+                                align="end"
+                                onOpenAutoFocus={(event) => {
+                                  if (hoverMenu.current) event.preventDefault()
+                                }}
+                                onKeyDown={() => {
+                                  hoverMenu.current = false
+                                }}
+                                onPointerDown={() => {
+                                  hoverMenu.current = false
+                                }}
+                                onPointerEnter={keepMenu}
+                                onPointerLeave={leaveMenu}
+                                onCloseAutoFocus={(event) => {
+                                  if (hoverMenu.current) event.preventDefault()
+                                }}
+                                onFocusOutside={(event) => {
+                                  if (hoverMenu.current) event.preventDefault()
                                 }}
                               >
-                                {task.habitId ? (
-                                  <SkipForward aria-hidden="true" />
-                                ) : (
-                                  <Trash2 aria-hidden="true" />
+                                {task.kind === 'today' && !task.habitId && (
+                                  <>
+                                    {!task.completed && showMultiDay && (
+                                      <DropdownMenuItem
+                                        data-testid="task-convert"
+                                        onSelect={() => {
+                                          void (async () => {
+                                            await selectTask(task.id, true)
+                                          })()
+                                        }}
+                                      >
+                                        <ArrowUpRight aria-hidden="true" />
+                                        转为多天任务
+                                      </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuItem
+                                      data-testid="task-to-habit"
+                                      onSelect={() => {
+                                        void (async () => {
+                                          if (await flush.current()) await addHabit(task.id)
+                                        })()
+                                      }}
+                                    >
+                                      <Repeat aria-hidden="true" />
+                                      添加为习惯
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                  </>
                                 )}
-                                {task.habitId ? '暂停一次' : '删除任务'}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                                <DropdownMenuItem
+                                  onSelect={() => {
+                                    void (async () => {
+                                      if (await flush.current()) await pin(task)
+                                    })()
+                                  }}
+                                >
+                                  {task.pinned ? (
+                                    <PinOff aria-hidden="true" />
+                                  ) : (
+                                    <Pin aria-hidden="true" />
+                                  )}
+                                  {task.pinned ? '取消置顶' : '置顶任务'}
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  data-testid="task-delete"
+                                  onSelect={() => {
+                                    void (async () => {
+                                      if (await flush.current()) {
+                                        if (task.habitId) await skipHabit(task.id)
+                                        else await archive(task.id)
+                                      }
+                                    })()
+                                  }}
+                                >
+                                  {task.habitId ? (
+                                    <SkipForward aria-hidden="true" />
+                                  ) : (
+                                    <Archive aria-hidden="true" />
+                                  )}
+                                  {task.habitId ? '暂停一次' : '归档任务'}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                          {task.kind === 'multi-day' && selectedTask === task.id && (
+                            <SubitemsPanel
+                              task={task}
+                              changed={refresh}
+                              report={setError}
+                              onSaveReady={onSubitemSaveReady}
+                              onInteraction={onSubitemInteraction}
+                            />
+                          )}
                         </div>
                       ))}
                     </section>
                   ))}
               {archiveList}
             </div>
-            {selected && (
-              <aside className="workbench-detail" aria-label="任务详情">
-                <BackToList
-                  onClick={async () => {
-                    if (await flush.current()) setSelectedTask(null)
-                  }}
-                />
-                <SubitemsPanel
-                  key={selected.id}
-                  defaultExpanded
-                  task={selected}
-                  changed={refresh}
-                  report={setError}
-                  onSaveReady={onSubitemSaveReady}
-                  onInteraction={onSubitemInteraction}
-                />
-              </aside>
-            )}
           </div>
           <div className="workbench-habit-page" hidden={page !== 'habit'}>
             <HabitsPanel

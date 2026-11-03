@@ -41,37 +41,22 @@ export async function deleteConfirmationSmoke({
       `${message}；当前焦点：${await js(window, 'document.activeElement?.outerHTML.slice(0, 180)')}`
     )
   }
-  const openDelete = async () => {
-    await js(
-      main,
-      `document.querySelector('[data-task-id="${task.id}"] .task-more').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, ctrlKey: false, pointerType: 'mouse' }))`
-    )
-    await focus(main, '[data-testid=task-delete]')
-    await click(main, '[data-testid=task-delete]')
-    await waitFor(
-      () => js(main, 'Boolean(document.querySelector("[role=alertdialog]"))'),
-      '应用内删除确认'
-    )
-  }
-  await openDelete()
-  assert.equal(await js(main, 'document.querySelectorAll("[role=alertdialog]").length'), 1)
-  await click(main, '[data-testid=delete-cancel]')
-  await expectFocus(
+  await js(
     main,
-    `[data-task-id="${task.id}"] .task-more`,
-    '取消菜单删除后恢复原任务菜单按钮焦点'
+    `document.querySelector('[data-task-id="${task.id}"] .task-more').dispatchEvent(new PointerEvent('pointerdown', {bubbles:true,button:0,ctrlKey:false,pointerType:'mouse'}))`
   )
-  assert.ok(
-    (await js(note, 'window.myTodo.listToday()')).data.tasks.some((x) => x.id === task.id),
-    '取消保留任务'
-  )
-  await openDelete()
-  await click(main, '[data-testid=delete-confirm]')
+  await click(main, '[data-testid=task-delete]')
   await waitFor(
     async () =>
       !(await js(note, 'window.myTodo.listToday()')).data.tasks.some((x) => x.id === task.id),
-    '确认删除同步'
+    '菜单归档同步'
   )
+  assert.equal(
+    await js(main, 'Boolean(document.querySelector("[role=alertdialog]"))'),
+    false,
+    '普通任务归档无需确认'
+  )
+  await js(note, `window.myTodo.deleteArchivedTask('${task.id}')`)
   const archived = (await js(note, `window.myTodo.createTask('归档确认验证')`)).data
   await js(note, `window.myTodo.archiveTask('${archived.id}')`)
   await waitFor(
@@ -359,20 +344,25 @@ export async function deleteConfirmationSmoke({
     main,
     `document.querySelector('[data-task-id="${editable.id}"] .task-more').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, ctrlKey: false, pointerType: 'mouse' }))`
   )
-  await click(main, '[data-testid=task-details]')
-  await input(main, '.workbench-detail [data-testid=subitem-new]', '返回前草稿', null)
+  await click(main, '[data-testid=task-convert]')
+  await click(main, '[aria-label="新增子事项"]')
+  await input(main, '.subitems-panel [data-testid=subitem-new]', '返回前草稿', null)
   const db = new DatabaseSync(resolve(process.env.MYTODO_SMOKE_DATA, 'mytodo.sqlite'))
   try {
     db.exec(
       "CREATE TRIGGER reject_return_save BEFORE UPDATE ON tasks BEGIN SELECT RAISE(ABORT, '返回保存失败'); END"
     )
-    await click(main, '[aria-label="返回列表"]')
+    await click(main, '[aria-label^="折叠子事项"]')
     await waitFor(
-      () => js(main, 'Boolean(document.querySelector("[role=alert], [data-sonner-toast][data-type=error] [data-title]"))'),
+      () =>
+        js(
+          main,
+          'Boolean(document.querySelector("[role=alert], [data-sonner-toast][data-type=error] [data-title]"))'
+        ),
       '返回保存失败反馈'
     )
     assert.equal(
-      await js(main, 'document.querySelector(".workbench-detail [data-testid=subitem-new]").value'),
+      await js(main, 'document.querySelector(".subitems-panel [data-testid=subitem-new]").value'),
       '返回前草稿',
       '失败保留详情和草稿'
     )
@@ -381,8 +371,8 @@ export async function deleteConfirmationSmoke({
     db.close()
   }
   await capture(main, 'return-list-main.png')
-  await click(main, '[aria-label="返回列表"]')
-  await waitFor(() => js(main, '!document.querySelector(".workbench-detail")'), '成功返回列表')
+  await click(main, '[aria-label^="折叠子事项"]')
+  await waitFor(() => js(main, '!document.querySelector(".subitems-panel")'), '成功返回列表')
   assert.equal(
     (await js(note, 'window.myTodo.listToday()')).data.tasks.find((x) => x.id === editable.id)
       .subitems[0].description,
@@ -403,7 +393,7 @@ export async function deleteConfirmationSmoke({
   assert.equal(await js(note, 'Boolean(document.querySelector("[role=alertdialog]"))'), false)
   await js(note, `window.myTodo.archiveTask('${editable.id}')`)
   await click(main, '.archive-view-switch [aria-label="已归档任务"]')
-  const deleteButton = `[aria-label="永久删除：返回前草稿"]`
+  const deleteButton = `[aria-label="永久删除：${editable.description}"]`
   await click(main, deleteButton)
   const originalSize = main.getSize()
   main.setSize(760, 650)
@@ -415,7 +405,14 @@ export async function deleteConfirmationSmoke({
       "CREATE TRIGGER reject_confirmed_delete BEFORE DELETE ON tasks BEGIN SELECT RAISE(ABORT, '删除失败验证'); END"
     )
     await click(main, '[data-testid=delete-confirm]')
-    await waitFor(() => js(main, 'Boolean(document.querySelector("[role=alert], [data-sonner-toast][data-type=error] [data-title]"))'), '删除失败反馈')
+    await waitFor(
+      () =>
+        js(
+          main,
+          'Boolean(document.querySelector("[role=alert], [data-sonner-toast][data-type=error] [data-title]"))'
+        ),
+      '删除失败反馈'
+    )
     assert.ok(
       (await js(note, 'window.myTodo.listArchivedTasks()')).data.some((x) => x.id === editable.id),
       '删除失败保留原界面数据'

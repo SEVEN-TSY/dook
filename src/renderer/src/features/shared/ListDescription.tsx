@@ -1,3 +1,4 @@
+import { ReadonlyDescription } from './ReadonlyDescription'
 import { useLayoutEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import { ClearableTextarea } from '../../components/ui/clearable-textarea'
@@ -15,6 +16,7 @@ type Draft = {
 /** Main-window list text: preview, editing, focus and submission share one behavior. */
 export function ListDescription({
   description,
+  readOnly = false,
   editing,
   draft,
   onEdit,
@@ -24,6 +26,7 @@ export function ListDescription({
   className = ''
 }: {
   description: string
+  readOnly?: boolean
   editing: boolean
   draft: Draft
   onEdit: () => void | Promise<void>
@@ -38,6 +41,14 @@ export function ListDescription({
     field.current.focus({ preventScroll: true })
     field.current.setSelectionRange(field.current.value.length, field.current.value.length)
   }, [editing])
+  if (readOnly)
+    return (
+      <ReadonlyDescription
+        description={description}
+        className={`main-list-description ${className}`}
+        testId={previewTestId}
+      />
+    )
   return editing ? (
     <ClearableTextarea
       ref={field}
