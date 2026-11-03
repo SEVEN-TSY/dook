@@ -1139,7 +1139,7 @@ async function runSmoke() {
           () =>
             js(
               main,
-              `document.querySelector('.inspiration-group-title')?.textContent === '无归类'`
+              `document.querySelector('.inspiration-group-title')?.textContent === '无主题'`
             ),
           '删除当前主题后切组'
         )
@@ -1394,9 +1394,9 @@ async function runSmoke() {
           () =>
             js(
               main,
-              `document.querySelector('.inspiration-group-title')?.textContent === '无归类'`
+              `document.querySelector('.inspiration-group-title')?.textContent === '无主题'`
             ),
-          '重启进入无归类'
+          '重启进入无主题'
         )
         await js(
           main,
@@ -1786,8 +1786,8 @@ async function runSmoke() {
           main,
           `document.querySelector('.inspiration-nav-item .inspiration-heading').textContent`
         ),
-        '无归类',
-        '无归类排在第一项'
+        '无主题',
+        '无主题排在第一项'
       )
       await chooseGroup('产品构想')
       await waitFor(

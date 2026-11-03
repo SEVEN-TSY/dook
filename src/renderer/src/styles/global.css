@@ -55,12 +55,6 @@ p {
   display: flex;
   flex-direction: column;
 }
-.tasks-page.main {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 32px 48px 20px;
-  box-shadow: 0 8px 40px #30374408;
-}
 .tasks-page.note {
   padding: 12px 16px;
   height: 100vh;
@@ -154,7 +148,7 @@ html[data-window='note'] {
   display: none;
 }
 .note-jottings-list .task-description {
-  cursor: default;
+  cursor: text;
 }
 .note-jottings-list:focus {
   outline: none;
@@ -177,33 +171,6 @@ html[data-window='note'] {
     transition: none;
   }
 }
-.task-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 24px;
-  gap: 8px;
-}
-.task-brand {
-  color: var(--app-accent);
-  font-size: 16px;
-}
-.task-brand strong {
-  margin-left: 4px;
-  font-weight: 600;
-}
-.task-toolbar button {
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--app-muted);
-  padding: 6px 9px;
-  font-size: 12px;
-}
-.task-toolbar button:hover {
-  background: var(--app-hover);
-  color: var(--app-accent);
-}
 .task-heading {
   display: flex;
   align-items: center;
@@ -224,21 +191,6 @@ h1 {
   color: var(--app-muted);
   font-size: 12px;
   margin-top: 8px;
-}
-.task-count {
-  color: var(--app-accent);
-  font-size: 24px;
-  font-weight: 500;
-}
-.task-count span {
-  color: var(--app-muted);
-  font-size: 13px;
-  font-weight: 400;
-}
-.task-intro {
-  color: var(--app-muted);
-  font-size: 13px;
-  margin-top: 24px;
 }
 .task-list {
   margin-top: 24px;
@@ -382,16 +334,6 @@ h1 {
   margin-top: 12px;
   overflow-wrap: anywhere;
 }
-.note .task-toolbar {
-  padding-bottom: 16px;
-}
-.note .task-brand {
-  font-size: 13px;
-}
-.note .task-toolbar button {
-  font-size: 11px;
-  padding: 4px 6px;
-}
 .note .task-heading {
   padding-top: 0;
 }
@@ -399,9 +341,6 @@ h1 {
   display: none;
 }
 .note h1 {
-  font-size: 18px;
-}
-.note .task-count {
   font-size: 18px;
 }
 .note .task-date {
@@ -461,10 +400,6 @@ h1 {
   min-height: 28px;
   align-items: flex-start;
   position: relative;
-}
-.note .task-count {
-  margin: 6px 70px 0 12px;
-  font-size: 14px;
 }
 .note-controls {
   display: flex;
@@ -740,12 +675,6 @@ h1 {
   margin: auto;
   background: var(--app-surface);
 }
-.back-button {
-  color: var(--app-accent);
-  background: transparent;
-  border: 0;
-  padding: 0 0 32px;
-}
 .settings-intro {
   margin: 24px 0 8px;
   color: var(--app-muted);
@@ -778,55 +707,6 @@ h1 {
   color: var(--app-muted);
   font-size: 12px;
 }
-.setting-row input[role='switch'] {
-  appearance: none;
-  position: relative;
-  width: 40px;
-  height: 24px;
-  margin: 0;
-  border: 1px solid light-dark(#a5afbf, #393939);
-  border-radius: 999px;
-  background: light-dark(#d5dce7, #2b2b2b);
-  flex-shrink: 0;
-  cursor: pointer;
-  transition:
-    background-color 160ms ease,
-    border-color 160ms ease;
-}
-.setting-row input[role='switch']::before {
-  content: '';
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: light-dark(#fff, #202020);
-  box-shadow: 0 1px 3px #30374426;
-  transition: transform 160ms ease;
-}
-.setting-row input[role='switch']:checked {
-  border-color: var(--app-accent);
-  background: var(--app-accent);
-}
-.setting-row input[role='switch']:checked::before {
-  transform: translateX(16px);
-}
-.setting-row input[role='switch']:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-@media (prefers-reduced-motion: reduce) {
-  .setting-row input[role='switch'],
-  .setting-row input[role='switch']::before {
-    transition: none;
-  }
-}
-.settings-hint {
-  color: light-dark(#8792a4, #adadad);
-  font-size: 12px;
-  margin-top: 28px;
-}
 .exit-pending {
   position: fixed;
   inset: 0;
@@ -844,10 +724,6 @@ h1 {
 .task-content > .task-description {
   display: block;
   width: 100%;
-}
-.task-row.multi-day-start {
-  border-top: 1px solid light-dark(#d3dceb, #393939);
-  margin-top: 12px;
 }
 .task-progress {
   display: flex;
@@ -894,8 +770,7 @@ h1 {
   font-size: 16px;
   font-weight: 600;
 }
-.habits-panel h2 span,
-.habit-hint {
+.habits-panel h2 span {
   color: var(--app-muted);
   font-size: 12px;
   font-weight: 400;
@@ -909,32 +784,6 @@ h1 {
   padding: 8px 0;
   color: var(--app-text);
   font-size: 14px;
-}
-.habit-add {
-  display: flex;
-  gap: 8px;
-}
-.habit-add input {
-  flex: 1;
-  min-width: 0;
-  padding: 9px 10px;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: var(--app-surface);
-  color: var(--app-text);
-}
-.habit-add button {
-  border: 0;
-  border-radius: 6px;
-  padding: 8px 12px;
-  color: var(--app-accent);
-  background: var(--app-hover);
-  cursor: pointer;
-}
-.habit-source {
-  color: var(--app-muted);
-  font-size: 11px;
-  white-space: nowrap;
 }
 
 .new-kind-switch {
@@ -990,46 +839,6 @@ h1 {
 }
 .inspiration-summary:hover {
   background: var(--app-hover);
-}
-.inspiration-detail {
-  padding: 0 2px 10px;
-}
-.inspiration-detail input,
-.inspiration-detail textarea {
-  width: 100%;
-  border: 1px solid var(--app-border);
-  border-radius: 5px;
-  padding: 7px;
-  color: var(--app-text);
-  background: light-dark(#fff, #202020);
-  font-size: 13px;
-}
-.inspiration-detail textarea {
-  resize: vertical;
-  min-height: 56px;
-}
-.main .inspiration-detail textarea {
-  min-height: 88px;
-}
-.inspiration-edit-button,
-.inspiration-append-button {
-  border: 0;
-  background: var(--app-hover);
-  color: var(--app-accent);
-  border-radius: 4px;
-  padding: 5px 7px;
-  font-size: 11px;
-}
-.inspiration-additions {
-  padding: 0 0 0 18px;
-  color: var(--app-muted);
-  font-size: 12px;
-  line-height: 1.7;
-}
-.inspiration-additions li {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  padding-bottom: 6px;
 }
 .inspiration-empty {
   color: light-dark(#8792a4, #adadad);
@@ -1111,7 +920,7 @@ h1 {
   margin-top: 4px;
 }
 
-/* 主界面工作台；桌面便签继续使用原有样式。 */
+/* 主界面与开发原型共用的基础控件。 */
 .primary-button {
   flex-shrink: 0;
   padding: 10px 16px;
@@ -1127,86 +936,12 @@ h1 {
   position: relative;
   flex: none;
 }
-.task-more summary {
-  list-style: none;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 6px;
-  color: light-dark(#647184, #adadad);
-}
-.task-more summary::-webkit-details-marker {
-  display: none;
-}
-.task-more summary:hover,
-.task-more[open] summary {
-  background: var(--app-hover);
-}
-.task-menu {
-  position: absolute;
-  right: 0;
-  z-index: 2;
-  width: 150px;
-  padding: 5px;
-  border: 1px solid light-dark(#e2e8f0, #393939);
-  border-radius: 8px;
-  background: light-dark(white, #202020);
-  box-shadow: 0 8px 20px #26314220;
-}
-.task-menu button {
-  display: block;
-  width: 100%;
-  padding: 9px;
-  border: 0;
-  border-radius: 5px;
-  background: transparent;
-  text-align: left;
-  color: light-dark(#263142, #e3e3e3);
-}
-.task-menu button:hover,
-.task-menu button:focus-visible {
-  background: var(--app-hover);
-}
 .detail-back {
   min-height: 36px;
   gap: 8px;
   color: var(--app-accent);
   padding: 8px 12px;
   margin: -4px 0 16px -12px;
-}
-.detail-label {
-  display: block;
-  margin-bottom: 8px;
-  color: light-dark(#647184, #adadad);
-  font-size: 12px;
-}
-.detail-description {
-  display: block;
-  width: 100%;
-  padding: 10px;
-  border: 1px solid light-dark(#e2e8f0, #393939);
-  border-radius: 8px;
-  background: light-dark(white, #202020);
-  text-align: left;
-  overflow-wrap: anywhere;
-}
-.detail-progress {
-  display: block;
-  margin: 24px 0;
-  color: light-dark(#647184, #adadad);
-  font-size: 13px;
-}
-.detail-progress input {
-  display: block;
-  width: 100%;
-  margin: 12px 0;
-  accent-color: var(--app-accent);
-}
-
-.inspiration-original {
-  margin: 0 0 16px;
-  font-size: 14px;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
 }
 
 /* 清爽原生：固定侧栏、开放列表和按需展开的详情。 */
@@ -1234,23 +969,6 @@ h1 {
   margin-left: auto;
   color: light-dark(#8290a2, #adadad);
 }
-.quick-add {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 10px 0;
-  margin: 0 0 18px;
-  border: 0;
-  background: transparent;
-  color: light-dark(#637286, #adadad);
-  text-align: left;
-  font-size: 14px;
-}
-.quick-add span {
-  color: var(--app-accent);
-  font-size: 20px;
-}
 .empty-icon {
   display: grid;
   place-items: center;
@@ -1266,20 +984,6 @@ h1 {
   font-size: 13px;
   color: var(--app-accent);
 }
-.detail-description {
-  font-size: 14px;
-  line-height: 1.6;
-}
-.inspiration-inline-edit {
-  field-sizing: content;
-  resize: vertical;
-  margin: 10px 0;
-  padding: 6px 9px;
-  border: 1px solid var(--app-input-border);
-  border-radius: 5px;
-  font: inherit;
-  line-height: 1.5;
-}
 .inspiration-supplement {
   flex: none;
   margin: 12px 0 0 8px;
@@ -1288,12 +992,6 @@ h1 {
   border-radius: 4px;
   color: var(--app-accent);
   background: var(--app-hover);
-}
-.inspiration-original {
-  margin: 0 0 16px;
-  font-size: 14px;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
 }
 @media (max-width: 760px) {
   .space-label,
@@ -1325,21 +1023,6 @@ h1 {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.note .task-count {
-  display: flex;
-  align-items: center;
-  height: 44px;
-  margin: 0;
-  font-size: 32px;
-  line-height: 1;
-  letter-spacing: -1px;
-  font-variant-numeric: tabular-nums;
-}
-.note .task-count span {
-  font-size: inherit;
-  line-height: inherit;
-  font-weight: inherit;
 }
 .note .note-controls {
   position: static;
@@ -1393,11 +1076,6 @@ h1 {
 }
 .note [data-task-kind='multi-day'] .task-content:has(.task-edit-form) .task-progress {
   display: none;
-}
-.note .habit-source {
-  display: block;
-  font-size: 10px;
-  line-height: 10px;
 }
 .note-group-heading {
   display: flex;
@@ -1877,64 +1555,18 @@ h1 {
   margin: 0 0 10px;
   font-size: 16px;
 }
-.inspiration-notice {
-  position: fixed;
-  z-index: 30;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 10px 16px;
-  border-radius: 8px;
-  color: light-dark(#286048, #91cbb0);
-  background: light-dark(#eaf8f0, #23362c);
-  box-shadow: 0 4px 18px #24344a20;
-}
-.inspiration-notice.is-error {
-  color: light-dark(#9b3434, #e69b9f);
-  background: light-dark(#fff0ef, #3b2528);
-}
-.inspiration-notice button {
-  margin-left: 12px;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
 
 .inspiration-group-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-.inspiration-group-header button,
-.inspiration-new button {
+.inspiration-group-header button {
   border: 0;
   background: transparent;
   color: var(--app-accent);
   cursor: pointer;
   font-size: 18px;
-}
-.inspiration-new {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 12px;
-  margin: 8px 0 16px;
-  background: light-dark(#f5f8ff, #252525);
-  border: 1px solid var(--app-input-border);
-  border-radius: 10px;
-}
-.inspiration-new textarea {
-  flex: 1;
-  min-width: 0;
-  min-height: 68px;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  resize: vertical;
-  font: inherit;
-}
-.inspiration-new button[type='submit'] {
-  font-size: 13px;
 }
 
 .note-add-controls:not(.is-inspiration) {

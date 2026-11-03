@@ -11,6 +11,7 @@ export function NotePages({
   onArchive,
   onRestore,
   onDelete,
+  renderDescription,
   children
 }: {
   selected: 'task' | 'inspiration'
@@ -19,6 +20,7 @@ export function NotePages({
   onArchive: (id: string) => Promise<void>
   onRestore: (id: string) => Promise<void>
   onDelete: (idea: Inspiration) => Promise<void>
+  renderDescription: (idea: Inspiration) => ReactNode
   children: ReactNode
 }) {
   const pending = useRef(false)
@@ -70,9 +72,7 @@ export function NotePages({
             {ideas.map((idea) => (
               <div key={idea.id} className="task-row" data-note-jotting-id={idea.id}>
                 <span className="note-jotting-marker" aria-hidden="true" />
-                <span className="task-description" title={idea.description}>
-                  {idea.description}
-                </span>
+                <div className="task-content">{renderDescription(idea)}</div>
                 <div className="note-task-actions">
                   <button
                     type="button"

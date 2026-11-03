@@ -107,6 +107,21 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
   assert.equal((await visible())[0], '最近一条小记', '小记按记录时间倒序')
   assert.deepEqual(note.getContentSize(), before, '切页尺寸不变')
   await settled()
+  await click(note, '[data-note-jotting-id] .task-description')
+  assert.equal(
+    await js(note, `Boolean(document.querySelector('[data-testid=jotting-edit]'))`),
+    true,
+    '点击便签小记正文可原地编辑'
+  )
+  await input(note, '[data-testid=jotting-edit]', '便签编辑后的小记')
+  await waitFor(async () => (await visible())[0] === '便签编辑后的小记', '便签小记编辑保存')
+  assert.equal(
+    (await js(main, `window.myTodo.listInspirations()`)).data.some(
+      (idea) => idea.description === '便签编辑后的小记'
+    ),
+    true,
+    '便签编辑同步到主界面数据'
+  )
   const excluded = await js(
     main,
     `(async () => {
@@ -118,6 +133,22 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
   })()`
   )
   const db = new DatabaseSync(resolve(process.env.MYTODO_SMOKE_DATA, 'mytodo.sqlite'))
+  await click(note, '[data-note-jotting-id] .task-description')
+  db.exec(
+    "CREATE TRIGGER fail_jotting_edit BEFORE UPDATE ON inspirations WHEN NEW.description = '编辑失败保留草稿' BEGIN SELECT RAISE(ABORT, '小记编辑失败验收'); END"
+  )
+  await input(note, '[data-testid=jotting-edit]', '编辑失败保留草稿')
+  await click(note, '[data-testid=new-kind-task]')
+  await mode('inspiration')
+  assert.equal(
+    await js(note, `document.querySelector('[data-testid=jotting-edit]').value`),
+    '编辑失败保留草稿',
+    '编辑保存失败保留草稿并阻止切页'
+  )
+  db.exec('DROP TRIGGER fail_jotting_edit')
+  await input(note, '[data-testid=jotting-edit]', '编辑重试成功', null)
+  await js(note, `document.querySelector('[data-testid=jotting-edit]').blur()`)
+  await waitFor(async () => (await visible())[0] === '编辑重试成功', '编辑失焦保存可重试')
   const yesterday = new Date()
   yesterday.setDate(yesterday.getDate() - 1)
   db.prepare('UPDATE inspirations SET created_at = ? WHERE id = ?').run(
@@ -133,17 +164,17 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
       `document.querySelector('[data-note-page=inspiration]').querySelectorAll('input,textarea,[draggable=true]').length`
     ),
     0,
-    '便签小记只读'
+    '未编辑时保持紧凑正文'
   )
   assert.equal(
     await js(
       note,
-      `Array.from(document.querySelectorAll('[data-note-jotting-id] button')).every(x => x.title === '归档小记')`
+      `Array.from(document.querySelectorAll('[data-note-jotting-id] .note-task-actions button')).every(x => x.title === '归档小记')`
     ),
     true,
     '只提供归档'
   )
-  await click(note, '[data-note-jotting-id] button')
+  await click(note, '[data-note-jotting-id] [title="归档小记"]')
   await waitFor(async () => (await visible()).length === 2, '直接归档更新列表')
   assert.equal(
     (await js(main, `window.myTodo.listInspirations()`)).data.some(
@@ -173,7 +204,7 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
     async () => (await visible()).length === 3 && (await archiveCount()) === '1',
     '当天小记恢复到列表'
   )
-  await click(note, '[data-note-jotting-id] button')
+  await click(note, '[data-note-jotting-id] [title="归档小记"]')
   await waitFor(
     async () => (await visible()).length === 2 && (await archiveCount()) === '2',
     '再次归档保留展开状态'
@@ -225,6 +256,27 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
     `(async () => { for(let i=0;i<18;i++) { await window.myTodo.createInspiration('长列表小记'+i); await window.myTodo.createTask('长列表任务'+i) } })()`
   )
   await waitFor(async () => (await visible()).length === 20, '长列表同步')
+  await click(note, '[data-testid=new-kind-task]')
+  await mode('task')
+  await settled()
+  await click(note, '.task-check')
+  for (const window of [note, main]) {
+    await waitFor(
+      () => js(window, `Boolean(document.querySelector('.task-check:checked'))`),
+      '任务完成状态同步'
+    )
+    assert.equal(
+      await js(
+        window,
+        `getComputedStyle(document.querySelector('.task-check:checked'), '::before').content`
+      ),
+      '"OK"',
+      '两窗口任务checkbox显示OK'
+    )
+  }
+  await click(note, '[data-testid=new-kind-inspiration]')
+  await mode('inspiration')
+  await settled()
   const fixed = () =>
     js(
       note,
@@ -307,7 +359,10 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
   await click(note, '[data-testid=new-kind-task]')
   await waitFor(
     () =>
-      js(note, `document.querySelector('[role=alert], [data-sonner-toast][data-type=error] [data-title]')?.textContent.includes('小记保存失败验收')`),
+      js(
+        note,
+        `document.querySelector('[role=alert], [data-sonner-toast][data-type=error] [data-title]')?.textContent.includes('小记保存失败验收')`
+      ),
     '保存失败可见反馈'
   )
   await mode('inspiration')

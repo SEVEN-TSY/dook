@@ -61,6 +61,31 @@ input[type='checkbox']:not([role='switch']):checked::before {
 input[type='checkbox']:not([role='switch']):hover {
   border-color: var(--app-accent);
 }
+input.task-check[type='checkbox'] {
+  position: relative;
+  padding: 0;
+}
+input.task-check[type='checkbox']::before {
+  content: 'OK';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  width: auto;
+  height: auto;
+  border: 0;
+  color: var(--app-accent-foreground);
+  font:
+    700 9px/1 Arial,
+    sans-serif;
+  letter-spacing: 0;
+  text-indent: 0;
+  text-box: trim-both cap alphabetic;
+  transform: translate(-50%, -50%) scale(0);
+}
+input.task-check[type='checkbox']:checked::before {
+  transform: translate(-50%, -50%) scale(1);
+}
 .clearable-input {
   position: relative;
   display: flex;

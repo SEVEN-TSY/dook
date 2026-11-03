@@ -37,11 +37,11 @@
 - `renderer/src/features/tasks/NoteTransition.tsx`以独立共享表面完成胶囊与便签的FLIP投影、圆角校正及内容交接；动画完成后按版本向主进程握手，避免过早收缩原生窗口。
 - `renderer/src/features/tasks/useTaskInput.ts`串行协调同一轮输入的创建和更新，不阻塞继续输入；任务组件在设置页和收起状态保持挂载。
 - `renderer/src/features/shared/useSerialSave.ts`统一管理草稿串行保存、组合输入延后和失败保留；任务、小记及子事项各自保留领域校验和持久化动作。
-- `renderer/src/features/settings/SettingsPage.tsx`按系统偏好和便签偏好分组，提供开机自启、默认置顶、贴边自动隐藏及显示持续推进设置。隐藏持续推进前由桌面保存屏障提交便签草稿，失败时保持原设置。
+- `renderer/src/features/settings/SettingsPage.tsx`按个性化、系统偏好和便签偏好分组，提供浅深色外观、主题色、开机自启、默认置顶、贴边自动隐藏及显示持续推进设置。隐藏持续推进前由桌面保存屏障提交便签草稿，失败时保持原设置。
 - `main/desktop/login-item.ts`通过Electron登录项API应用开机自启偏好，仅Windows安装版注册，开发及集成验证不注册临时程序。
-- `renderer/src/styles/global.css`定义两种布局的共同蓝白样式。
+- `renderer/src/styles/`由main.tsx依次加载shared.css、global.css、workbench.css和shadcn.css：分别维护共用主题与基础组件、便签及窗口交互、主界面布局和业务呈现、Tailwind入口及UI组件语义颜色。基础控件使用本地components/ui及Radix，正文编辑和新增输入使用features/shared共用组件；完整分工见[UI框架与样式结构](../docs/ui-framework-and-styles.md)。
 
-基础设施诊断服务和原验证页源码仍保留，业务首页由TasksPage承担；MCP工具仍只有`app_diagnostics`。
+业务首页由TasksPage承担；旧工程验证页及专属布局、图标、状态徽章已移除。基础设施诊断服务、桥接接口和`app_diagnostics`MCP工具继续保留。
 
 ## 3. 启动、窗口与退出
 
@@ -143,6 +143,8 @@ Electron分类场景还可分别运行node scripts/run-smoke.mjs multiday和node
 主界面任务和小记正文复用`features/shared/ListDescription.tsx`及`main-list-*`样式，统一省略展示、原地编辑、焦点、清除及键盘提交；便签不接入此组件。主界面任务新增草稿不参与自动保存，仅显式提交；便签继续参与生命周期保存。`node scripts/run-smoke.mjs list-interaction`覆盖两端排序、主界面显式提交、共用编辑和便签长文本末尾可见性。
 
 ## 外观与便签小记页面
+
+2026-11-03更新：TasksPage通过独立useInspirationInput维护便签小记编辑草稿，将正文编辑渲染传给NotePages；复用串行保存、生命周期保存屏障和贴边交互保护。未归档小记可点击正文编辑，归档小记继续只读，替代下方仅提供归档的旧描述。任务及子事项共用TaskCheck的OK选中标记，主题归集checkbox继续使用原勾选样式。
 
 Desktop读取持久外观三态并协调Electron nativeTheme，监听系统变化后广播解析出的colorScheme；渲染入口按系统偏好初始化，再由窗口状态同步最终外观。CSS的light-dark颜色角色保留浅色值并统一适配黑灰外观，主题色仍独立设置。
 

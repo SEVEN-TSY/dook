@@ -25,10 +25,10 @@ export async function topicRefinementSmoke({ main, note, phase, js, click, input
   assert.equal(
     await js(
       main,
-      `(() => { const button = document.querySelector('[aria-label="新增主题"]'); return button.closest('.inspiration-nav-item')?.querySelector('.inspiration-heading')?.textContent === '无归类' && button.textContent.trim() === '' && button.title === '新增主题' })()`
+      `(() => { const button = document.querySelector('[aria-label="新增主题"]'); return button.closest('.inspiration-nav-item')?.querySelector('.inspiration-heading')?.textContent === '无主题' && button.textContent.trim() === '' && button.title === '新增主题' })()`
     ),
     true,
-    '无归类右侧仅显示可访问的新增主题加号'
+    '无主题右侧仅显示可访问的新增主题加号'
   )
   main.focus()
   await js(main, `document.querySelector('[aria-label="新增主题"]').focus()`)
@@ -100,7 +100,7 @@ export async function topicRefinementSmoke({ main, note, phase, js, click, input
   )
   await js(
     main,
-    `Array.from(document.querySelectorAll('.inspiration-nav-item .inspiration-heading')).find(x => x.textContent === '无归类').click()`
+    `Array.from(document.querySelectorAll('.inspiration-nav-item .inspiration-heading')).find(x => x.textContent === '无主题').click()`
   )
   await click(main, '[aria-label="归集主题"]')
   assert.equal(
@@ -120,7 +120,7 @@ export async function topicRefinementSmoke({ main, note, phase, js, click, input
         main,
         `!document.querySelector('[data-inspiration-id]') && Boolean(document.querySelector('.inspiration-topic-picker'))`
       ),
-    '归集立即刷新无归类且浮层保持开启'
+    '归集立即刷新无主题且浮层保持开启'
   )
   await js(
     main,

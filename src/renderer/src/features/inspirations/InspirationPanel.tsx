@@ -287,7 +287,7 @@ export function InspirationPanel({
       ? [
           {
             key: 'unassigned',
-            label: '无归类',
+            label: '无主题',
             items: ideas
           },
           ...topics.map((topic) => ({

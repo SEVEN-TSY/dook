@@ -188,6 +188,13 @@ export function TasksPage({
   const added = newKind === 'task' ? taskAdded : inspirationAdded
   const inspirationPanel = useRef<InspirationPanelHandle>(null)
   const [inspirationEditing, setInspirationEditing] = useState(false)
+  const [editingIdea, setEditingIdea] = useState<string | null>(null)
+  const ideaEdited = useInspirationInput(
+    async (text, id) => unwrap(await getDesktopApi().updateInspiration(id!, text)),
+    refreshCategoryCounts,
+    setError,
+    () => setEditingIdea(null)
+  )
   const [editing, setEditing] = useState<string | null>(null)
   const [inputFocused, setInputFocused] = useState(false)
   const [progressFocused, setProgressFocused] = useState(false)
@@ -241,12 +248,14 @@ export function TasksPage({
     )
       void added.save()
     if (!element?.closest('[data-testid="task-edit"], .clearable-textarea')) void edited.save()
+    if (!element?.closest('[data-testid="jotting-edit"]')) void ideaEdited.save()
   }
   flush.current = async () => {
     const results = await Promise.all([
       kind === 'note' ? taskAdded.save() : true,
       inspirationAdded.save(),
       edited.save(),
+      ideaEdited.save(),
       habitSave.current(),
       inspirationPanel.current?.save() ?? true,
       ...Array.from(subitemSaves.current.values(), (save) => save())
@@ -277,6 +286,7 @@ export function TasksPage({
         (kind === 'note' &&
           (inputFocused ||
             editing !== null ||
+            editingIdea !== null ||
             inspirationEditing ||
             subitemEditing ||
             progressFocused ||
@@ -287,6 +297,7 @@ export function TasksPage({
     kind,
     inputFocused,
     editing,
+    editingIdea,
     inspirationEditing,
     subitemEditing,
     progressFocused,
@@ -939,6 +950,56 @@ export function TasksPage({
         selected={newKind}
         ideas={todayIdeas}
         archivedIdeas={archivedIdeas}
+        renderDescription={(idea) =>
+          editingIdea === idea.id ? (
+            <form
+              className="task-edit-form"
+              onSubmit={(event) => {
+                event.preventDefault()
+                void ideaEdited.submit()
+              }}
+            >
+              <span className="task-description task-edit-mirror" aria-hidden="true">
+                {ideaEdited.value || '\u200b'}
+              </span>
+              <textarea
+                className="task-description task-edit-input"
+                data-testid="jotting-edit"
+                aria-label="编辑小记内容"
+                rows={1}
+                value={ideaEdited.value}
+                ref={focusTaskEditor}
+                onChange={(event) => ideaEdited.setValue(event.target.value)}
+                onBlur={() => void ideaEdited.save()}
+                onCompositionStart={() => {
+                  ideaEdited.composing.current = true
+                }}
+                onCompositionEnd={ideaEdited.endComposition}
+                onKeyDown={(event) => {
+                  if (event.nativeEvent.isComposing || event.keyCode === 229) return
+                  if (event.key === 'Enter' && !event.ctrlKey) {
+                    event.preventDefault()
+                    void ideaEdited.submit()
+                  }
+                }}
+              />
+            </form>
+          ) : (
+            <button
+              type="button"
+              className="task-description"
+              title={idea.description}
+              onClick={async () => {
+                if (!(await flush.current())) return
+                ideaEdited.start(idea)
+                setEditingIdea(idea.id)
+                setError('')
+              }}
+            >
+              {idea.description}
+            </button>
+          )
+        }
         onRestore={(id) =>
           windowAction(async () => {
             if (!(await flush.current())) return
