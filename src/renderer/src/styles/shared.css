@@ -135,6 +135,7 @@ button.draft-clear:hover,
   height: 36px;
   fill: var(--app-accent-soft);
   stroke-width: 1.5;
+  stroke-linejoin: round;
   pointer-events: none;
 }
 .note-progress-track {
@@ -144,9 +145,11 @@ button.draft-clear:hover,
   fill: none;
   stroke: var(--app-accent-fill);
   stroke-linecap: round;
+  transition: stroke-dasharray 240ms ease;
+}
+.note-inspiration-value {
   transform: rotate(-90deg);
   transform-origin: 18px 18px;
-  transition: stroke-dasharray 240ms ease;
 }
 .note-progress-count {
   position: relative;

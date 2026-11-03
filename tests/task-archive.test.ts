@@ -26,7 +26,8 @@ test('今天任务归档后只读且跨日重启保留，恢复到当天并保�
     const saved = service.setTaskCompleted(task.id, true)
     service.archiveTask(task.id)
     assert.deepEqual(service.listToday().tasks, [])
-    assert.deepEqual(service.listArchivedTasks(), [saved])
+    const archived = { ...saved, archivedAt: now.toISOString() }
+    assert.deepEqual(service.listArchivedTasks(), [archived])
     assert.throws(() => service.updateTask(task.id, '迟到保存'), /不存在/)
     assert.throws(() => service.setTaskCompleted(task.id, false), /不存在/)
     assert.throws(() => service.setTaskPinned(task.id, false), /不存在/)
@@ -37,7 +38,7 @@ test('今天任务归档后只读且跨日重启保留，恢复到当天并保�
     now = new Date(2026, 10, 2, 12)
     database = new AppDatabase(path)
     service = open()
-    assert.deepEqual(service.listArchivedTasks(), [saved])
+    assert.deepEqual(service.listArchivedTasks(), [archived])
     const restored = service.restoreTask(task.id)
     assert.deepEqual(restored, { ...saved, date: '2026-11-02' })
     assert.deepEqual(service.listToday().tasks, [restored])
@@ -152,7 +153,9 @@ test('升级旧数据库后既有任务保持未归档且可归档恢复', () =>
     assert.equal(task.completed, true)
     assert.deepEqual(service.listArchivedTasks(), [])
     service.archiveTask(task.id)
-    assert.deepEqual(service.listArchivedTasks(), [task])
+    assert.deepEqual(service.listArchivedTasks(), [
+      { ...task, archivedAt: new Date(2026, 10, 1, 12).toISOString() }
+    ])
     assert.deepEqual(service.restoreTask(task.id), task)
   } finally {
     database.close()

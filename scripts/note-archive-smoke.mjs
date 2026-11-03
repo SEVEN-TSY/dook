@@ -118,8 +118,9 @@ export async function noteArchiveSmoke({
     js(
       note,
       `(() => {
-    const empty = document.querySelector('.task-empty');
-    return { icon: getComputedStyle(empty.querySelector('span')).color, text: getComputedStyle(empty).color, background: getComputedStyle(empty).backgroundColor };
+    const empty = document.querySelector('.note-empty');
+    const icon = getComputedStyle(empty.querySelector('.note-empty-icon'));
+    return { icon: icon.color, background: icon.backgroundColor };
   })()`
     )
   const originalEmptyPaint = await emptyPaint()
@@ -132,8 +133,8 @@ export async function noteArchiveSmoke({
     '无任务图标同步主题色'
   )
   const themedEmptyPaint = await emptyPaint()
-  for (const key of ['icon', 'text', 'background'])
-    assert.notEqual(themedEmptyPaint[key], originalEmptyPaint[key], `无任务提示${key}同步主题色`)
+  assert.notEqual(themedEmptyPaint.icon, originalEmptyPaint.icon, '空页面字母同步主题色')
+  assert.equal(themedEmptyPaint.background, 'rgba(0, 0, 0, 0)', '空页面图标无背景色')
   await capture(note, 'note-empty-themed.png')
   await js(
     note,

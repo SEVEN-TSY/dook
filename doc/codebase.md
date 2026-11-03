@@ -113,7 +113,7 @@
 - `listHabits`、`createHabit`、`createHabitFromTask`、`updateHabit`、`deleteHabit`管理习惯；`ensureDailyTasks`由主进程调度。
 - `listInspirations`、`createInspiration`、`updateInspiration`、`appendInspiration`读取、编辑及补充小记。
 
-TasksPage为每个窗口维护唯一的生命周期保存回调，聚合任务、子事项、习惯和小记草稿；各面板不单独回复同一个保存请求。新增类别切换先保存原类别输入。组合输入未结束或保存失败时返回失败并保留草稿，阻止隐藏或退出。便签编辑和进度交互通过同一个交互状态保护贴边收起。
+TasksPage为每个窗口维护唯一的生命周期保存回调，聚合任务、子事项、习惯和小记草稿；各面板不单独回复同一个保存请求。便签新增任务与小记仅由键盘Enter显式提交，不参与自动保存；切换类别及收起保留各自草稿，输入法组合期间不切换类别。组合输入未结束或保存失败时返回失败并保留草稿，阻止隐藏或退出。便签编辑和进度交互通过同一个交互状态保护贴边收起。
 
 ## 6. 验证与扩展
 
@@ -137,10 +137,10 @@ Electron分类场景还可分别运行node scripts/run-smoke.mjs multiday和node
 
 普通与已归档小记不渲染详情、历史补充或追加入口。`appendInspiration`、仓储及已有补充数据继续保留，领域仍支持持续补充。新增与原地编辑沿用`useInspirationInput`及`useSerialSave`；`InlineComposer`统一任务、习惯及小记新增表面，默认通过`onValueChange`清除草稿；与`ClearableInput`、`ClearableTextarea`共用`ClearButton`及透明清除样式，保留焦点且不提交。`ClearableTextarea`提供正文清除及输入区域内部焦点移动保护，正文编辑随内容增高，列表单行省略。
 
-便签的任务和小记继续共用`TasksPage.tsx`的单行`ClearableInput`、展开、提交与失焦收起流程。`node scripts/run-smoke.mjs inspiration-page`通过真实双窗口和SQLite验证输入、分页、两视角位置、双窗口同步及重启默认分组，并保留普通和窄窗口截图。
+便签的任务和小记继续共用`TasksPage.tsx`的单行`ClearableInput`及展开／收起流程；加号旋转成叉号控制收起，键盘Enter显式提交，占位文字提示“写下任务，回车保存”或“写下小记，回车保存”，收起和失焦保留未提交草稿。`node scripts/run-smoke.mjs inspiration-page`通过真实双窗口和SQLite验证输入、分页、两视角位置、双窗口同步及重启默认分组，并保留普通和窄窗口截图。
 
 
-主界面任务和小记正文复用`features/shared/ListDescription.tsx`及`main-list-*`样式，统一省略展示、原地编辑、焦点、清除及键盘提交；便签不接入此组件。主界面任务新增草稿不参与自动保存，仅显式提交；便签继续参与生命周期保存。`node scripts/run-smoke.mjs list-interaction`覆盖两端排序、主界面显式提交、共用编辑和便签长文本末尾可见性。
+主界面任务和小记正文复用`features/shared/ListDescription.tsx`及`main-list-*`样式，统一省略展示、原地编辑、焦点、清除及键盘提交；便签不接入此组件。主界面任务及便签任务、小记的新增草稿不参与自动保存，仅显式提交；已有正文编辑继续参与生命周期保存。`node scripts/run-smoke.mjs list-interaction`覆盖两端排序、主界面显式提交、共用编辑和便签长文本末尾可见性。
 
 ## 外观与便签小记页面
 
@@ -157,6 +157,8 @@ NotePages使任务和当天小记列表保持挂载，通过横向轨道切页�
 习惯归档通过HabitStore、AppService及白名单IPC串联；habits.archived持久化状态，每日生成仅遍历未归档习惯。归档事务移除当天任务，恢复事务重新生成当天任务，永久删除仅允许归档习惯且保留历史任务。
 
 ## 列表创建时间与归档入口
+
+便签任务归档通过Task的可选archivedAt读取既有archived_at，以本地今天筛选行与数量；主界面继续显示全部归档。恢复后的任务不携带归档时间，无需数据库迁移。NoteEmpty统一便签任务与小记的空页面，新增按钮展开并聚焦当前类别的底部输入。DOOK图标统一引用resources/dook-wordmark-v2-straight.svg，通过CSS mask读取轮廓，以currentColor填充主题色；页面不再内嵌路径，PNG仅用于导出保存。
 
 v14为tasks、habits追加可空created_at。AppService通过同一次核心时钟读数传入本地日期及ISO创建时间，仓储覆盖普通创建、从任务建立习惯和每日任务生成；读取及更新结果带回createdAt，旧记录保留null。编辑、转换、归档与恢复不改写原创建时间。
 

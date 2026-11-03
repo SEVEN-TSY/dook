@@ -8,6 +8,7 @@ const visible = `archived_at IS NULL AND ((kind = 'today' AND date = ? AND skipp
 const fields =
   'id, description, date, completed, kind, progress, completed_on, habit_id, pinned, created_at'
 const taskFromRow = (row: Record<string, SQLOutputValue>): Task => ({
+  ...(row.archived_at == null ? {} : { archivedAt: String(row.archived_at) }),
   ...(row.pinned === 1 ? { pinned: true } : {}),
   createdAt: row.created_at == null ? null : String(row.created_at),
   id: String(row.id),
@@ -101,7 +102,7 @@ export class TaskRepository implements TaskStore {
   listArchived(): Task[] {
     return this.database
       .prepare(
-        `SELECT ${fields} FROM tasks WHERE archived_at IS NOT NULL ORDER BY archived_at DESC, sequence DESC`
+        `SELECT ${fields}, archived_at FROM tasks WHERE archived_at IS NOT NULL ORDER BY archived_at DESC, sequence DESC`
       )
       .all()
       .map((row) => this.taskWithSubitems(row))

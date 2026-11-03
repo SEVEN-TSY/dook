@@ -1,4 +1,4 @@
-/** Shared by the desktop note and the main window. The owner supplies its accessible label. */
+/** Desktop note counters. The owner supplies its accessible label. */
 export function SummaryRing({
   value,
   total,
@@ -9,24 +9,33 @@ export function SummaryRing({
   inspiration?: boolean
 }) {
   const progress = total ? Math.min(Math.max(value / total, 0), 1) * 100 : 0
-  const radius = inspiration ? 16 : 16.5
+  const taskOutline = 'M0.75 0.75H18a17.25 17.25 0 0 1 0 34.5H0.75Z'
   return (
     <>
       <svg className="note-progress-ring" viewBox="0 0 36 36" aria-hidden="true">
-        <circle
-          className={inspiration ? 'note-inspiration-track' : 'note-progress-track'}
-          cx="18"
-          cy="18"
-          r={radius}
-        />
-        <circle
-          className={`note-progress-value${inspiration ? ' note-inspiration-value' : ''}`}
-          cx="18"
-          cy="18"
-          r={radius}
-          pathLength="100"
-          strokeDasharray={`${progress} 100`}
-        />
+        {inspiration ? (
+          <>
+            <circle className="note-inspiration-track" cx="18" cy="18" r="17.25" />
+            <circle
+              className="note-progress-value note-inspiration-value"
+              cx="18"
+              cy="18"
+              r="17.25"
+              pathLength="100"
+              strokeDasharray={`${progress} 100`}
+            />
+          </>
+        ) : (
+          <>
+            <path className="note-progress-track" d={taskOutline} />
+            <path
+              className="note-progress-value"
+              d={taskOutline}
+              pathLength="100"
+              strokeDasharray={`${progress} 100`}
+            />
+          </>
+        )}
       </svg>
       {inspiration ? (
         <span className="note-inspiration-count">{value}</span>

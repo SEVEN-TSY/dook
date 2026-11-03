@@ -2,8 +2,9 @@ import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Inspiration } from '../../../../shared/contracts'
 import { TaskActionIcon } from '../../components/AppIcon'
+import { NoteEmpty } from './NoteEmpty'
 
-/** 两个列表始终挂载，横向投影不会丢失各自的滚动位置。 */
+/** 两个列表始终挂载，左右切换不会丢失各自的滚动位置。 */
 export function NotePages({
   selected,
   ideas,
@@ -12,6 +13,7 @@ export function NotePages({
   onRestore,
   onDelete,
   renderDescription,
+  onAdd,
   children
 }: {
   selected: 'task' | 'inspiration'
@@ -21,6 +23,7 @@ export function NotePages({
   onRestore: (id: string) => Promise<void>
   onDelete: (idea: Inspiration) => Promise<void>
   renderDescription: (idea: Inspiration) => ReactNode
+  onAdd: () => void
   children: ReactNode
 }) {
   const pending = useRef(false)
@@ -64,11 +67,7 @@ export function NotePages({
             tabIndex={-1}
             data-delete-focus-fallback={selected === 'inspiration' ? true : undefined}
           >
-            {ideas.length === 0 && (
-              <div className="task-empty">
-                <p>随手记下一点想法或小事。</p>
-              </div>
-            )}
+            {ideas.length === 0 && <NoteEmpty kind="inspiration" onAdd={onAdd} />}
             {ideas.map((idea) => (
               <div key={idea.id} className="task-row" data-note-jotting-id={idea.id}>
                 <span className="note-jotting-marker" aria-hidden="true" />

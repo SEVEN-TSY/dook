@@ -34,10 +34,10 @@ export async function inspirationSmoke({ main, note, phase, js, click, input, wa
   )
   if (phase === 'create') {
     const before = (await js(note, 'window.myTodo.listToday()')).data.tasks
-    await click(note, '[data-testid=new-kind-inspiration]')
+    await click(note, '[data-testid=note-kind-toggle]')
     await mode(note, 'inspiration')
     await input(note, '[data-testid=task-new]', '小记分类草稿', null)
-    await click(note, '[data-testid=new-kind-task]')
+    await click(note, '[data-testid=note-kind-toggle]')
     await mode(note, 'task')
     await count(main, 1)
     await count(note, 1)

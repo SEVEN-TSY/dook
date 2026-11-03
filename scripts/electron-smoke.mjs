@@ -321,6 +321,9 @@ async function dockingSizeSmoke(note) {
       await pause(100)
       pointer = { x: area.x + area.width / 2, y: area.y + area.height - 10 }
       await waitFor(async () => (await state(note)).noteMotion === 'closing', '便签沿贴边方向收回')
+      const closingRevision = (await state(note)).noteMotionRevision
+      await js(note, `window.myTodo.finishNoteMotion(${closingRevision - 1})`)
+      assert.equal((await state(note)).noteMotion, 'closing', '过期动画回调不能结束当前过渡')
       assert.deepEqual(note.getContentSize(), size, '收回动画结束前保留便签绘制空间')
       await waitFor(async () => (await state(note)).collapsed, '吸附收起')
       const strip = note.getBounds()
@@ -419,52 +422,39 @@ async function dockingSizeSmoke(note) {
           ? { x: movedStrip.x + 20, y: area.y + 2 }
           : { x: edge === 'left' ? area.x + 2 : area.x + area.width - 2, y: movedStrip.y + 20 }
       await waitFor(async () => (await state(note)).edgeRevealed, '再次呼出胶囊')
-      await click(note, '.edge-handle')
-      await waitFor(
-        async () => (await state(note)).noteMotion === 'opening',
-        '胶囊沿贴边方向扩展为便签'
+      const capsuleHandoff = await js(note, `(async () => {
+        const capsuleWidth = innerWidth;
+        const frames = [];
+        document.querySelector('.edge-handle').click();
+        const started = performance.now();
+        while (performance.now() - started < 250) {
+          await new Promise(requestAnimationFrame);
+          frames.push({ width: innerWidth, capsuleVisible: Boolean(document.querySelector('.edge-handle')) });
+        }
+        return { capsuleWidth, frames };
+      })()`)
+      assert.ok(
+        capsuleHandoff.frames.some(frame => frame.width === capsuleHandoff.capsuleWidth && !frame.capsuleVisible),
+        '放大原生窗口之前必须先绘制胶囊消失的一帧，避免旧胶囊被搬到便签左侧'
       )
-      const revision = (await state(note)).noteMotionRevision
-      await js(note, `window.myTodo.finishNoteMotion(${revision - 1})`)
-      assert.equal((await state(note)).noteMotion, 'opening', '过期动画回调不能结束当前过渡')
+      await waitFor(async () => !(await state(note)).collapsed, '点击胶囊直接显示便签')
+      assert.equal((await state(note)).noteMotion, undefined, '胶囊展开不播放形变动画')
       assert.equal(
-        await js(
-          note,
-          `document.querySelector('.note-morph-surface').getAnimations().some(animation => animation.effect.getKeyframes().some(frame => frame.transform && frame.borderRadius))`
-        ),
-        true,
-        '胶囊到便签使用独立共享表面的投影和圆角校正'
+        await js(note, `document.querySelectorAll('.edge-handle, .note-morph').length`),
+        0,
+        '胶囊原地消失，不残留胶囊副本或动画表面'
       )
       assert.equal(
-        await js(
-          note,
-          `document.querySelector('.tasks-page.note').getAnimations().some(animation => animation.effect.getKeyframes().some(frame => frame.transform))`
-        ),
-        false,
-        '任务文字不随表面非等比缩放'
+        await js(note, `getComputedStyle(document.querySelector('.tasks-page.note')).opacity`),
+        '1',
+        '便签内容直接显示'
       )
       if (phase === 'dock') {
-        await js(
-          note,
-          `document.querySelectorAll('.note-morph-surface, .tasks-page.note, .note-morph-source').forEach(element => element.getAnimations().forEach(animation => animation.pause()))`
-        )
-        for (const fraction of [0, 0.12, 0.25, 0.6, 1]) {
-          await js(
-            note,
-            `(() => { const duration = document.querySelector('.note-morph-surface').getAnimations()[0].effect.getTiming().duration; document.querySelectorAll('.note-morph-surface, .tasks-page.note, .note-morph-source').forEach(element => element.getAnimations().forEach(animation => animation.currentTime = ${fraction} * duration)); })()`
-          )
-          writeFileSync(
-            resolve(output, `note-morph-${edge}-${fraction}.png`),
-            (await note.webContents.capturePage()).toPNG()
-          )
-        }
-        await js(
-          note,
-          `document.querySelectorAll('.note-morph-surface, .tasks-page.note, .note-morph-source').forEach(element => element.getAnimations().forEach(animation => animation.finish()))`
+        writeFileSync(
+          resolve(output, `note-opened-${edge}.png`),
+          (await note.webContents.capturePage()).toPNG()
         )
       }
-      await waitFor(async () => !(await state(note)).collapsed, '点击胶囊展开便签')
-      await waitFor(async () => !(await state(note)).noteMotion, '便签展开动画完成')
       const footer = await js(
         note,
         `(() => {
@@ -2249,7 +2239,7 @@ async function runSmoke() {
             ),
           '小记数量跨窗口同步'
         )
-        await click(note, '[data-testid=new-kind-inspiration]')
+        await click(note, '[data-testid=note-kind-toggle]')
         await click(note, '.note-add-button')
         assert.equal(
           await js(

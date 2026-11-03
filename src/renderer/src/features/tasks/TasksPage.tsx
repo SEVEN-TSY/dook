@@ -9,8 +9,9 @@ import {
   PinOff,
   Repeat,
   SkipForward,
-  Sun,
-  Trash2
+  Trash2,
+  TrendingUp,
+  Zap
 } from 'lucide-react'
 import { useDeleteConfirmation } from '../../components/DeleteConfirmation'
 import { BackToList } from '../../components/BackToList'
@@ -39,6 +40,7 @@ import type {
   Inspiration
 } from '../../../../shared/contracts'
 import { NotePages } from './NotePages'
+import { NoteEmpty } from './NoteEmpty'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
 import { SubitemsPanel } from './SubitemsPanel'
 import { useTasks } from './useTasks'
@@ -51,7 +53,6 @@ import { SettingsPage } from '../settings/SettingsPage'
 import { taskSummary as summarizeTasks } from './taskSummary'
 
 const INSPIRATION_GOAL = 5
-
 function noteDateLabel(date: string | undefined) {
   if (!date) return '正在读取…'
   const [year, month, day] = date.split('-').map(Number)
@@ -244,16 +245,24 @@ export function TasksPage({
     const element = target instanceof Element ? target : null
     if (
       kind === 'note' &&
-      !element?.closest('[data-testid="task-new"], .workbench-add, .note-add-controls')
-    )
-      void added.save()
+      adding &&
+      !added.value.trim() &&
+      !added.composing.current &&
+      !added.saving &&
+      element?.closest('.note') &&
+      !element.closest(
+        '.note-add-controls, button, a, input, textarea, select, label, [role="button"], [role="dialog"], [role="menu"], [contenteditable="true"]'
+      )
+    ) {
+      setAdding(false)
+      noteInput.current?.blur()
+    }
     if (!element?.closest('[data-testid="task-edit"], .clearable-textarea')) void edited.save()
     if (!element?.closest('[data-testid="jotting-edit"]')) void ideaEdited.save()
   }
   flush.current = async () => {
     const results = await Promise.all([
-      kind === 'note' ? taskAdded.save() : true,
-      inspirationAdded.save(),
+      kind === 'note' ? true : inspirationAdded.save(),
       edited.save(),
       ideaEdited.save(),
       habitSave.current(),
@@ -340,6 +349,19 @@ export function TasksPage({
       setError(error instanceof Error ? error.message : '窗口操作失败。')
     }
   }
+  const visibleArchived =
+    kind === 'note'
+      ? archived.filter((task) => {
+          if (!task.archivedAt || !today) return false
+          const date = new Date(task.archivedAt)
+          const localDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+          return localDate === today.date
+        })
+      : archived
+  const openNoteComposer = () => {
+    setAdding(true)
+    requestAnimationFrame(() => noteInput.current?.focus())
+  }
   const archiveList = (
     <>
       <button
@@ -347,7 +369,7 @@ export function TasksPage({
         className="note-group-heading"
         data-note-group="archived"
         data-testid="task-archive-toggle"
-        hidden={kind === 'main' || (total === 0 && archived.length === 0)}
+        hidden={kind === 'main' || (total === 0 && visibleArchived.length === 0)}
         aria-expanded={archiveExpanded}
         onClick={() => setArchiveExpanded((expanded) => !expanded)}
       >
@@ -360,13 +382,13 @@ export function TasksPage({
             strokeLinejoin="round"
           />
         </svg>
-        已归档<span className="note-group-count">{archived.length}</span>
+        已归档<span className="note-group-count">{visibleArchived.length}</span>
       </button>
       <div hidden={kind === 'main' ? !taskArchiveView : !archiveExpanded} aria-label="已归档任务">
-        {kind === 'main' && archived.length === 0 && (
+        {kind === 'main' && visibleArchived.length === 0 && (
           <p className="inspiration-empty">还没有已归档任务。</p>
         )}
-        {archived.map((task) => (
+        {visibleArchived.map((task) => (
           <div className="note-archive-row" key={task.id} data-archived-task-id={task.id}>
             {kind === 'main' ? (
               <div className="task-content">
@@ -500,26 +522,6 @@ export function TasksPage({
                 {{ task: '今天', habit: '习惯', inspiration: '小记', settings: '设置' }[page]}
               </h1>
             </div>
-            <div className="workbench-header-actions">
-              {page !== 'settings' && page !== 'inspiration' && (
-                <ComposerToggle
-                  className="primary-button workbench-add"
-                  label={page === 'habit' ? '新增习惯' : '新增任务'}
-                  expanded={page === 'habit' ? habitComposerOpen : taskComposerOpen}
-                  onClick={() => {
-                    if (page === 'habit') {
-                      setHabitArchiveView(false)
-                      setHabitComposerOpen(!habitComposerOpen)
-                    } else {
-                      setTaskArchiveView(false)
-                      setTaskComposerOpen(!taskComposerOpen)
-                      if (!taskComposerOpen)
-                        requestAnimationFrame(() => mainTaskInput.current?.focus())
-                    }
-                  }}
-                />
-              )}
-            </div>
           </header>
           {(page === 'task' || page === 'habit') && (
             <div
@@ -562,6 +564,22 @@ export function TasksPage({
                   </span>
                 </button>
               ))}
+              <ComposerToggle
+                className="primary-button workbench-add"
+                label={page === 'habit' ? '新增习惯' : '新增任务'}
+                expanded={page === 'habit' ? habitComposerOpen : taskComposerOpen}
+                onClick={() => {
+                  if (page === 'habit') {
+                    setHabitArchiveView(false)
+                    setHabitComposerOpen(!habitComposerOpen)
+                  } else {
+                    setTaskArchiveView(false)
+                    setTaskComposerOpen(!taskComposerOpen)
+                    if (!taskComposerOpen)
+                      requestAnimationFrame(() => mainTaskInput.current?.focus())
+                  }
+                }}
+              />
             </div>
           )}
           <Toast message={error} onDismiss={() => setError('')} />
@@ -609,6 +627,11 @@ export function TasksPage({
                     >
                       <header className="task-card-heading">
                         <h2 id={`task-card-${group}-title`}>
+                          {group === 'today' ? (
+                            <Zap className="task-card-icon" aria-hidden="true" />
+                          ) : (
+                            <TrendingUp className="task-card-icon" aria-hidden="true" />
+                          )}
                           {group === 'today' ? '这就去做' : '持续推进'}
                         </h2>
                         <span className="task-card-count">
@@ -859,14 +882,29 @@ export function TasksPage({
             void windowAction(async () => unwrap(await getDesktopApi().setNoteDragging(false)))
         }}
       >
-        <div className="note-heading-label">
-          <p className="task-eyebrow">TODAY</p>
-          <h1>{newKind === 'inspiration' ? '小记' : '今天'}</h1>
-          <p className="task-date">
-            {newKind === 'inspiration'
-              ? `今天 · ${inspirationCount}条`
-              : noteDateLabel(today?.date)}
-          </p>
+        <div className="note-heading-viewport">
+          <div
+            className="note-heading-track"
+            style={{
+              transform: `translateZ(-12px) rotateX(${newKind === 'task' ? 0 : 90}deg)`
+            }}
+          >
+            {(['task', 'inspiration'] as const).map((value) => (
+              <div
+                key={value}
+                className="note-heading-label"
+                data-kind={value}
+                aria-hidden={newKind !== value}
+              >
+                <h1>{value === 'inspiration' ? '小记' : '今天'}</h1>
+                <p className="task-date">
+                  {value === 'inspiration'
+                    ? `今天 · ${inspirationCount}条`
+                    : noteDateLabel(today?.date)}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
         {kind === 'note' && (
           <div className="note-controls">
@@ -901,17 +939,11 @@ export function TasksPage({
                 void windowAction(async () => unwrap(await getDesktopApi().toggleNotePin()))
               }
             >
-              <svg
-                viewBox="0 0 20 20"
-                width="16"
-                height="16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                aria-hidden="true"
-              >
-                <path d="M7 2h6l-1 5 3 4H5l3-4-1-5ZM10 11v7" />
-              </svg>
+              {(desktop?.pinned ?? true) ? (
+                <Pin size={16} strokeWidth={1.5} style={{ rotate: '45deg' }} aria-hidden="true" />
+              ) : (
+                <Pin size={16} strokeWidth={1.5} aria-hidden="true" />
+              )}
             </button>
             <button
               data-testid="note-close"
@@ -947,6 +979,7 @@ export function TasksPage({
         </div>
       </div>
       <NotePages
+        onAdd={openNoteComposer}
         selected={newKind}
         ideas={todayIdeas}
         archivedIdeas={archivedIdeas}
@@ -1036,14 +1069,7 @@ export function TasksPage({
           tabIndex={-1}
           data-delete-focus-fallback={newKind === 'task' ? true : undefined}
         >
-          {today && total === 0 && (
-            <div className="task-empty">
-              <span aria-hidden="true">
-                <Sun size={32} strokeWidth={1.4} />
-              </span>
-              <p>今天，留一点空间。</p>
-            </div>
-          )}
+          {today && total === 0 && <NoteEmpty kind="task" onAdd={openNoteComposer} />}
           {(['today', 'multi-day'] as const).map((group) => (
             <Fragment key={group}>
               <button
@@ -1296,47 +1322,36 @@ export function TasksPage({
             const form = event.currentTarget
             if (form.contains(event.relatedTarget)) return
             setInputFocused(false)
-            void added.save().then((saved) => {
-              if (saved && !form.contains(document.activeElement)) setAdding(false)
-            })
           }}
         >
           <div className={`note-add-controls ${newKind === 'inspiration' ? 'is-inspiration' : ''}`}>
             <div className="new-kind-switch" aria-label="新增类别">
-              {(['task', 'inspiration'] as const).map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  data-testid={`new-kind-${value}`}
-                  title={value === 'task' ? '添加任务' : '添加小记'}
-                  aria-label={value === 'task' ? '添加任务' : '添加小记'}
-                  aria-pressed={newKind === value}
-                  onPointerDown={(event) => event.preventDefault()}
-                  onClick={async () => {
-                    const request = ++categorySwitch.current
-                    const switching = newKind !== value
-                    if (switching) {
-                      if (!(await flush.current()) || request !== categorySwitch.current) return
-                      setNewKind(value)
-                      setError('')
-                    }
-                    if (switching || value === 'inspiration') {
-                      setAdding(true)
-                      requestAnimationFrame(() => noteInput.current?.focus())
-                    }
-                  }}
-                >
-                  <AppIcon
-                    name={value}
-                    lit={value === 'inspiration' && newKind === 'inspiration'}
-                  />
-                </button>
-              ))}
+              <button
+                type="button"
+                className="note-kind-toggle"
+                data-testid="note-kind-toggle"
+                title={newKind === 'task' ? '切换到小记' : '切换到任务'}
+                aria-label={newKind === 'task' ? '当前任务，切换到小记' : '当前小记，切换到任务'}
+                aria-pressed={newKind === 'inspiration'}
+                onPointerDown={(event) => event.preventDefault()}
+                onClick={async () => {
+                  const request = ++categorySwitch.current
+                  if (added.composing.current) return
+                  if (!(await flush.current()) || request !== categorySwitch.current) return
+                  setNewKind(newKind === 'task' ? 'inspiration' : 'task')
+                  setError('')
+                  setAdding(true)
+                  requestAnimationFrame(() => noteInput.current?.focus())
+                }}
+              >
+                <AppIcon name={newKind} />
+              </button>
             </div>
             <ClearableInput
               data-testid="task-new"
               aria-label={newKind === 'task' ? '新增任务描述' : '新增小记'}
-              placeholder={newKind === 'task' ? '写下任务…' : '写下小记…'}
+              aria-description="按Enter保存"
+              placeholder={newKind === 'task' ? '写下任务，回车保存' : '写下小记，回车保存'}
               data-new-kind={newKind}
               ref={noteInput}
               aria-hidden={!adding}
@@ -1360,13 +1375,14 @@ export function TasksPage({
             <button
               className="note-add-button"
               type="button"
-              title={newKind === 'task' ? '添加任务' : '添加小记'}
-              aria-label={newKind === 'task' ? '添加任务' : '添加小记'}
+              title={adding ? '收起输入框' : newKind === 'task' ? '添加任务' : '添加小记'}
+              aria-label={adding ? '收起输入框' : newKind === 'task' ? '添加任务' : '添加小记'}
               aria-expanded={adding}
               onPointerDown={(event) => event.preventDefault()}
-              onClick={(event) => {
+              onClick={() => {
                 if (adding) {
-                  void add(event)
+                  setAdding(false)
+                  noteInput.current?.blur()
                   return
                 }
                 setAdding(true)
@@ -1381,6 +1397,8 @@ export function TasksPage({
         <button
           type="button"
           className="note-summary note-task-summary"
+          aria-hidden={adding}
+          inert={adding}
           ref={taskSummary}
           title="在主界面打开任务"
           aria-label={`在主界面打开任务，已完成${completed}项，共${total}项`}
@@ -1391,6 +1409,8 @@ export function TasksPage({
         <button
           type="button"
           className="note-summary note-inspiration-summary"
+          aria-hidden={adding}
+          inert={adding}
           ref={inspirationSummary}
           data-testid="note-inspiration-count"
           title="今天的小记，点击在主界面查看"

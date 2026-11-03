@@ -198,7 +198,7 @@ export class NoteController {
     this.collapsed = false
     this.awaitingEntry = false
     this.insideSince = this.outsideSince = 0
-    if (wasCollapsed && this.edge) {
+    if (wasCollapsed && this.edge && source !== 'capsule') {
       this.startNoteMotion('opening', source)
     }
     this.apply()

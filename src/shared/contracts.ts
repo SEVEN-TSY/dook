@@ -182,6 +182,7 @@ export interface Subitem {
 }
 
 export interface Task {
+  archivedAt?: string
   createdAt?: string | null
   id: string
   description: string

@@ -3,17 +3,8 @@ import type { DesktopState } from '../../../../shared/contracts'
 import { getDesktopApi } from '../../platform/desktop'
 
 /** 独立共享表面做FLIP投影，列表和数字独立交接，避免跟随表面缩放。 */
-export function NoteTransition({
-  desktop,
-  completed,
-  total
-}: {
-  desktop: DesktopState
-  completed: number
-  total: number
-}) {
+export function NoteTransition({ desktop }: { desktop: DesktopState }) {
   const surface = useRef<HTMLDivElement>(null)
-  const source = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
     const page = document.querySelector<HTMLElement>('.tasks-page.note')
     const shell = surface.current
@@ -74,27 +65,12 @@ export function NoteTransition({
         : [{ opacity: 1 }, { opacity: 0, offset: 0.32 }, { opacity: 0 }],
       { duration, easing: 'linear', fill: 'both' }
     )
-    const snapshot = source.current
-    let snapshotMotion: Animation | undefined
-    if (snapshot && fromCapsule) {
-      Object.assign(snapshot.style, {
-        left: `${compact.x}px`,
-        top: `${compact.y}px`,
-        width: `${compact.width}px`,
-        height: `${compact.height}px`
-      })
-      snapshotMotion = snapshot.animate([{ opacity: 1 }, { opacity: 0 }], {
-        duration: 120,
-        fill: 'both'
-      })
-    }
     void shape.finished
       .then(() => getDesktopApi().finishNoteMotion(desktop.noteMotionRevision ?? 0))
       .catch(() => {})
     return () => {
       shape.cancel()
       content.cancel()
-      snapshotMotion?.cancel()
     }
   }, [
     desktop.edge,
@@ -106,22 +82,6 @@ export function NoteTransition({
   return (
     <div className="note-morph" aria-hidden="true">
       <div ref={surface} className="note-morph-surface" />
-      {desktop.noteMotion === 'opening' && desktop.noteMotionSource === 'capsule' && (
-        <div
-          ref={source}
-          className={`edge-handle capsule-visible revealed note-morph-source ${desktop.edge}`}
-        >
-          <span className="edge-capsule-summary">
-            <span className="edge-capsule-tasks">
-              <span className="edge-capsule-numbers">
-                <strong>{completed}</strong>
-                <span className="edge-capsule-slash">/</span>
-                <span className="edge-capsule-total">{total}</span>
-              </span>
-            </span>
-          </span>
-        </div>
-      )}
     </div>
   )
 }

@@ -1,6 +1,20 @@
 import assert from 'node:assert/strict'
 
 export async function listMetadataSmoke({ main, js, click, waitFor, capture }) {
+  const toolbarGeometry = () =>
+    js(
+      main,
+      `(() => {
+        const bar = document.querySelector('.archive-view-switch, .inspiration-group-header');
+        const rect = bar.getBoundingClientRect();
+        const add = bar.querySelector('.composer-toggle').getBoundingClientRect();
+        const selected = bar.querySelector('.archive-filter[aria-pressed="true"]');
+        return { bottom: rect.bottom, addY: add.y, addRight: add.right,
+          selectedBottom: selected?.getBoundingClientRect().bottom };
+      })()`
+    )
+  const taskToolbar = await toolbarGeometry()
+  assert.equal(taskToolbar.selectedBottom, taskToolbar.bottom - 1, '选中下划线与栏底分割线重合')
   await js(
     main,
     `Promise.all(Array.from({ length: 18 }, (_, i) => window.myTodo.createTask('列表任务' + i)))`
@@ -187,6 +201,8 @@ export async function listMetadataSmoke({ main, js, click, waitFor, capture }) {
   )
   await js(main, `document.querySelector('.workbench-habit-page').scrollTop = 0`)
   await capture(main, 'list-metadata-habits.png')
+  const habitToolbar = await toolbarGeometry()
+  assert.deepEqual(habitToolbar, taskToolbar, '任务与习惯的选择栏和加号位置一致')
   await click(main, `[data-habit-id="${habit.id}"] [data-testid=habit-archive]`)
   await waitFor(
     () => js(main, `!document.querySelector('[data-habit-id="${habit.id}"]')`),
@@ -237,4 +253,11 @@ export async function listMetadataSmoke({ main, js, click, waitFor, capture }) {
     '小记分组与列表用满标题下方空间'
   )
   await capture(main, 'list-metadata-inspirations.png')
+  const ideaToolbar = await toolbarGeometry()
+  assert.equal(ideaToolbar.bottom, taskToolbar.bottom, '小记标题分割线与任务、习惯同高')
+  assert.equal(ideaToolbar.addY, taskToolbar.addY, '三个页面的加号同高')
+  assert.ok(
+    Math.abs(ideaToolbar.addRight - taskToolbar.addRight) <= 1,
+    `三个页面的加号右侧位置一致：${JSON.stringify({ taskToolbar, ideaToolbar })}`
+  )
 }

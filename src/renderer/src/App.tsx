@@ -80,7 +80,7 @@ export function App() {
         style={collapsed ? { display: 'none' } : undefined}
       />
       {kind === 'note' && desktop?.noteMotion && (
-        <NoteTransition desktop={desktop} completed={completed} total={total} />
+        <NoteTransition desktop={desktop} />
       )}
       {collapsed && (
         <button

@@ -753,8 +753,8 @@
   z-index: 1;
   background: light-dark(#fff, #202020);
   justify-content: flex-start;
-  min-height: 48px;
-  padding-bottom: 16px;
+  min-height: 39px;
+  padding-bottom: 6px;
   margin-bottom: 0;
   border-bottom: 1px solid var(--workspace-line);
   gap: 10px;
@@ -1310,7 +1310,7 @@ html[data-window='main'] .inspiration-topic-error {
 
 /* The list owns the right-edge scrollbar; content keeps a small inner inset. */
 .workbench .inspiration-list {
-  padding-right: 12px;
+  padding-right: 10px;
 }
 .workbench-main-inspiration > .workbench-header {
   padding-right: 20px;
@@ -1368,11 +1368,17 @@ html[data-window='main']:has(.workbench-main-inspiration) {
   align-items: center;
   gap: 18px;
   flex: none;
+  min-height: 39px;
   margin: 0 0 16px;
   border-bottom: 1px solid var(--workspace-line);
 }
+.workbench .archive-view-switch .workbench-add {
+  margin-left: auto;
+  margin-bottom: 6px;
+}
 .workbench .archive-view-switch .archive-filter {
   position: relative;
+  align-self: stretch;
   min-height: 30px;
   padding: 0 2px 6px;
   border: 0;
@@ -1469,21 +1475,38 @@ html[data-window='main']:has(.workbench-main-list-page) {
 }
 .workbench .task-card-heading {
   display: flex;
+  flex-flow: row nowrap;
   align-items: center;
+  justify-content: flex-start;
   gap: 8px;
   min-height: 24px;
   margin-bottom: 4px;
 }
 .workbench .task-card-heading h2 {
+  display: inline-flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
   margin: 0;
   color: var(--app-text);
   font-size: 12px;
   font-weight: 600;
   line-height: 20px;
 }
+.workbench .task-card-icon {
+  display: block;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--app-accent);
+  stroke-width: 1.75;
+}
 .workbench .task-card-count {
   color: var(--app-muted);
   font-size: 11px;
+  line-height: 20px;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 .workbench .task-card-empty {
