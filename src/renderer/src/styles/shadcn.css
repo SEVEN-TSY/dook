@@ -61,6 +61,41 @@
   font-family: inherit;
 }
 
+/* Keep Sonner's positioning and lifecycle, with a compact shared surface.
+   Specificity also overrides its narrow-window full-width defaults. */
+[data-sonner-toaster].toaster[data-x-position='center'] {
+  left: 50%;
+  right: auto;
+  width: var(--width);
+  transform: translateX(-50%);
+  font-family: inherit;
+}
+
+[data-sonner-toaster].toaster [data-sonner-toast][data-styled='true'] {
+  left: 0;
+  right: 0;
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 18px;
+  gap: 6px;
+  box-shadow: 0 2px 8px light-dark(#20273414, #00000033);
+}
+
+[data-sonner-toaster].toaster [data-sonner-toast] [data-icon] {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+
+[data-sonner-toaster].toaster [data-sonner-toast] [data-icon] svg {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-slot] {
     transition-duration: 0s !important;

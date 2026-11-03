@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { assertCompactToast } from './toast-assertions.mjs'
 
 export async function listInteractionSmoke({ main, note, js, click, input, waitFor, capture }) {
   await waitFor(() => js(main, `Boolean(document.querySelector('.workbench-nav'))`), '主界面就绪')
@@ -94,6 +95,7 @@ export async function listInteractionSmoke({ main, note, js, click, input, waitF
     true,
     'toast不抢编辑焦点'
   )
+  await assertCompactToast(main, js, 'error')
   await capture(main, 'validation-toast.png')
   await waitFor(() => js(main, `!document.querySelector('[data-sonner-toast]')`), 'toast自动消失')
   assert.equal(

@@ -1,4 +1,5 @@
 import { listMetadataSmoke } from './list-metadata-smoke.mjs'
+import { toastSmoke } from './toast-smoke.mjs'
 import { habitArchiveSmoke } from './habit-archive-smoke.mjs'
 import { noteJottingsSmoke } from './note-jottings-smoke.mjs'
 import { appearanceSmoke } from './appearance-smoke.mjs'
@@ -1455,6 +1456,16 @@ async function runSmoke() {
           writeFileSync(resolve(output, name), (await window.webContents.capturePage()).toPNG())
       })
       console.log('Electron list metadata smoke passed')
+      menuClick('退出')
+      return
+    }
+    if (phase === 'toast') {
+      await toastSmoke({
+        main, note, js, click, input, waitFor,
+        capture: async (window, name) =>
+          writeFileSync(resolve(output, name), (await window.webContents.capturePage()).toPNG())
+      })
+      console.log('Electron toast smoke passed')
       menuClick('退出')
       return
     }

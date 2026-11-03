@@ -23,6 +23,12 @@
   --app-accent-shadow: color-mix(in srgb, var(--app-accent) 15%, transparent);
   --app-inspiration: light-dark(#ad7c16, #d9bc70);
   --app-inspiration-surface: light-dark(#fff9e8, #332d20);
+  --app-success: light-dark(#257347, #8ed4aa);
+  --app-success-surface: light-dark(#f0f8f3, #202e26);
+  --app-success-border: light-dark(#cce3d4, #395343);
+  --app-error: light-dark(#b43e48, #f0a0a6);
+  --app-error-surface: light-dark(#fff3f3, #342426);
+  --app-error-border: light-dark(#efcdd0, #604044);
 }
 /* Structural focus targets restore focus without drawing a selection frame. */
 :is(main, section, aside, div)[tabindex='-1']:focus {
