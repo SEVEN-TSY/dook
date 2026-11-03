@@ -277,6 +277,24 @@ export class AppService {
     })
   }
 
+  convertToToday(id: string, discardSubitems = false): Task {
+    const date = localDate(this.now())
+    const store = this.taskStore()
+    return store.transaction(() => {
+      const task = store.get(this.taskId(id), date)
+      if (task.habitId) throw new Error('习惯任务不能转回当天任务。')
+      if (task.subitems?.length && !discardSubitems)
+        throw new Error('转回当天任务会丢失所有子事项，请先确认。')
+      for (const item of task.subitems ?? []) store.deleteSubitem(task.id, item.id)
+      return store.update(task.id, date, {
+        kind: 'today',
+        date,
+        progress: task.completed ? 100 : 0,
+        completedOn: task.completed ? date : null
+      })
+    })
+  }
+
   addSubitem(id: string, description: string): Task {
     if (typeof description !== 'string' || !description.trim())
       throw new Error('子事项内容不能为空。')
@@ -286,6 +304,7 @@ export class AppService {
       const task = store.get(this.taskId(id), date)
       if (task.kind === 'today') this.convertToMultiDay(task.id)
       store.addSubitem(task.id, description.trim())
+      store.update(task.id, date, { updatedAt: this.now().toISOString() })
       return this.syncSubitemProgress(task.id, date)
     })
   }
@@ -305,6 +324,31 @@ export class AppService {
     return this.mutateSubitem(id, () =>
       this.taskStore().updateSubitem(id, this.taskId(subitemId), { completed })
     )
+  }
+
+  moveSubitem(id: string, subitemId: string, targetId: string, before: boolean): Task {
+    if (typeof before !== 'boolean') throw new Error('排序位置无效。')
+    const store = this.taskStore()
+    const date = localDate(this.now())
+    return store.transaction(() => {
+      const task = store.get(this.taskId(id), date)
+      const items = task.subitems ?? []
+      const source = items.find((item) => item.id === this.taskId(subitemId))
+      if (!source || !items.some((item) => item.id === this.taskId(targetId)))
+        throw new Error('请在同一任务的子事项之间调整顺序。')
+      if (subitemId === targetId) return task
+      const ordered = items.filter((item) => item.id !== subitemId)
+      ordered.splice(
+        ordered.findIndex((item) => item.id === targetId) + (before ? 0 : 1),
+        0,
+        source
+      )
+      store.setSubitemOrder(
+        task.id,
+        ordered.map((item) => item.id)
+      )
+      return store.get(task.id, date)
+    })
   }
 
   deleteSubitem(id: string, subitemId: string): Task {

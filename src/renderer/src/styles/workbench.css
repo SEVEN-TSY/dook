@@ -11,7 +11,7 @@
 }
 
 .workbench {
-  --workspace-line: light-dark(#e9ecf2, #393939);
+  --workspace-line: var(--app-border);
   --workspace-soft: light-dark(#f4f6fa, #252525);
   display: flex;
   min-height: 100vh;
@@ -347,7 +347,7 @@
   padding: 12px 10px;
   gap: 12px;
   border: 0;
-  border-bottom: 1px solid light-dark(#f0f2f6, #393939);
+  border-bottom: 1px solid var(--app-border);
   border-radius: 0;
 }
 .workbench .task-row:hover {
@@ -457,7 +457,7 @@
   color: light-dark(#566174, #adadad);
 }
 .workbench .subitem-new {
-  border: 1px solid light-dark(#e5eaf1, #393939);
+  border: 1px solid var(--app-border);
   border-radius: 7px;
   padding: 9px;
   color: var(--app-text);
@@ -787,7 +787,7 @@
 }
 .workbench .inspiration-item {
   border-top: 0;
-  border-bottom: 1px solid light-dark(#edf0f5, #393939);
+  border-bottom: 1px solid var(--app-border);
   padding: 0;
 }
 .workbench .inspiration-row {
@@ -892,7 +892,7 @@
 /* Radix portals are attached to body, outside .workbench. */
 html[data-window='main'] [data-slot='popover-content'] {
   border-style: solid;
-  border-color: light-dark(#e5eaf1, #393939);
+  border-color: var(--app-border);
   font-family: inherit;
 }
 html[data-window='main'] .action-popover {
@@ -979,7 +979,7 @@ html[data-window='main'] .inspiration-topic-picker form {
   gap: 6px;
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px solid light-dark(#e5eaf1, #393939);
+  border-top: 1px solid var(--app-border);
 }
 html[data-window='main'] .inspiration-topic-picker form input {
   flex: 1;
@@ -1157,10 +1157,46 @@ html[data-window='main'] .inspiration-topic-error {
 }
 .workbench .settings-group .setting-row {
   border-top: 0;
-  border-bottom: 1px solid light-dark(#edf0f5, #393939);
+  border-bottom: 1px solid var(--app-border);
 }
 .workbench .settings-group .setting-row:last-child {
   border-bottom: 0;
+}
+.settings-about-content {
+  padding: 20px 0;
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.settings-about-name {
+  color: var(--app-text);
+  font-size: 16px;
+  font-weight: 600;
+}
+.settings-about-content p {
+  margin: 8px 0 0;
+}
+.settings-copyright,
+.settings-source-address {
+  user-select: text;
+}
+.settings-about-details {
+  display: grid;
+  gap: 12px;
+  margin: 20px 0;
+}
+.settings-about-details > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.settings-about-details dt {
+  color: var(--app-text);
+}
+.settings-about-details dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 .theme-setting {
   padding: 20px 0;
@@ -1226,14 +1262,14 @@ html[data-window='main'] .inspiration-topic-error {
   flex-wrap: wrap;
   gap: 8px;
   padding-top: 16px;
-  border-top: 1px solid light-dark(#edf0f5, #393939);
+  border-top: 1px solid var(--app-border);
 }
 .theme-color-picker {
   display: grid;
   place-items: center;
   width: 36px;
   height: 36px;
-  border: 1px solid light-dark(#e5eaf1, #393939);
+  border: 1px solid var(--app-border);
   border-radius: 7px;
   overflow: hidden;
 }
@@ -1295,8 +1331,8 @@ html[data-window='main'] .inspiration-topic-error {
 
 .workbench .composer-clear {
   flex: none;
-  align-self: flex-start;
-  margin-top: 8px;
+  align-self: center;
+  margin: 0;
 }
 .workbench .clearable-textarea {
   display: block;
@@ -1325,7 +1361,7 @@ html[data-window='main'] .inspiration-topic-error {
   padding: 10px 0;
 }
 .workbench .task-row.main-list-row {
-  border-bottom-color: light-dark(#edf0f5, #393939);
+  border-bottom-color: var(--app-border);
 }
 
 html[data-window='main']:has(.workbench-main-inspiration) {
@@ -1543,12 +1579,11 @@ html[data-window='main']:has(.workbench-main-list-page) {
   min-width: 0;
   border-bottom: 1px solid var(--app-border);
 }
-.workbench .task-inline-card > .task-row {
+.workbench .task-card-group > .task-inline-card:last-child {
   border-bottom: 0;
 }
-.workbench .task-inline-card:has(.subitems-panel) {
-  background: var(--app-hover);
-  border-radius: 8px;
+.workbench .task-inline-card > .task-row {
+  border-bottom: 0;
 }
 .workbench .task-expand {
   display: inline-flex;
@@ -1616,4 +1651,196 @@ html[data-window='main']:has(.workbench-main-list-page) {
 .workbench .subitem-description {
   flex: 1;
   min-width: 0;
+}
+
+.workbench .task-progress-summary {
+  gap: 6px;
+  font: inherit;
+}
+.workbench .task-progress-summary[aria-expanded='true'] > svg {
+  transform: rotate(90deg);
+}
+.workbench .task-inline-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.workbench .task-editable-progress {
+  position: relative;
+  overflow: visible;
+}
+.workbench .task-editable-progress:focus-within {
+  outline: none;
+  box-shadow: none;
+}
+.workbench .task-editable-progress > span {
+  position: relative;
+}
+.workbench .task-editable-progress > span::after {
+  content: '';
+  position: absolute;
+  right: -3px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--app-accent-fill);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.workbench .task-inline-progress input {
+  position: absolute;
+  inset: -7px 0;
+  width: 100%;
+  height: 17px;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.workbench .task-inline-progress input:disabled {
+  cursor: default;
+}
+.workbench .subitem-composer.inline-composer {
+  min-height: 30px;
+  margin: 0 0 4px;
+  padding: 3px 6px;
+  gap: 6px;
+  border-radius: 8px;
+}
+.workbench .subitem-composer.inline-composer textarea {
+  min-height: 22px;
+  max-height: 120px;
+  padding: 2px 0;
+  font-size: 12px;
+  line-height: 18px;
+}
+.workbench .subitem-composer .composer-icon {
+  margin-top: 4px;
+}
+.workbench .subitem-composer .composer-submit {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+}
+.workbench .subitem-composer svg {
+  width: 14px;
+  height: 14px;
+}
+
+.workbench .task-subitems-action[aria-expanded='true'] svg {
+  transform: none;
+}
+
+.workbench .task-subitems-icon {
+  position: relative;
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+}
+.workbench .task-subitems-action .task-subitems-icon svg {
+  position: absolute;
+  inset: 0;
+  transition:
+    transform 280ms ease,
+    opacity 280ms ease;
+}
+.workbench .task-subitems-action .task-subitems-icon svg:first-child {
+  opacity: 1;
+  transform: rotate(0deg);
+}
+.workbench .task-subitems-action .task-subitems-icon svg:last-child {
+  opacity: 0;
+  transform: rotate(-90deg);
+}
+.workbench .task-subitems-action[aria-expanded='true'] .task-subitems-icon svg:first-child {
+  opacity: 0;
+  transform: rotate(90deg);
+}
+.workbench .task-subitems-action[aria-expanded='true'] .task-subitems-icon svg:last-child {
+  opacity: 1;
+  transform: rotate(0deg);
+}
+
+.workbench .subitem-row > .clearable-textarea {
+  flex: 1;
+  min-width: 0;
+}
+.workbench .subitem-editor.main-list-editor {
+  min-height: 30px;
+  padding: 6px 4px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.workbench .subitem-composer.inline-composer:focus-within {
+  box-shadow: none;
+}
+.workbench .inline-composer .draft-clear svg {
+  width: 60%;
+  height: 60%;
+  display: block;
+}
+
+.workbench .subitem-row {
+  position: relative;
+}
+.workbench .subitem-drag {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 16px;
+  height: 30px;
+  line-height: 1;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--app-muted);
+  cursor: grab;
+}
+.workbench .subitem-drag:active {
+  cursor: grabbing;
+}
+.workbench .subitem-row.is-dragging {
+  opacity: 0.5;
+}
+.workbench .subitem-drop-before::before,
+.workbench .subitem-drop-after::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--app-accent);
+  pointer-events: none;
+}
+.workbench .subitem-drop-before::before {
+  top: 0;
+}
+.workbench .subitem-drop-after::after {
+  bottom: 0;
+}
+
+.workbench .subitem-drag svg {
+  display: block;
+}
+.workbench .subitem-row {
+  align-items: center;
+}
+.workbench .subitem-description {
+  line-height: 18px;
+  padding: 6px 0;
+}
+.workbench .subitem-description:not(.is-expanded) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.workbench .subitem-delete {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 30px;
+  padding: 0;
+  line-height: 1;
 }

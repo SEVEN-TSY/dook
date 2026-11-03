@@ -1,5 +1,5 @@
 appId: com.mytodo.desktop
-productName: myTodo
+productName: DOOK
 directories:
   output: release
 files:
@@ -15,7 +15,7 @@ win:
   target:
     - target: nsis
       arch: [x64]
-  artifactName: myTodo-${version}-setup.${ext}
+  artifactName: DOOK-${version}-setup.${ext}
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true

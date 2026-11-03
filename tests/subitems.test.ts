@@ -117,3 +117,63 @@ test('子事项在跨日和重启后保留，全部完成当日显示且次日�
     rmSync(directory, { recursive: true, force: true })
   }
 })
+
+test('无子事项多天任务转回本地当天，有子事项拒绝转换并保留创建时间', () => {
+  const database = new AppDatabase(':memory:')
+  const service = new AppService(database, new TaskRepository(database.connection))
+  try {
+    const task = service.createTask('转换与推进时间')
+    service.convertToMultiDay(task.id)
+    service.setTaskProgress(task.id, 50)
+    const today = service.convertToToday(task.id)
+    assert.equal(today.kind, 'today')
+    assert.equal(today.date, service.listToday().date)
+    assert.equal(today.completed, false)
+    assert.equal(today.progress, 0)
+    const updated = service.addSubitem(task.id, '新增工作')
+    assert.equal(updated.createdAt, task.createdAt)
+    assert.ok(updated.updatedAt)
+    assert.throws(() => service.convertToToday(task.id), /子事项/)
+    assert.equal(service.listToday().tasks[0].kind, 'multi-day')
+    const converted = service.convertToToday(task.id, true)
+    assert.equal(converted.kind, 'today')
+    assert.equal(converted.subitems?.length ?? 0, 0)
+  } finally {
+    database.close()
+  }
+})
+
+test('子事项同任务排序保留内容完成状态和进度，拒绝跨任务移动', () => {
+  const database = new AppDatabase(':memory:')
+  const service = new AppService(database, new TaskRepository(database.connection))
+  try {
+    const task = service.createTask('子事项排序')
+    const first = service.addSubitem(task.id, '甲').subitems![0]
+    const second = service.addSubitem(task.id, '乙').subitems![1]
+    const third = service.addSubitem(task.id, '丙').subitems![2]
+    service.setSubitemCompleted(task.id, second.id, true)
+    const moved = service.moveSubitem(task.id, third.id, first.id, true)
+    assert.deepEqual(
+      moved.subitems!.map((item) => item.description),
+      ['丙', '甲', '乙']
+    )
+    assert.equal(moved.progress, 33)
+    assert.equal(moved.subitems![2].completed, true)
+    const appended = service.addSubitem(task.id, '丁')
+    assert.deepEqual(
+      appended.subitems!.map((item) => item.description),
+      ['丙', '甲', '乙', '丁']
+    )
+    const other = service.createTask('另一任务')
+    const foreign = service.addSubitem(other.id, '外部项').subitems![0]
+    assert.throws(() => service.moveSubitem(task.id, first.id, foreign.id, false), /同一任务/)
+    assert.deepEqual(
+      service
+        .moveSubitem(task.id, first.id, third.id, false)
+        .subitems!.map((item) => item.description),
+      ['丙', '甲', '乙', '丁']
+    )
+  } finally {
+    database.close()
+  }
+})

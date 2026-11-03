@@ -13,6 +13,8 @@ export class NoteController {
   private edgeRevealed = false
   private edgeCapsuleVisible = false
   private edgeRevealTarget = false
+  private edgeRevealRevision = 0
+  private awaitingCapsulePaint = false
   private revealTimer?: ReturnType<typeof setTimeout>
   private noteMotion?: 'opening' | 'closing'
   private noteMotionRevision = 0
@@ -76,6 +78,7 @@ export class NoteController {
       edgeRevealed: this.edgeRevealed,
       edgeCapsuleVisible: this.edgeCapsuleVisible,
       edgeCapsulePreparing: this.edgeCapsuleVisible && this.edgeRevealTarget && !this.edgeRevealed,
+      edgeRevealRevision: this.edgeRevealRevision,
       noteMotion: this.noteMotion,
       noteMotionRevision: this.noteMotionRevision,
       noteMotionSource: this.noteMotionSource
@@ -102,27 +105,34 @@ export class NoteController {
     try {
       let bounds = this.expanded
       if (this.collapsed && this.edge) {
-        bounds = this.edgeCapsuleVisible
-          ? {
-              ...bounds,
-              width: this.edge === 'top' ? 76 : 64,
-              height: this.edge === 'top' ? 64 : 76,
-              x:
-                this.edge === 'right'
-                  ? bounds.x + bounds.width - 56
-                  : this.edge === 'left'
-                    ? bounds.x - 8
-                    : bounds.x,
-              y: this.edge === 'top' ? bounds.y - 8 : bounds.y
-            }
-          : this.edge === 'top'
-            ? { ...bounds, width: 76, height: 32, y: bounds.y - 26 }
-            : {
+        bounds =
+          this.edgeCapsuleVisible && !this.awaitingCapsulePaint
+            ? {
                 ...bounds,
-                width: 32,
-                height: 76,
-                x: this.edge === 'right' ? bounds.x + bounds.width - 6 : bounds.x - 26
+                width: this.edge === 'top' ? 76 : 64,
+                height: this.edge === 'top' ? 64 : 76,
+                x:
+                  this.edge === 'right'
+                    ? bounds.x + bounds.width - 56
+                    : this.edge === 'left'
+                      ? bounds.x - 8
+                      : bounds.x + Math.round((bounds.width - 76) / 2),
+                y: this.edge === 'top' ? bounds.y - 8 : bounds.y
               }
+            : this.edge === 'top'
+              ? {
+                  ...bounds,
+                  x: bounds.x + Math.round((bounds.width - 76) / 2),
+                  width: 76,
+                  height: 32,
+                  y: bounds.y - 26
+                }
+              : {
+                  ...bounds,
+                  width: 32,
+                  height: 76,
+                  x: this.edge === 'right' ? bounds.x + bounds.width - 6 : bounds.x - 26
+                }
       }
       this.window.setMinimumSize(
         this.collapsed ? 1 : Math.min(334, this.expanded.width),
@@ -263,7 +273,27 @@ export class NoteController {
 
   private resetReveal() {
     clearTimeout(this.revealTimer)
+    this.awaitingCapsulePaint = false
+    this.edgeRevealRevision++
     this.edgeRevealed = this.edgeCapsuleVisible = this.edgeRevealTarget = false
+  }
+
+  finishCapsulePreparation(revision: number) {
+    if (
+      !this.awaitingCapsulePaint ||
+      revision !== this.edgeRevealRevision ||
+      !this.collapsed ||
+      this.disposed ||
+      this.window.isDestroyed()
+    )
+      return
+    clearTimeout(this.revealTimer)
+    this.awaitingCapsulePaint = false
+    this.apply()
+    this.revealTimer = setTimeout(() => {
+      this.edgeRevealed = true
+      this.apply()
+    }, 32)
   }
 
   private revealCapsule(reveal: boolean) {
@@ -277,11 +307,15 @@ export class NoteController {
       } else {
         this.edgeCapsuleVisible = true
         this.edgeRevealed = false
-        this.apply()
+        this.awaitingCapsulePaint = true
+        this.edgeRevealRevision++
+        // 保持细条窗口原位，等渲染层绘制隐藏帧后再扩大窗口。
+        this.notify()
         this.revealTimer = setTimeout(() => {
-          this.edgeRevealed = true
-          this.apply()
-        }, 32)
+          // 渲染无响应时恢复入口，避免永久停在空白准备状态。
+          this.resetReveal()
+          this.notify()
+        }, 1000)
       }
     } else {
       this.edgeRevealed = false
@@ -295,6 +329,12 @@ export class NoteController {
   }
 
   updateSettings(settings: WindowSettings) {
+    settings = {
+      ...settings,
+      locateTaskOnConvert:
+        settings.showMultiDay &&
+        (!this.preferences.settings.showMultiDay || settings.locateTaskOnConvert)
+    }
     writePreferences(this.directory, { ...this.preferences, settings })
     if (settings.defaultAlwaysOnTop !== this.preferences.settings.defaultAlwaysOnTop)
       this.freePinned = settings.defaultAlwaysOnTop
@@ -415,6 +455,7 @@ export class NoteController {
   private trackPointer() {
     if (this.disposed || this.window.isDestroyed()) return
     if (!this.edge || !this.window.isVisible() || this.dragging || this.noteMotion) return
+    if (this.awaitingCapsulePaint) return
     const point = screen.getCursorScreenPoint()
     const bounds = this.window.getBounds()
     const hitBounds =
@@ -425,7 +466,16 @@ export class NoteController {
             width: this.edge === 'top' ? 60 : 28,
             height: this.edge === 'top' ? 28 : 60
           }
-        : bounds
+        : this.collapsed
+          ? this.edge === 'top'
+            ? { x: bounds.x + 8, y: bounds.y + 26, width: 60, height: 6 }
+            : {
+                x: bounds.x + (this.edge === 'left' ? 26 : 0),
+                y: bounds.y + 8,
+                width: 6,
+                height: 60
+              }
+          : bounds
     const inside =
       point.x >= hitBounds.x &&
       point.x < hitBounds.x + hitBounds.width &&

@@ -68,6 +68,7 @@ export function registerIpc(handlers: Handlers): () => void {
       !('launchAtLogin' in settings) ||
       !('showMultiDay' in settings) ||
       typeof settings.showMultiDay !== 'boolean' ||
+      ('locateTaskOnConvert' in settings && typeof settings.locateTaskOnConvert !== 'boolean') ||
       typeof settings.launchAtLogin !== 'boolean' ||
       typeof settings.defaultAlwaysOnTop !== 'boolean' ||
       typeof settings.edgeAutoHide !== 'boolean'
@@ -96,7 +97,11 @@ export function registerIpc(handlers: Handlers): () => void {
       launchAtLogin: settings.launchAtLogin,
       defaultAlwaysOnTop: settings.defaultAlwaysOnTop,
       edgeAutoHide: settings.edgeAutoHide,
-      showMultiDay: settings.showMultiDay
+      showMultiDay: settings.showMultiDay,
+      locateTaskOnConvert:
+        'locateTaskOnConvert' in settings
+          ? (settings.locateTaskOnConvert as boolean)
+          : handlers.desktop.state().settings.locateTaskOnConvert
     })
   })
   register(IPC_CHANNELS.toggleNotePin, (window) => handlers.desktop.togglePin(window))
@@ -113,6 +118,11 @@ export function registerIpc(handlers: Handlers): () => void {
     if (typeof revision !== 'number' || !Number.isSafeInteger(revision))
       throw new Error('动画标识无效。')
     handlers.desktop.finishNoteMotion(window, revision)
+  })
+  register(IPC_CHANNELS.finishCapsulePreparation, (window, revision) => {
+    if (typeof revision !== 'number' || !Number.isSafeInteger(revision))
+      throw new Error('胶囊交接标识无效。')
+    handlers.desktop.finishCapsulePreparation(window, revision)
   })
   register(IPC_CHANNELS.saveReply, (window, id, success) => {
     if (typeof id !== 'string' || typeof success !== 'boolean') throw new Error('保存回复无效。')
@@ -276,6 +286,11 @@ export function registerIpc(handlers: Handlers): () => void {
     if (typeof completed !== 'boolean') throw new Error('完成状态无效。')
     return mutate(() => handlers.service.setSubitemCompleted(text(id), text(subitemId), completed))
   })
+  register(IPC_CHANNELS.moveSubitem, (_, id, subitemId, targetId, before) =>
+    mutate(() =>
+      handlers.service.moveSubitem(text(id), text(subitemId), text(targetId), before as boolean)
+    )
+  )
   register(IPC_CHANNELS.deleteSubitem, (_, id, subitemId) =>
     mutate(() => handlers.service.deleteSubitem(text(id), text(subitemId)))
   )
@@ -289,8 +304,18 @@ export function registerIpc(handlers: Handlers): () => void {
     mutate(() => handlers.service.deleteTask(taskId))
     return true
   })
+  register(IPC_CHANNELS.convertToToday, (_, id, discardSubitems) =>
+    mutate(() => {
+      if (!handlers.desktop.state().settings.showMultiDay) throw new Error('请先开启显示持续推进。')
+      if (typeof discardSubitems !== 'boolean') throw new Error('确认状态无效。')
+      return handlers.service.convertToToday(text(id), discardSubitems)
+    })
+  )
   register(IPC_CHANNELS.convertToMultiDay, (_, id) =>
-    mutate(() => handlers.service.convertToMultiDay(text(id)))
+    mutate(() => {
+      if (!handlers.desktop.state().settings.showMultiDay) throw new Error('请先开启显示持续推进。')
+      return handlers.service.convertToMultiDay(text(id))
+    })
   )
   register(IPC_CHANNELS.setTaskProgress, (_, id, progress) => {
     if (typeof progress !== 'number') throw new Error('进度必须为数字。')

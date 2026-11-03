@@ -6,10 +6,11 @@ import type { TaskStore, TaskChange } from '../../core/tasks'
 const visible = `archived_at IS NULL AND ((kind = 'today' AND date = ? AND skipped_on IS NULL) OR
   (kind = 'multi-day' AND (completed = 0 OR completed_on = ?)))`
 const fields =
-  'id, description, date, completed, kind, progress, completed_on, habit_id, pinned, created_at'
+  'id, description, date, completed, kind, progress, completed_on, habit_id, pinned, created_at, updated_at'
 const taskFromRow = (row: Record<string, SQLOutputValue>): Task => ({
   ...(row.archived_at == null ? {} : { archivedAt: String(row.archived_at) }),
   ...(row.pinned === 1 ? { pinned: true } : {}),
+  updatedAt: row.updated_at == null ? null : String(row.updated_at),
   createdAt: row.created_at == null ? null : String(row.created_at),
   id: String(row.id),
   description: String(row.description),
@@ -28,7 +29,7 @@ export class TaskRepository implements TaskStore {
     const task = taskFromRow(row)
     const subitems = this.database
       .prepare(
-        'SELECT id, description, completed FROM task_subitems WHERE task_id = ? ORDER BY sequence'
+        'SELECT id, description, completed FROM task_subitems WHERE task_id = ? ORDER BY COALESCE(sort_order, sequence), sequence'
       )
       .all(task.id)
       .map((item) => ({
@@ -54,8 +55,10 @@ export class TaskRepository implements TaskStore {
   addSubitem(taskId: string, description: string): Subitem {
     const item = { id: randomUUID(), description, completed: false }
     this.database
-      .prepare('INSERT INTO task_subitems (id, task_id, description) VALUES (?, ?, ?)')
-      .run(item.id, taskId, description)
+      .prepare(
+        `INSERT INTO task_subitems (id, task_id, description, sort_order) VALUES (?, ?, ?, (SELECT COALESCE(MAX(COALESCE(sort_order, sequence)), 0) + 1 FROM task_subitems WHERE task_id = ?))`
+      )
+      .run(item.id, taskId, description, taskId)
     return item
   }
 
@@ -82,6 +85,13 @@ export class TaskRepository implements TaskStore {
       .prepare('DELETE FROM task_subitems WHERE task_id = ? AND id = ?')
       .run(taskId, id)
     if (!result.changes) throw new Error('子事项不存在，可能已删除。')
+  }
+
+  setSubitemOrder(taskId: string, ids: string[]): void {
+    const update = this.database.prepare(
+      'UPDATE task_subitems SET sort_order = ? WHERE task_id = ? AND id = ?'
+    )
+    ids.forEach((id, index) => update.run(index, taskId, id))
   }
 
   setSubitemsCompleted(taskId: string, completed: boolean): void {
@@ -175,12 +185,15 @@ export class TaskRepository implements TaskStore {
     const row = this.database
       .prepare(
         `UPDATE tasks SET
+      date = COALESCE(?, date), updated_at = COALESCE(?, updated_at),
       pinned = COALESCE(?, pinned), description = COALESCE(?, description), completed = COALESCE(?, completed),
       kind = COALESCE(?, kind), progress = COALESCE(?, progress),
       completed_on = CASE WHEN ? THEN ? ELSE completed_on END
       WHERE id = ? AND (${visible}) RETURNING ${fields}`
       )
       .get(
+        change.date ?? null,
+        change.updatedAt ?? null,
         change.pinned === undefined ? null : Number(change.pinned),
         change.description ?? null,
         change.completed === undefined ? null : Number(change.completed),

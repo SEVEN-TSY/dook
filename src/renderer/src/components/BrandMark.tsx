@@ -12,7 +12,7 @@ const outline = Array.from({ length: 128 }, (_, index) => {
 export function BrandMark() {
   return (
     <span className="brand-mark">
-      <svg viewBox="0 0 256 256" role="img" aria-label="myTodo标识">
+      <svg viewBox="0 0 256 256" role="img" aria-label="DOOK标识">
         <polygon points={outline} fill="var(--app-accent)" />
         {/* Compensate for the mark's upper transparent margin at the 32px display size. */}
         <image href={brandImage} x="10" y="2" width="236" height="236" />

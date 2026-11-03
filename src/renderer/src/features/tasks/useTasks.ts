@@ -1,3 +1,4 @@
+import { toast } from 'sonner'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Task, TodayTasks } from '../../../../shared/contracts'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
@@ -54,6 +55,7 @@ export function useTasks() {
     setError('')
     try {
       await action()
+      toast.success('操作成功')
       await refresh()
       return true
     } catch (error) {
@@ -78,6 +80,8 @@ export function useTasks() {
       run(async () => unwrap(await getDesktopApi().moveTask(id, targetId, before))),
     complete: (task: Task) =>
       run(async () => unwrap(await getDesktopApi().setTaskCompleted(task.id, !task.completed))),
+    convertToday: (id: string, discardSubitems = false) =>
+      run(async () => unwrap(await getDesktopApi().convertToToday(id, discardSubitems))),
     convert: (id: string) => run(async () => unwrap(await getDesktopApi().convertToMultiDay(id))),
     addHabit: (id: string) =>
       run(async () => unwrap(await getDesktopApi().createHabitFromTask(id))),
@@ -85,10 +89,13 @@ export function useTasks() {
       try {
         unwrap(await getDesktopApi().setTaskProgress(id, value))
         setError('')
+        toast.success('进度已更新')
         await refresh()
+        return true
       } catch (error) {
         setError(error instanceof Error ? error.message : '更新进度失败。')
         await refresh()
+        return false
       }
     },
     skipHabit: (id: string) => run(async () => unwrap(await getDesktopApi().skipHabitTask(id))),

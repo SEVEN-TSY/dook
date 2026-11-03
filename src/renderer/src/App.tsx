@@ -1,5 +1,6 @@
 import { TasksPage } from './features/tasks/TasksPage'
 import { useEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import type { DesktopState } from '../../shared/contracts'
 import { getDesktopApi, unwrap } from './platform/desktop'
 import { useTasks } from './features/tasks/useTasks'
@@ -11,6 +12,7 @@ import { Toaster } from './components/ui/sonner'
 export function App() {
   const tasks = useTasks()
   const [desktop, setDesktop] = useState<DesktopState | null>(null)
+  const [edgeOpening, setEdgeOpening] = useState(false)
   const { total, completed } = taskSummary(tasks.today?.tasks, desktop?.settings.showMultiDay)
   const progress = total ? (completed / total) * 100 : 0
   const edgePress = useRef<{ x: number; y: number; moved: boolean } | null>(null)
@@ -42,6 +44,7 @@ export function App() {
       document.documentElement.classList.toggle('dark', state.colorScheme === 'dark')
       document.documentElement.style.colorScheme = state.colorScheme
       setDesktop(state)
+      if (!state.collapsed) setEdgeOpening(false)
     }
     const unsubscribe = api.onWindowState((state) => {
       receivedChange = true
@@ -63,6 +66,20 @@ export function App() {
     new URLSearchParams(window.location.search).get('window') === 'note' ? 'note' : 'main'
   const collapsed = kind === 'note' && Boolean(desktop?.collapsed)
   useEffect(() => {
+    if (!collapsed || !desktop?.edgeCapsulePreparing) return
+    const revision = desktop.edgeRevealRevision ?? 0
+    let secondFrame = 0
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        void getDesktopApi().finishCapsulePreparation(revision)
+      })
+    })
+    return () => {
+      cancelAnimationFrame(firstFrame)
+      cancelAnimationFrame(secondFrame)
+    }
+  }, [collapsed, desktop?.edgeCapsulePreparing, desktop?.edgeRevealRevision])
+  useEffect(() => {
     document.documentElement.dataset.window = kind
   }, [kind])
   return (
@@ -79,10 +96,8 @@ export function App() {
         mobileOffset={kind === 'note' ? 48 : 16}
         style={collapsed ? { display: 'none' } : undefined}
       />
-      {kind === 'note' && desktop?.noteMotion && (
-        <NoteTransition desktop={desktop} />
-      )}
-      {collapsed && (
+      {kind === 'note' && desktop?.noteMotion && <NoteTransition desktop={desktop} />}
+      {collapsed && !edgeOpening && (
         <button
           className={`edge-handle ${desktop?.edge} ${desktop?.edgeCapsuleVisible ? 'capsule-visible' : ''} ${desktop?.edgeCapsulePreparing ? 'capsule-preparing' : ''} ${desktop?.edgeRevealed ? 'revealed' : ''}`}
           aria-label={`展开桌面便签，${summary}`}
@@ -114,8 +129,20 @@ export function App() {
             edgePress.current = null
             const pointerClick = event.detail > 0
             const result = await getDesktopApi().setNoteDragging(false)
-            if (!dragged && !(pointerClick && result.ok && result.data))
-              void getDesktopApi().openWindow('note')
+            if (!dragged && !(pointerClick && result.ok && result.data)) {
+              // 先提交并绘制空帧，避免原生窗口放大时带走上一帧胶囊。
+              flushSync(() => setEdgeOpening(true))
+              await new Promise<void>((resolve) => {
+                requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+              })
+              try {
+                unwrap(await getDesktopApi().openWindow('note'))
+              } catch (error) {
+                setError(String(error))
+              } finally {
+                setEdgeOpening(false)
+              }
+            }
           }}
         >
           <span className="edge-strip" aria-hidden="true">

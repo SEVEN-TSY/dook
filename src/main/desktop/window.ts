@@ -26,7 +26,7 @@ export function createWindow(kind: WindowKind): BrowserWindow {
     thickFrame: !note,
     transparent: note,
     skipTaskbar: note,
-    title: note ? 'myTodo · 桌面便签' : 'myTodo',
+    title: note ? 'DOOK · 桌面便签' : 'DOOK',
     icon: appIcon(),
     alwaysOnTop: note,
     backgroundColor: note ? '#00000000' : nativeTheme.shouldUseDarkColors ? '#202020' : '#FAFBFE',

@@ -15,7 +15,12 @@ export function NoteTransition({ desktop }: { desktop: DesktopState }) {
     const target = page.getBoundingClientRect()
     const compact =
       edge === 'top'
-        ? { x: 8, y: fromCapsule ? 0 : 1, width: 60, height: fromCapsule ? 28 : 4 }
+        ? {
+            x: Math.round((innerWidth - 60) / 2),
+            y: fromCapsule ? 0 : 1,
+            width: 60,
+            height: fromCapsule ? 28 : 4
+          }
         : {
             x: edge === 'left' ? (fromCapsule ? 0 : 1) : innerWidth - (fromCapsule ? 28 : 5),
             y: 8,

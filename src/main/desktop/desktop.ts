@@ -36,7 +36,7 @@ export class Desktop {
   startTray() {
     if (this.tray) return
     this.tray = new Tray(appIcon().resize({ width: 32, height: 32 }))
-    this.tray.setToolTip('myTodo')
+    this.tray.setToolTip('DOOK')
     this.tray.on('click', () => {
       void this.openWindow('note')
     })
@@ -166,6 +166,9 @@ export class Desktop {
   }
   finishNoteMotion(window: BrowserWindow, revision: number) {
     if (window === this.windows.get('note')) this.note?.finishNoteMotion(revision)
+  }
+  finishCapsulePreparation(window: BrowserWindow, revision: number) {
+    if (window === this.windows.get('note')) this.note?.finishCapsulePreparation(revision)
   }
 
   async protect<T>(action: () => Promise<T>): Promise<T> {

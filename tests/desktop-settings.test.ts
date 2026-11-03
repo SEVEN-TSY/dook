@@ -21,11 +21,14 @@ test('首次使用和旧配置默认开机自启，关闭后重启保留选择',
       launchAtLogin: true,
       defaultAlwaysOnTop: false,
       edgeAutoHide: false,
+      locateTaskOnConvert: true,
       showMultiDay: true
     })
+    preferences.settings.locateTaskOnConvert = false
     preferences.settings.launchAtLogin = false
     writePreferences(directory, preferences)
     assert.equal(readPreferences(directory).settings.launchAtLogin, false)
+    assert.equal(readPreferences(directory).settings.locateTaskOnConvert, false)
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
@@ -69,6 +72,7 @@ test('持续推进默认显示，旧配置兼容且关闭后保存重读保留�
       launchAtLogin: false,
       defaultAlwaysOnTop: false,
       edgeAutoHide: true,
+      locateTaskOnConvert: false,
       showMultiDay: false
     })
   } finally {

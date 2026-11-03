@@ -17,7 +17,7 @@ import { startMcpEndpoint } from './mcp/server'
 import type { McpEndpoint } from './mcp/server'
 import { loadOrCreateToken } from './mcp/token'
 
-app.setName('myTodo')
+app.setName('DOOK')
 app.setAppUserModelId('com.mytodo.desktop')
 const dataDirectory = resolve(
   process.env.MYTODO_DATA_DIR ||
@@ -138,7 +138,7 @@ if (!app.requestSingleInstanceLock()) {
       desktop.startTray()
     })
     .catch((error) => {
-      dialog.showErrorBox('myTodo启动失败', error instanceof Error ? error.message : String(error))
+      dialog.showErrorBox('DOOK启动失败', error instanceof Error ? error.message : String(error))
       app.quit()
     })
   app.on('window-all-closed', () => {

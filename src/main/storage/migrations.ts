@@ -138,5 +138,11 @@ export const migrations = [
     version: 15,
     name: 'habit_schedule',
     sql: `ALTER TABLE habits ADD COLUMN schedule TEXT;`
+  },
+  { version: 16, name: 'task_updated_time', sql: `ALTER TABLE tasks ADD COLUMN updated_at TEXT;` },
+  {
+    version: 17,
+    name: 'subitem_order',
+    sql: `ALTER TABLE task_subitems ADD COLUMN sort_order INTEGER;`
   }
 ] as const

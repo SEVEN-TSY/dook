@@ -11,6 +11,8 @@ const api: DesktopApi = {
   setInteraction: (active) => ipcRenderer.invoke(IPC_CHANNELS.setInteraction, active),
   setNoteDragging: (active) => ipcRenderer.invoke(IPC_CHANNELS.setNoteDragging, active),
   finishNoteMotion: (revision) => ipcRenderer.invoke(IPC_CHANNELS.finishNoteMotion, revision),
+  finishCapsulePreparation: (revision) =>
+    ipcRenderer.invoke(IPC_CHANNELS.finishCapsulePreparation, revision),
   onWindowState: (listener) => {
     const callback = (_event: Electron.IpcRendererEvent, state: DesktopState) => listener(state)
     ipcRenderer.on(WINDOW_STATE, callback)
@@ -74,6 +76,8 @@ const api: DesktopApi = {
     ipcRenderer.invoke(IPC_CHANNELS.moveTask, id, targetId, before),
   setTaskCompleted: (id, completed) =>
     ipcRenderer.invoke(IPC_CHANNELS.setTaskCompleted, id, completed),
+  convertToToday: (id, discardSubitems = false) =>
+    ipcRenderer.invoke(IPC_CHANNELS.convertToToday, id, discardSubitems),
   convertToMultiDay: (id) => ipcRenderer.invoke(IPC_CHANNELS.convertToMultiDay, id),
   setTaskProgress: (id, progress) => ipcRenderer.invoke(IPC_CHANNELS.setTaskProgress, id, progress),
   addSubitem: (id, description) => ipcRenderer.invoke(IPC_CHANNELS.addSubitem, id, description),
@@ -81,6 +85,8 @@ const api: DesktopApi = {
     ipcRenderer.invoke(IPC_CHANNELS.updateSubitem, id, subitemId, description),
   setSubitemCompleted: (id, subitemId, completed) =>
     ipcRenderer.invoke(IPC_CHANNELS.setSubitemCompleted, id, subitemId, completed),
+  moveSubitem: (id, subitemId, targetId, before) =>
+    ipcRenderer.invoke(IPC_CHANNELS.moveSubitem, id, subitemId, targetId, before),
   deleteSubitem: (id, subitemId) => ipcRenderer.invoke(IPC_CHANNELS.deleteSubitem, id, subitemId),
   skipHabitTask: (id) => ipcRenderer.invoke(IPC_CHANNELS.skipHabitTask, id),
   deleteTask: (id) => ipcRenderer.invoke(IPC_CHANNELS.deleteTask, id),

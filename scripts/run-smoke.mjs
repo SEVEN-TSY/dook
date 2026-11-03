@@ -29,6 +29,7 @@ const phases =
           'habit-archive',
           'drag',
           'dock',
+          'note-convert',
           'lifecycle',
           'workbench',
           'list-interaction',

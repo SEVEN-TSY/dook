@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, Palette, Monitor, StickyNote, Sun, Moon } from 'lucide-react'
+import { Check, Copyright, Palette, Monitor, StickyNote, Sun, Moon } from 'lucide-react'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
@@ -160,7 +160,7 @@ export function SettingsPage({ state, hidden }: { state: DesktopState | null; hi
         <label className="setting-row">
           <span>
             <strong>开机自启</strong>
-            <small>登录Windows后自动启动myTodo，安装版生效。</small>
+            <small>登录Windows后自动启动DOOK，安装版生效。</small>
           </span>
           <Switch
             data-testid="launch-at-login"
@@ -168,6 +168,39 @@ export function SettingsPage({ state, hidden }: { state: DesktopState | null; hi
             disabled={!state || busy}
             onCheckedChange={(checked) =>
               state && void update({ ...state.settings, launchAtLogin: checked })
+            }
+          />
+        </label>
+        <label className="setting-row">
+          <span>
+            <strong>显示持续推进</strong>
+            <small>关闭后主界面和便签均隐藏持续推进，不计入任务统计，任务数据仍保留。</small>
+          </span>
+          <Switch
+            data-testid="show-multi-day"
+            checked={state?.settings.showMultiDay ?? true}
+            disabled={!state || busy}
+            onCheckedChange={(checked) =>
+              state &&
+              void update({
+                ...state.settings,
+                showMultiDay: checked,
+                locateTaskOnConvert: checked
+              })
+            }
+          />
+        </label>
+        <label className="setting-row">
+          <span>
+            <strong>转换后定位并高亮任务</strong>
+            <small>主界面和便签转换任务后，自动定位并让背景呼吸两次。</small>
+          </span>
+          <Switch
+            data-testid="locate-task-on-convert"
+            checked={Boolean(state?.settings.showMultiDay && state.settings.locateTaskOnConvert)}
+            disabled={!state || busy || !state.settings.showMultiDay}
+            onCheckedChange={(checked) =>
+              state && void update({ ...state.settings, locateTaskOnConvert: checked })
             }
           />
         </label>
@@ -207,20 +240,30 @@ export function SettingsPage({ state, hidden }: { state: DesktopState | null; hi
             }
           />
         </label>
-        <label className="setting-row">
-          <span>
-            <strong>显示持续推进</strong>
-            <small>关闭后主界面和便签均隐藏持续推进，不计入任务统计，任务数据仍保留。</small>
+      </section>
+      <section className="settings-group settings-about" aria-label="关于与版权">
+        <h2 className="settings-intro">
+          <span className="settings-category-icon">
+            <Copyright size={17} />
           </span>
-          <Switch
-            data-testid="show-multi-day"
-            checked={state?.settings.showMultiDay ?? true}
-            disabled={!state || busy}
-            onCheckedChange={(checked) =>
-              state && void update({ ...state.settings, showMultiDay: checked })
-            }
-          />
-        </label>
+          关于与版权
+        </h2>
+        <div className="settings-about-content">
+          <strong className="settings-about-name">DOOK</strong>
+          <p>规划工作，随时小记。From DO to OK.</p>
+          <p className="settings-copyright">Copyright © 2026 SEVEN-TSY</p>
+          <dl className="settings-about-details">
+            <div>
+              <dt>源码仓库</dt>
+              <dd className="settings-source-address">https://github.com/SEVEN-TSY/myTodo</dd>
+            </div>
+            <div>
+              <dt>开源许可</dt>
+              <dd>待确定，后续以源码仓库中的许可证声明为准。</dd>
+            </div>
+          </dl>
+          <p>本应用使用的第三方开源组件，其版权归各自作者所有，并遵循各自的许可证。</p>
+        </div>
       </section>
       {error && (
         <p role="alert" className="task-error">

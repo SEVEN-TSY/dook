@@ -329,6 +329,18 @@ async function dockingSizeSmoke(note) {
       assert.deepEqual(note.getContentSize(), size, '收回动画结束前保留便签绘制空间')
       await waitFor(async () => (await state(note)).collapsed, '吸附收起')
       const strip = note.getBounds()
+      pointer =
+        edge === 'top'
+          ? { x: strip.x + 2, y: area.y + 2 }
+          : { x: edge === 'left' ? area.x + 2 : area.x + area.width - 2, y: strip.y + 2 }
+      await pause(450)
+      assert.equal((await state(note)).edgeCapsuleVisible, false, '透明留白不应反复触发胶囊显隐')
+      if (edge === 'top') {
+        assert.ok(
+          Math.abs(strip.x + strip.width / 2 - expanded.x - expanded.width / 2) <= 1,
+          '顶部浮条相对展开便签水平居中'
+        )
+      }
       const preparingStrip = await js(
         note,
         `(() => {
@@ -340,11 +352,32 @@ async function dockingSizeSmoke(note) {
       })()`
       )
       assert.equal(preparingStrip, 'hidden', '胶囊准备阶段细条直接隐藏，不能在窗口调整时重绘闪动')
+      await js(
+        note,
+        `(() => {
+        window.capsulePreparation = [];
+        window.stopCapsulePreparation = window.myTodo.onWindowState(state => {
+          if (state.edgeCapsulePreparing) window.capsulePreparation.push([innerWidth, innerHeight]);
+        });
+      })()`
+      )
       pointer =
         edge === 'top'
           ? { x: strip.x + 20, y: area.y + 2 }
           : { x: edge === 'left' ? area.x + 2 : area.x + area.width - 2, y: strip.y + 20 }
       await waitFor(async () => (await state(note)).edgeRevealed, '悬停呼出胶囊')
+      const preparation = await js(
+        note,
+        `(() => {
+        window.stopCapsulePreparation();
+        return window.capsulePreparation;
+      })()`
+      )
+      assert.deepEqual(
+        preparation[0],
+        [strip.width, strip.height],
+        '必须在细条窗口尺寸下先隐藏细条，再扩展胶囊绘制空间'
+      )
       await assertPushMotion(note, '.edge-energy', edge)
       assert.equal(
         await js(note, `getComputedStyle(document.querySelector('.edge-strip')).visibility`),
@@ -424,7 +457,9 @@ async function dockingSizeSmoke(note) {
           ? { x: movedStrip.x + 20, y: area.y + 2 }
           : { x: edge === 'left' ? area.x + 2 : area.x + area.width - 2, y: movedStrip.y + 20 }
       await waitFor(async () => (await state(note)).edgeRevealed, '再次呼出胶囊')
-      const capsuleHandoff = await js(note, `(async () => {
+      const capsuleHandoff = await js(
+        note,
+        `(async () => {
         const capsuleWidth = innerWidth;
         const frames = [];
         document.querySelector('.edge-handle').click();
@@ -434,9 +469,12 @@ async function dockingSizeSmoke(note) {
           frames.push({ width: innerWidth, capsuleVisible: Boolean(document.querySelector('.edge-handle')) });
         }
         return { capsuleWidth, frames };
-      })()`)
+      })()`
+      )
       assert.ok(
-        capsuleHandoff.frames.some(frame => frame.width === capsuleHandoff.capsuleWidth && !frame.capsuleVisible),
+        capsuleHandoff.frames.some(
+          (frame) => frame.width === capsuleHandoff.capsuleWidth && !frame.capsuleVisible
+        ),
         '放大原生窗口之前必须先绘制胶囊消失的一帧，避免旧胶囊被搬到便签左侧'
       )
       await waitFor(async () => !(await state(note)).collapsed, '点击胶囊直接显示便签')
@@ -733,6 +771,76 @@ async function runSmoke() {
       process.setUncaughtExceptionCaptureCallback(null)
       assert.deepEqual(failures, [], '窗口销毁后不得继续轮询或执行动画回调')
       console.log('Electron destroyed-window lifecycle passed')
+      app.exit(0)
+      return
+    }
+    if (phase === 'note-convert') {
+      const task = await js(
+        note,
+        `(async () => {
+        const { settings } = (await window.myTodo.getWindowState()).data;
+        await window.myTodo.updateSettings({ ...settings, showMultiDay: false });
+        return (await window.myTodo.createTask('便签转换持续推进')).data;
+      })()`
+      )
+      await count(note, 1)
+      const selector = `[data-task-id="${task.id}"] [data-testid=task-convert]`
+      assert.equal(
+        await js(note, `Boolean(document.querySelector(${JSON.stringify(selector)}))`),
+        false,
+        '关闭显示持续推进时不显示便签转换入口'
+      )
+      await js(
+        note,
+        `(async () => {
+        const { settings } = (await window.myTodo.getWindowState()).data;
+        await window.myTodo.updateSettings({ ...settings, showMultiDay: true });
+      })()`
+      )
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      assert.equal(
+        await js(note, `Boolean(document.querySelector(${JSON.stringify(selector)}))`),
+        true,
+        '开启显示持续推进时提供便签转换入口'
+      )
+      const point = await js(
+        note,
+        `(() => {
+        const rect = document.querySelector('[data-testid=task-delete]').getBoundingClientRect();
+        return { x: Math.round(rect.x + rect.width / 2), y: Math.round(rect.y + rect.height / 2) };
+      })()`
+      )
+      note.webContents.sendInputEvent({ type: 'mouseMove', ...point })
+      await waitFor(
+        () =>
+          js(
+            note,
+            `getComputedStyle(document.querySelector(${JSON.stringify(selector)})).visibility === 'visible'`
+          ),
+        '悬停行尾操作区展示转换按钮'
+      )
+      await click(note, selector)
+      await waitFor(
+        async () =>
+          (await rows(note))[0]?.kind === 'multi-day' ||
+          js(
+            note,
+            `document.querySelector('[data-task-id="${task.id}"]').dataset.taskKind === 'multi-day'`
+          ),
+        '便签转换为多天任务'
+      )
+      const converted = await js(
+        note,
+        `(async () => (await window.myTodo.listToday()).data.tasks[0])()`
+      )
+      assert.equal(converted.kind, 'multi-day')
+      assert.equal(converted.description, task.description)
+      assert.equal(
+        await js(note, `Boolean(document.querySelector(${JSON.stringify(selector)}))`),
+        false,
+        '转换成功后移除转换入口'
+      )
+      console.log('Electron note conversion passed')
       app.exit(0)
       return
     }

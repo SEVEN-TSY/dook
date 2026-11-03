@@ -15,7 +15,7 @@
   --app-text: light-dark(#303744, #e3e3e3);
   --app-muted: light-dark(#6a7588, #adadad);
   --app-surface: light-dark(#fafbfe, #202020);
-  --app-border: light-dark(#e5eaf1, #393939);
+  --app-border: light-dark(#d5dae3, #393939);
   --app-hover: var(--app-accent-hover);
   --app-accent-subtle: color-mix(in srgb, var(--app-accent) 4%, var(--app-panel));
   --app-input-border: color-mix(in srgb, var(--app-accent) 32%, light-dark(#e5e7eb, #393939));

@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { Button } from './ui/button'
 
 interface DeletePrompt {
+  confirmLabel?: string
   title: string
   description: string
   detail: string
@@ -90,7 +91,7 @@ export function DeleteConfirmationProvider({ children }: { children: ReactNode }
                 </Button>
               </AlertDialog.Cancel>
               <Button data-testid="delete-confirm" onClick={() => finish(true)}>
-                删除
+                {prompt?.confirmLabel ?? '删除'}
               </Button>
             </div>
           </AlertDialog.Content>

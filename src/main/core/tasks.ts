@@ -19,11 +19,14 @@ export interface TaskStore {
     change: { description?: string; completed?: boolean }
   ): void
   deleteSubitem(taskId: string, id: string): void
+  setSubitemOrder(taskId: string, ids: string[]): void
   setSubitemsCompleted(taskId: string, completed: boolean): void
   delete(id: string, date: string): void
 }
 
 export interface TaskChange {
+  date?: string
+  updatedAt?: string
   pinned?: boolean
   description?: string
   completed?: boolean

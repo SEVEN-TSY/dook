@@ -1,9 +1,12 @@
+import { TaskProgressSlider } from './TaskProgressSlider'
 import { CreatedTime } from '../shared/CreatedTime'
 import { BrandMark } from '../../components/BrandMark'
 import { Toast } from '../../components/Toast'
 import {
-  ArrowUpRight,
-  ChevronRight,
+  ArrowUpLeft,
+  ArrowDownLeft,
+  ChevronsDown,
+  Plus,
   Archive,
   MoreHorizontal,
   Pin,
@@ -97,6 +100,7 @@ export function TasksPage({
     deleteArchived,
     skipHabit,
     convert,
+    convertToday,
     progress,
     addHabit,
     pin,
@@ -115,7 +119,23 @@ export function TasksPage({
   const [draggingTask, setDraggingTask] = useState<Task | null>(null)
   const [dropTarget, setDropTarget] = useState<{ id: string; before: boolean } | null>(null)
   const noteInput = useRef<HTMLInputElement>(null)
+  const noteTaskList = useRef<HTMLDivElement>(null)
+  const locateTaskOnConvert =
+    (desktop?.settings.showMultiDay ?? true) && (desktop?.settings.locateTaskOnConvert ?? true)
+  const [locatedTask, setLocatedTask] = useState<string | null>(null)
+  useEffect(() => {
+    if (!locatedTask || !locateTaskOnConvert) return
+    const frame = requestAnimationFrame(() => {
+      const root = kind === 'note' ? noteTaskList.current : document
+      const row = root?.querySelector<HTMLElement>(`[data-task-id="${locatedTask}"]`)
+      row?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [locatedTask, today, expandedNoteGroups, kind, locateTaskOnConvert])
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
+  const [composerRequest, setComposerRequest] = useState<{ id: string; revision: number } | null>(
+    null
+  )
   const expansionRequest = useRef(0)
   const [menuTask, setMenuTask] = useState<string | null>(null)
   const hoverMenu = useRef(false)
@@ -129,8 +149,24 @@ export function TasksPage({
   const selectTask = async (id: string | null, conversion = false) => {
     const request = ++expansionRequest.current
     if (!(await flush.current()) || request !== expansionRequest.current) return
-    if (conversion && id && !(await convert(id))) return
-    if (request === expansionRequest.current) setSelectedTask(id)
+    if (conversion && id) {
+      if (!showMultiDay || !(await convert(id))) return
+      setLocatedTask(locateTaskOnConvert ? id : null)
+    }
+    if (request === expansionRequest.current) {
+      setSelectedTask(conversion ? null : id)
+    }
+  }
+  const toggleSubitems = async (task: Task) => {
+    const request = ++expansionRequest.current
+    if (!(await flush.current()) || request !== expansionRequest.current) return
+    if (selectedTask === task.id) {
+      setSelectedTask(null)
+      setComposerRequest(null)
+    } else {
+      setSelectedTask(task.id)
+      setComposerRequest({ id: task.id, revision: Date.now() })
+    }
   }
   const [newKind, setNewKind] = useState<'task' | 'inspiration'>('task')
   const categorySwitch = useRef(0)
@@ -409,7 +445,7 @@ export function TasksPage({
                   {task.description}
                 </span>
                 <p className="list-meta">
-                  <CreatedTime value={task.createdAt} />
+                  <CreatedTime value={task.updatedAt ?? task.createdAt} />
                 </p>
               </div>
             ) : (
@@ -657,7 +693,15 @@ export function TasksPage({
                           <div
                             data-task-id={task.id}
                             data-task-kind={task.kind}
-                            className={`task-row main-list-row ${task.completed ? 'completed' : ''} ${selectedTask === task.id ? 'selected' : ''}`}
+                            className={`task-row main-list-row ${task.completed ? 'completed' : ''} ${locateTaskOnConvert && locatedTask === task.id ? 'task-located' : ''}`}
+                            onAnimationEnd={(event) => {
+                              if (
+                                event.target === event.currentTarget &&
+                                event.animationName === 'task-locate-breathe'
+                              ) {
+                                setLocatedTask((id) => (id === task.id ? null : id))
+                              }
+                            }}
                           >
                             <TaskCheck
                               checked={task.completed}
@@ -694,30 +738,47 @@ export function TasksPage({
                                   <>
                                     <button
                                       type="button"
-                                      className="task-expand"
-                                      aria-label={`${selectedTask === task.id ? '折叠' : '展开'}子事项：${task.description}`}
+                                      className="task-expand task-subitems-action"
+                                      aria-label={`${selectedTask === task.id ? '折叠子事项' : '添加子事项'}：${task.description}`}
                                       aria-expanded={selectedTask === task.id}
-                                      onClick={() =>
-                                        void selectTask(selectedTask === task.id ? null : task.id)
-                                      }
+                                      onClick={() => void toggleSubitems(task)}
                                     >
-                                      <ChevronRight size={12} />
-                                    </button>
-                                    <span className="task-mini-progress">
-                                      <span style={{ width: `${task.progress}%` }} />
-                                    </span>
-                                    <span>{task.progress}%</span>
-                                    {task.subitems?.length ? (
-                                      <span>
-                                        · 子事项{' '}
-                                        {task.subitems.filter((item) => item.completed).length}／
-                                        {task.subitems.length}
+                                      <span className="task-subitems-icon" aria-hidden="true">
+                                        <Plus size={12} />
+                                        <ChevronsDown size={12} />
                                       </span>
-                                    ) : null}
+                                    </button>
+                                    {task.subitems?.length ? (
+                                      <button
+                                        type="button"
+                                        className="task-expand task-progress-summary"
+                                        aria-label={`展开子事项：${task.description}`}
+                                        aria-expanded={selectedTask === task.id}
+                                        onClick={() =>
+                                          void selectTask(selectedTask === task.id ? null : task.id)
+                                        }
+                                      >
+                                        <span className="task-mini-progress">
+                                          <span style={{ width: `${task.progress}%` }} />
+                                        </span>
+                                        <span>
+                                          {task.progress}% · 子事项{' '}
+                                          {task.subitems.filter((item) => item.completed).length}／
+                                          {task.subitems.length}
+                                        </span>
+                                      </button>
+                                    ) : (
+                                      <TaskProgressSlider
+                                        value={task.progress}
+                                        label={`进度：${task.description}`}
+                                        disabled={busy}
+                                        onCommit={(value) => progress(task.id, value)}
+                                      />
+                                    )}
                                     <span aria-hidden="true">·</span>
                                   </>
                                 )}
-                                <CreatedTime value={task.createdAt} />
+                                <CreatedTime value={task.updatedAt ?? task.createdAt} />
                               </p>
                             </div>
                             {task.habitId && (
@@ -787,6 +848,40 @@ export function TasksPage({
                                   if (hoverMenu.current) event.preventDefault()
                                 }}
                               >
+                                {showMultiDay && task.kind === 'multi-day' && (
+                                  <DropdownMenuItem
+                                    onSelect={() => {
+                                      void (async () => {
+                                        if (await flush.current()) {
+                                          const hasSubitems = Boolean(task.subitems?.length)
+                                          const trigger = document.querySelector<HTMLElement>(
+                                            `[data-task-id="${task.id}"] .task-more`
+                                          )
+                                          if (
+                                            hasSubitems &&
+                                            !(await deletion.confirm(
+                                              {
+                                                title: '转回这就去做',
+                                                description: '转回当天任务会丢失所有子事项。',
+                                                detail: `“${task.description}”的全部${task.subitems?.length}个子事项将被删除，无法恢复。是否继续？`,
+                                                confirmLabel: '确认转回'
+                                              },
+                                              trigger
+                                            ))
+                                          )
+                                            return
+                                          if (await convertToday(task.id, hasSubitems)) {
+                                            setSelectedTask(null)
+                                            setLocatedTask(locateTaskOnConvert ? task.id : null)
+                                          }
+                                        }
+                                      })()
+                                    }}
+                                  >
+                                    <ArrowUpLeft aria-hidden="true" />
+                                    转回这就去做
+                                  </DropdownMenuItem>
+                                )}
                                 {task.kind === 'today' && !task.habitId && (
                                   <>
                                     {!task.completed && showMultiDay && (
@@ -798,8 +893,8 @@ export function TasksPage({
                                           })()
                                         }}
                                       >
-                                        <ArrowUpRight aria-hidden="true" />
-                                        转为多天任务
+                                        <ArrowDownLeft aria-hidden="true" />
+                                        转为持续推进
                                       </DropdownMenuItem>
                                     )}
                                     <DropdownMenuItem
@@ -852,9 +947,14 @@ export function TasksPage({
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
-                          {task.kind === 'multi-day' && selectedTask === task.id && (
+                          {selectedTask === task.id && (
                             <SubitemsPanel
                               task={task}
+                              composerRevision={
+                                composerRequest?.id === task.id
+                                  ? composerRequest.revision
+                                  : undefined
+                              }
                               changed={refresh}
                               report={setError}
                               onSaveReady={onSubitemSaveReady}
@@ -1097,6 +1197,7 @@ export function TasksPage({
       >
         <div
           className="task-list"
+          ref={noteTaskList}
           aria-label="任务"
           tabIndex={-1}
           data-delete-focus-fallback={newKind === 'task' ? true : undefined}
@@ -1137,18 +1238,26 @@ export function TasksPage({
               {noteGroups[group].map((task) => (
                 <div
                   key={task.id}
-                  className={`task-row ${task.completed ? 'completed' : ''} ${draggingTask?.id === task.id ? 'is-dragging' : ''} ${dropTarget?.id === task.id ? (dropTarget.before ? 'drop-before' : 'drop-after') : ''}`}
+                  className={`task-row ${task.completed ? 'completed' : ''} ${draggingTask?.id === task.id ? 'is-dragging' : ''} ${dropTarget?.id === task.id ? (dropTarget.before ? 'drop-before' : 'drop-after') : ''} ${locateTaskOnConvert && locatedTask === task.id ? 'task-located' : ''}`}
+                  onAnimationEnd={(event) => {
+                    if (
+                      event.target === event.currentTarget &&
+                      event.animationName === 'task-locate-breathe'
+                    ) {
+                      setLocatedTask((id) => (id === task.id ? null : id))
+                    }
+                  }}
                   data-task-id={task.id}
                   data-task-kind={task.kind}
                   data-task-pinned={Boolean(task.pinned)}
                   hidden={
                     !expandedNoteGroups[task.kind] || (task.kind === 'multi-day' && !showMultiDay)
                   }
-                  draggable={!busy && editing === null}
+                  draggable={!busy && editing === null && !progressFocused}
                   onDragStart={(event) => {
                     if (
                       (event.target as Element).closest(
-                        'input, textarea, .note-task-actions, .task-pin'
+                        'input, textarea, .task-progress, .note-task-actions, .task-pin'
                       )
                     ) {
                       event.preventDefault()
@@ -1261,27 +1370,81 @@ export function TasksPage({
                       </button>
                     )}
                     {task.kind === 'multi-day' && (
-                      <label className="task-progress">
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          data-testid="task-progress"
-                          aria-label={`进度：${task.description}`}
-                          value={task.progress}
-                          disabled={busy || Boolean(task.subitems?.length)}
-                          aria-readonly={Boolean(task.subitems?.length)}
-                          onChange={(event) => void progress(task.id, Number(event.target.value))}
-                          onFocus={() => setProgressFocused(true)}
-                          onBlur={() => setProgressFocused(false)}
-                        />
-                        <span>{task.progress}%</span>
-                      </label>
+                      <TaskProgressSlider
+                        compact
+                        progressText={
+                          task.subitems?.length
+                            ? `${task.subitems.filter((item) => item.completed).length}/${task.subitems.length}`
+                            : undefined
+                        }
+                        value={task.progress}
+                        label={`进度：${task.description}`}
+                        disabled={busy}
+                        readOnly={Boolean(task.subitems?.length)}
+                        onBlocked={() => setError('存在子事项，无法手动调整进度')}
+                        onInteraction={setProgressFocused}
+                        onCommit={(value) => progress(task.id, value)}
+                      />
                     )}
                   </div>
                   <div className="note-task-actions">
                     <div className="note-task-secondary">
+                      {showMultiDay && task.kind === 'today' && !task.habitId && (
+                        <button
+                          className="task-convert"
+                          data-testid="task-convert"
+                          title="转为持续推进"
+                          disabled={busy}
+                          aria-label={`转为持续推进：${task.description}`}
+                          onClick={async () => {
+                            if (!(await flush.current())) return
+                            if (await convert(task.id)) {
+                              if (locateTaskOnConvert)
+                                setExpandedNoteGroups((groups) => ({
+                                  ...groups,
+                                  'multi-day': true
+                                }))
+                              setLocatedTask(locateTaskOnConvert ? task.id : null)
+                            }
+                          }}
+                        >
+                          <TaskActionIcon name="convert" />
+                        </button>
+                      )}
+                      {showMultiDay && task.kind === 'multi-day' && (
+                        <button
+                          className="task-convert"
+                          title="转回这就去做"
+                          disabled={busy}
+                          aria-label={`转回这就去做：${task.description}`}
+                          onClick={async (event) => {
+                            const trigger = event.currentTarget
+                            if (!(await flush.current())) return
+                            const hasSubitems = Boolean(task.subitems?.length)
+                            if (
+                              hasSubitems &&
+                              !(await deletion.confirm(
+                                {
+                                  title: '转回这就去做',
+                                  description: '转回当天任务会丢失所有子事项。',
+                                  detail: `“${task.description}”的全部${task.subitems?.length}个子事项将被删除，无法恢复。是否继续？`,
+                                  confirmLabel: '确认转回'
+                                },
+                                trigger
+                              ))
+                            )
+                              return
+                            if (await convertToday(task.id, hasSubitems)) {
+                              setSelectedTask(null)
+                              if (locateTaskOnConvert)
+                                setExpandedNoteGroups((groups) => ({ ...groups, today: true }))
+                              setLocatedTask(locateTaskOnConvert ? task.id : null)
+                            }
+                          }}
+                        >
+                          <TaskActionIcon name="convert-back" />
+                        </button>
+                      )}
                       {task.kind === 'today' && !task.habitId && (
                         <button
                           className="task-convert"

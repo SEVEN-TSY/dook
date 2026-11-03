@@ -111,10 +111,10 @@ html[data-window='note'] {
 }
 .note-page-divider-track > span {
   flex: 0 0 50%;
-  background: var(--app-hover);
+  background: light-dark(var(--app-border), var(--app-hover));
 }
 .note-page-divider-track > span + span {
-  background: var(--app-hover);
+  background: light-dark(var(--app-border), var(--app-hover));
 }
 .note-pane {
   flex: 0 0 50%;
@@ -508,7 +508,6 @@ h1 {
 .edge-capsule-summary {
   display: none;
 }
-.edge-handle:hover .edge-strip,
 .edge-handle.capsule-visible .edge-strip {
   visibility: hidden;
   animation: none;
@@ -1169,6 +1168,8 @@ h1 {
   opacity: 1;
 }
 .note-task-actions {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   flex-shrink: 0;
@@ -1177,7 +1178,10 @@ h1 {
   background: var(--app-surface);
 }
 .note .task-row:hover .note-task-actions {
-  background: var(--app-hover);
+  background: linear-gradient(var(--app-hover), var(--app-hover)), var(--app-surface);
+}
+.note .task-row .note-task-actions {
+  height: calc(100% + 6px);
 }
 .note .task-row:has(.task-edit-form) .note-task-secondary {
   width: 0;
@@ -1185,15 +1189,19 @@ h1 {
   opacity: 0;
 }
 .note-task-secondary {
+  position: absolute;
+  right: 100%;
+  top: 0;
   display: flex;
   align-items: center;
-  width: 0;
+  width: max-content;
+  height: 100%;
+  border-radius: 6px 0 0 6px;
+  background: inherit;
   overflow: hidden;
   visibility: hidden;
   opacity: 0;
-  transition:
-    width 140ms ease,
-    opacity 140ms ease;
+  transition: opacity 140ms ease;
 }
 .note-task-actions:hover .note-task-secondary,
 .note-task-actions:focus-within .note-task-secondary {
@@ -1700,4 +1708,24 @@ h1 {
   button[data-testid='new-kind-inspiration'][aria-pressed='true'] {
   color: light-dark(#ad7c16, #f4ca55);
   background: light-dark(#ffedb1, #332d20);
+}
+
+.task-note-progress-track {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.task-row.task-located {
+  border-radius: 6px;
+  animation: task-locate-breathe 900ms ease-in-out 2;
+}
+@keyframes task-locate-breathe {
+  0%,
+  100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: color-mix(in srgb, var(--app-accent) 18%, transparent);
+  }
 }

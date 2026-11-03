@@ -1,4 +1,6 @@
-# myTodo codebase结构说明
+# DOOK工程结构说明
+
+应用官方名称为DOOK。为兼容已有安装和数据，保留现有appId、myTodo数据目录、数据库文件名、环境变量和桌面桥接名称；源码仓库仍为SEVEN-TSY/myTodo。
 
 ## 1. 整体结构与各层边界
 
@@ -35,6 +37,7 @@
 - `renderer/src/features/tasks/TasksPage.tsx`是两端共用的分类界面；主界面采用左侧任务、习惯、小记同级导航及底部设置入口，三个类别均订阅变更并显示当天数量：当天可见任务、当天习惯任务、当天新增小记；两端共用已归档任务列表，“显示持续推进”同时控制两端可见性与统计。桌面便签以灯泡和当天数量提供小记页快捷入口；SubitemsPanel、HabitsPanel和InspirationPanel分别承载子事项、主界面习惯管理及小记编辑。
 - `renderer/src/features/tasks/useTasks.ts`读取列表、订阅通知、协调操作及错误，丢弃过时列表响应。
 - `renderer/src/features/tasks/NoteTransition.tsx`以独立共享表面完成胶囊与便签的FLIP投影、圆角校正及内容交接；动画完成后按版本向主进程握手，避免过早收缩原生窗口。
+  悬停呼出胶囊前先在细条原窗口内绘制隐藏帧，再通过`finishCapsulePreparation`按版本确认；主进程随后扩大胶囊绘制空间，避免旧细条随原生窗口移动而被推离屏幕边缘。
 - `renderer/src/features/tasks/useTaskInput.ts`串行协调同一轮输入的创建和更新，不阻塞继续输入；任务组件在设置页和收起状态保持挂载。
 - `renderer/src/features/shared/useSerialSave.ts`统一管理草稿串行保存、组合输入延后和失败保留；任务、小记及子事项各自保留领域校验和持久化动作。
 - `renderer/src/features/settings/SettingsPage.tsx`按个性化、系统偏好和便签偏好分组，提供浅深色外观、主题色、开机自启、默认置顶、贴边自动隐藏及显示持续推进设置。隐藏持续推进前由桌面保存屏障提交便签草稿，失败时保持原设置。

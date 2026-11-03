@@ -57,6 +57,7 @@ export interface DesktopApi {
   setInteraction: (active: boolean) => Promise<ApiResult<void>>
   setNoteDragging: (active: boolean) => Promise<ApiResult<boolean>>
   finishNoteMotion: (revision: number) => Promise<ApiResult<void>>
+  finishCapsulePreparation: (revision: number) => Promise<ApiResult<void>>
   onWindowState: (listener: (state: DesktopState) => void) => () => void
   onSaveRequested: (listener: () => Promise<boolean>) => () => void
   listHabits: () => Promise<ApiResult<Habit[]>>
@@ -112,6 +113,7 @@ export interface DesktopApi {
   setTaskPinned: (id: string, pinned: boolean) => Promise<ApiResult<Task>>
   moveTask: (id: string, targetId: string, before: boolean) => Promise<ApiResult<void>>
   setTaskCompleted: (id: string, completed: boolean) => Promise<ApiResult<Task>>
+  convertToToday: (id: string, discardSubitems?: boolean) => Promise<ApiResult<Task>>
   convertToMultiDay: (id: string) => Promise<ApiResult<Task>>
   setTaskProgress: (id: string, progress: number) => Promise<ApiResult<Task>>
   addSubitem: (id: string, description: string) => Promise<ApiResult<Task>>
@@ -120,6 +122,12 @@ export interface DesktopApi {
     id: string,
     subitemId: string,
     completed: boolean
+  ) => Promise<ApiResult<Task>>
+  moveSubitem: (
+    id: string,
+    subitemId: string,
+    targetId: string,
+    before: boolean
   ) => Promise<ApiResult<Task>>
   deleteSubitem: (id: string, subitemId: string) => Promise<ApiResult<Task>>
   skipHabitTask: (id: string) => Promise<ApiResult<void>>
@@ -139,6 +147,7 @@ export interface WindowSettings {
   defaultAlwaysOnTop: boolean
   edgeAutoHide: boolean
   showMultiDay: boolean
+  locateTaskOnConvert: boolean
 }
 export type MainPage = 'task' | 'habit' | 'inspiration' | 'settings'
 
@@ -153,6 +162,7 @@ export interface DesktopState {
   edgeRevealed?: boolean
   edgeCapsuleVisible?: boolean
   edgeCapsulePreparing?: boolean
+  edgeRevealRevision?: number
   noteMotion?: 'opening' | 'closing'
   noteMotionRevision?: number
   noteMotionSource?: 'capsule' | 'strip'
@@ -182,6 +192,7 @@ export interface Subitem {
 }
 
 export interface Task {
+  updatedAt?: string | null
   archivedAt?: string
   createdAt?: string | null
   id: string

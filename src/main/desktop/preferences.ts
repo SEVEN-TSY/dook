@@ -16,7 +16,8 @@ export function readPreferences(directory: string): DesktopPreferences {
       launchAtLogin: true,
       defaultAlwaysOnTop: true,
       edgeAutoHide: true,
-      showMultiDay: true
+      showMultiDay: true,
+      locateTaskOnConvert: true
     },
     edge: null
   }
@@ -37,6 +38,8 @@ export function readPreferences(directory: string): DesktopPreferences {
       defaults.settings.edgeAutoHide = saved.settings.edgeAutoHide
     if (typeof saved.settings?.showMultiDay === 'boolean')
       defaults.settings.showMultiDay = saved.settings.showMultiDay
+    if (typeof saved.settings?.locateTaskOnConvert === 'boolean')
+      defaults.settings.locateTaskOnConvert = saved.settings.locateTaskOnConvert
     if (['left', 'right', 'top'].includes(saved.edge)) defaults.edge = saved.edge
     if (Number.isInteger(saved.position?.x) && Number.isInteger(saved.position?.y))
       defaults.position = saved.position
@@ -52,6 +55,7 @@ export function readPreferences(directory: string): DesktopPreferences {
       /* 兼容旧版位置；没有旧位置时使用默认值。 */
     }
   }
+  if (!defaults.settings.showMultiDay) defaults.settings.locateTaskOnConvert = false
   return defaults
 }
 

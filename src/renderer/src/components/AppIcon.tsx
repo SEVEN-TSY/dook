@@ -61,10 +61,11 @@ export function AppIcon({
 export function TaskActionIcon({
   name
 }: {
-  name: 'convert' | 'habit' | 'schedule' | 'pin' | 'unpin' | 'delete' | 'restore'
+  name: 'convert' | 'convert-back' | 'habit' | 'schedule' | 'pin' | 'unpin' | 'delete' | 'restore'
 }) {
   const paths = {
-    convert: 'M5 5 15 15M5 15h10V5',
+    convert: 'M15 5 5 15M5 5v10h10',
+    'convert-back': 'M15 15 5 5M5 15V5h10',
     habit: 'M15.2 7A6 6 0 1 0 16 12M15.2 3.5V7h-3.5',
     schedule: 'M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0ZM10 6v4l3 2',
     pin: 'M4 4h12M10 16V7m-4 4 4-4 4 4',
