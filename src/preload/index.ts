@@ -4,6 +4,8 @@ import { IPC_CHANNELS, TASKS_CHANGED, WINDOW_STATE, SAVE_REQUEST } from '../shar
 import type { DesktopState } from '../shared/contracts'
 
 const api: DesktopApi = {
+  checkForUpdates: () => ipcRenderer.invoke(IPC_CHANNELS.checkForUpdates),
+  openLatestRelease: () => ipcRenderer.invoke(IPC_CHANNELS.openLatestRelease),
   getWindowState: () => ipcRenderer.invoke(IPC_CHANNELS.getWindowState),
   updateSettings: (settings) => ipcRenderer.invoke(IPC_CHANNELS.updateSettings, settings),
   toggleNotePin: () => ipcRenderer.invoke(IPC_CHANNELS.toggleNotePin),

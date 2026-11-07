@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { nativeTheme, screen } from 'electron'
+import { nativeTheme, screen, systemPreferences } from 'electron'
 
 export async function appearanceSmoke({ main, note, phase, js, click, waitFor, capture }) {
   const state = async () => (await js(note, 'window.myTodo.getWindowState()')).data
@@ -18,7 +18,30 @@ export async function appearanceSmoke({ main, note, phase, js, click, waitFor, c
     return
   }
   assert.equal((await state()).settings.appearance, 'system', '旧配置及首次使用默认随系统')
+  assert.equal((await state()).settings.themeColor, 'system', '首次使用默认系统主题色')
   await click(note, '[data-testid=note-settings]')
+  assert.equal(
+    await js(main, `document.querySelector('[aria-label="系统色主题"]').getAttribute('aria-pressed')`),
+    'true',
+    '设置页默认选中系统色'
+  )
+  if (process.platform === 'win32') {
+    const accent = (window) =>
+      js(window, `document.documentElement.style.getPropertyValue('--app-accent')`)
+    systemPreferences.emit('accent-color-changed', {}, '467AB9FF')
+    await waitFor(
+      async () => (await accent(main)) === '#467ab9' && (await accent(note)) === '#467ab9',
+      'Windows强调色变化同步到主界面和便签'
+    )
+    await click(main, '[aria-label="雾蓝主题"]')
+    await waitFor(async () => (await accent(note)) === '#526fc4', '切换到固定主题色')
+    systemPreferences.emit('accent-color-changed', {}, '6B523DFF')
+    await waitFor(async () => (await state()).systemAccentColor === '#6b523d', '更新系统色预览')
+    assert.equal(await accent(note), '#526fc4', '固定主题色独立于系统色')
+    await click(main, '[aria-label="系统色主题"]')
+    await waitFor(async () => (await accent(note)) === '#6b523d', '重新选择时使用最新系统色')
+    systemPreferences.emit('accent-color-changed', {}, systemPreferences.getAccentColor())
+  }
   assert.equal(await js(main, `document.querySelector('[data-slot="toggle-group"] [value="system"]')?.getAttribute('aria-checked') ?? document.querySelector('[aria-label="随系统外观"]').getAttribute('aria-checked')`), 'true', 'shadcn单选组默认随系统')
   await click(main, '[aria-label="深色外观"]')
   await waitFor(

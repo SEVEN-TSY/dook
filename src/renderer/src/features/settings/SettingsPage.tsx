@@ -1,20 +1,25 @@
 import { useEffect, useState } from 'react'
-import { Check, Copyright, Palette, Monitor, StickyNote, Sun, Moon } from 'lucide-react'
+import { Check, Palette, Monitor, StickyNote, Sun, Moon } from 'lucide-react'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Switch } from '../../components/ui/switch'
 import type { DesktopState, WindowSettings } from '../../../../shared/contracts'
+import { FALLBACK_ACCENT_COLOR } from '../../../../shared/theme-color'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
+import { AboutSettings } from './AboutSettings'
 
 export function SettingsPage({ state, hidden }: { state: DesktopState | null; hidden: boolean }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const color = state?.settings.themeColor ?? '#526fc4'
-  const [customColor, setCustomColor] = useState(color)
-  useEffect(() => setCustomColor(color), [color])
+  const color = state?.settings.themeColor ?? 'system'
+  const systemColor = state?.systemAccentColor ?? FALLBACK_ACCENT_COLOR
+  const fixedColor = color === 'system' ? '' : color
+  const [customColor, setCustomColor] = useState(fixedColor)
+  useEffect(() => setCustomColor(fixedColor), [fixedColor])
   const presets = [
-    ['雾蓝', '#526fc4'],
+    ['系统色', 'system'],
+    ['雾蓝', FALLBACK_ACCENT_COLOR],
     ['青绿', '#257c68'],
     ['鸢紫', '#7955b3'],
     ['玫瑰', '#b34f71'],
@@ -96,7 +101,10 @@ export function SettingsPage({ state, hidden }: { state: DesktopState | null; hi
                 disabled={!state || busy}
                 onClick={() => state && void update({ ...state.settings, themeColor: value })}
               >
-                <span className="theme-swatch" style={{ backgroundColor: value }}>
+                <span
+                  className="theme-swatch"
+                  style={{ backgroundColor: value === 'system' ? systemColor : value }}
+                >
                   {color === value && <Check size={15} />}
                 </span>
                 <span>{name}</span>
@@ -109,7 +117,7 @@ export function SettingsPage({ state, hidden }: { state: DesktopState | null; hi
               <input
                 type="color"
                 aria-label="自定义主题色"
-                value={/^#[0-9a-f]{6}$/i.test(customColor) ? customColor : color}
+                value={/^#[0-9a-f]{6}$/i.test(customColor) ? customColor : fixedColor || systemColor}
                 disabled={!state || busy}
                 onChange={(event) => setCustomColor(event.target.value)}
               />
@@ -118,6 +126,7 @@ export function SettingsPage({ state, hidden }: { state: DesktopState | null; hi
               aria-label="主题色十六进制值"
               className="theme-hex w-28"
               value={customColor}
+              placeholder={color === 'system' ? systemColor : undefined}
               onClear={() => setCustomColor('')}
               maxLength={7}
               disabled={!state || busy}
@@ -142,8 +151,8 @@ export function SettingsPage({ state, hidden }: { state: DesktopState | null; hi
             <Button
               size="sm"
               variant="ghost"
-              disabled={!state || busy || color === '#526fc4'}
-              onClick={() => state && void update({ ...state.settings, themeColor: '#526fc4' })}
+              disabled={!state || busy || color === 'system'}
+              onClick={() => state && void update({ ...state.settings, themeColor: 'system' })}
             >
               恢复默认
             </Button>
@@ -241,30 +250,7 @@ export function SettingsPage({ state, hidden }: { state: DesktopState | null; hi
           />
         </label>
       </section>
-      <section className="settings-group settings-about" aria-label="关于与版权">
-        <h2 className="settings-intro">
-          <span className="settings-category-icon">
-            <Copyright size={17} />
-          </span>
-          关于与版权
-        </h2>
-        <div className="settings-about-content">
-          <strong className="settings-about-name">DOOK</strong>
-          <p>规划工作，随时小记。From DO to OK.</p>
-          <p className="settings-copyright">Copyright © 2026 SEVEN-TSY v0.1.0</p>
-          <dl className="settings-about-details">
-            <div>
-              <dt>源码仓库</dt>
-              <dd className="settings-source-address">https://github.com/SEVEN-TSY/myTodo</dd>
-            </div>
-            <div>
-              <dt>开源许可</dt>
-              <dd>待确定，后续以源码仓库中的许可证声明为准。</dd>
-            </div>
-          </dl>
-          <p>本应用使用的第三方开源组件，其版权归各自作者所有，并遵循各自的许可证。</p>
-        </div>
-      </section>
+      <AboutSettings />
       {error && (
         <p role="alert" className="task-error">
           {error}

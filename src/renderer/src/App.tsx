@@ -2,6 +2,7 @@ import { TasksPage } from './features/tasks/TasksPage'
 import { useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import type { DesktopState } from '../../shared/contracts'
+import { FALLBACK_ACCENT_COLOR } from '../../shared/theme-color'
 import { getDesktopApi, unwrap } from './platform/desktop'
 import { useTasks } from './features/tasks/useTasks'
 import { NoteTransition } from './features/tasks/NoteTransition'
@@ -18,9 +19,12 @@ export function App() {
   const edgePress = useRef<{ x: number; y: number; moved: boolean } | null>(null)
   const summary = total ? `总进度${progress}%，已完成${completed}/${total}项任务` : '暂无任务'
   const [error, setError] = useState('')
+  const themeColor =
+    desktop?.settings.themeColor === 'system'
+      ? desktop.systemAccentColor
+      : (desktop?.settings.themeColor ?? FALLBACK_ACCENT_COLOR)
   useEffect(() => {
-    const color = desktop?.settings.themeColor ?? '#526fc4'
-    const channels = color
+    const channels = themeColor
       .slice(1)
       .match(/.{2}/g)!
       .map((part) => {
@@ -28,12 +32,12 @@ export function App() {
         return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
       })
     const luminance = channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
-    document.documentElement.style.setProperty('--app-accent', color)
+    document.documentElement.style.setProperty('--app-accent', themeColor)
     document.documentElement.style.setProperty(
       '--app-accent-foreground',
       luminance > 0.179 ? '#202734' : '#ffffff'
     )
-  }, [desktop?.settings.themeColor])
+  }, [themeColor])
   useEffect(() => {
     const api = getDesktopApi()
     let receivedChange = false

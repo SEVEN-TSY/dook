@@ -846,7 +846,9 @@
   min-width: 0;
   width: 100%;
   padding-inline: 4px;
+  border: 0;
   border-radius: 5px;
+  background: transparent;
 }
 .workbench :is(.main-list-description, .note-archive-description) {
   padding-block: 7px;
@@ -1210,6 +1212,24 @@ html[data-window='main'] .inspiration-topic-error {
   color: var(--app-text);
   font-size: 16px;
   font-weight: 600;
+}
+.settings-about-release,
+.settings-about-product,
+.settings-about-update {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.settings-about-release,
+.settings-about-update {
+  justify-content: space-between;
+}
+.settings-about-version {
+  user-select: text;
+}
+.settings-about-update:has(:not(:empty)) {
+  margin-top: 8px;
 }
 .settings-about-content p {
   margin: 8px 0 0;

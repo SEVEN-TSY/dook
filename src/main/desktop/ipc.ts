@@ -8,8 +8,10 @@ import type {
   WindowKind
 } from '../../shared/contracts'
 import { IPC_CHANNELS } from '../../shared/channels'
+import { normalizeThemeColor } from '../../shared/theme-color'
 import type { AppService } from '../core/app-service'
 import type { Desktop } from './desktop'
+import { checkForUpdates, openLatestRelease } from './updates'
 
 interface Handlers {
   desktop: Desktop
@@ -58,6 +60,10 @@ export function registerIpc(handlers: Handlers): () => void {
     return result
   }
   register(IPC_CHANNELS.getBootstrap, handlers.getBootstrap)
+  register(IPC_CHANNELS.checkForUpdates, () =>
+    checkForUpdates(handlers.getBootstrap().runtime.appVersion)
+  )
+  register(IPC_CHANNELS.openLatestRelease, openLatestRelease)
   register(IPC_CHANNELS.getWindowState, () => handlers.desktop.state())
   register(IPC_CHANNELS.updateSettings, (_, settings) => {
     if (
@@ -74,11 +80,11 @@ export function registerIpc(handlers: Handlers): () => void {
       typeof settings.edgeAutoHide !== 'boolean'
     )
       throw new Error('窗口设置无效。')
-    if (
-      'themeColor' in settings &&
-      (typeof settings.themeColor !== 'string' || !/^#[0-9a-f]{6}$/i.test(settings.themeColor))
-    )
-      throw new Error('主题色必须为六位十六进制颜色。')
+    const themeColor =
+      'themeColor' in settings
+        ? normalizeThemeColor(settings.themeColor)
+        : handlers.desktop.state().settings.themeColor
+    if (!themeColor) throw new Error('主题色必须为系统色或六位十六进制颜色。')
     return handlers.desktop.updateSettings({
       appearance: (() => {
         if (!('appearance' in settings)) return handlers.desktop.state().settings.appearance
@@ -90,10 +96,7 @@ export function registerIpc(handlers: Handlers): () => void {
           throw new Error('外观模式无效。')
         return settings.appearance
       })(),
-      themeColor:
-        'themeColor' in settings
-          ? String(settings.themeColor).toLowerCase()
-          : handlers.desktop.state().settings.themeColor,
+      themeColor,
       launchAtLogin: settings.launchAtLogin,
       defaultAlwaysOnTop: settings.defaultAlwaysOnTop,
       edgeAutoHide: settings.edgeAutoHide,

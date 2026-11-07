@@ -56,4 +56,8 @@ npm run dev
 
 可以设置`MYTODO_DATA_DIR`和`MYTODO_MCP_PORT`覆盖目录和端口，代码不会自动读取`.env`。MCP端点启动失败不影响任务功能，当前只提供`app_diagnostics`。托盘显式退出时数据库和端点一起关闭。窗口验证范围与Windows人工验收见[桌面便签验证](doc/desktop-validation.md)。
 
-工程分层见[codebase结构说明](doc/codebase.md)，接入说明见[MCP说明](doc/mcp.md)，需求见[需求文档](doc/todo.md)。代码签名、自动更新与发布流程留待后续接入。
+工程分层见[codebase结构说明](doc/codebase.md)，接入说明见[MCP说明](doc/mcp.md)，需求见[需求文档](doc/todo.md)。代码签名与自动安装更新留待后续接入。
+
+## 版本与更新
+
+应用和安装包版本取自`package.json`的`version`。发布时运行`npm run dist:win`，将安装包上传到[GitHub Releases](https://github.com/SEVEN-TSY/dook/releases)，使用对应的`vX.Y.Z`标签并发布为最新正式版本。用户可在设置底部的「关于与版权」手动检查更新，再打开发布页下载安装包。

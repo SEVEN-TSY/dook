@@ -1,7 +1,8 @@
-import { dialog, Menu, nativeTheme, Tray } from 'electron'
-import type { BrowserWindow } from 'electron'
+import { dialog, Menu, nativeTheme, systemPreferences, Tray } from 'electron'
+import type { BrowserWindow, Event } from 'electron'
 import type { DesktopState, MainPage, WindowKind } from '../../shared/contracts'
 import { WINDOW_STATE } from '../../shared/channels'
+import { FALLBACK_ACCENT_COLOR } from '../../shared/theme-color'
 import { createWindow, loadWindow, mainWindowTitleBar } from './window'
 import { NoteController } from './note-controller'
 import { SaveBarrier } from './save-barrier'
@@ -21,6 +22,7 @@ export class Desktop {
   private exiting = false
   private preparingQuit = false
   private mainNavigation: DesktopState['mainNavigation']
+  private systemAccentColor = FALLBACK_ACCENT_COLOR
 
   constructor(
     private readonly directory: string,
@@ -29,9 +31,21 @@ export class Desktop {
   ) {
     nativeTheme.themeSource = readPreferences(directory).settings.appearance
     nativeTheme.on('updated', this.onAppearanceChanged)
+    if (process.platform === 'win32') {
+      this.onAccentColorChanged(null, systemPreferences.getAccentColor())
+      systemPreferences.on('accent-color-changed', this.onAccentColorChanged)
+    }
   }
 
   private readonly onAppearanceChanged = () => this.broadcast()
+  private readonly onAccentColorChanged = (_event: Event | null, rgba: string) => {
+    const color = /^[0-9a-f]{8}$/i.test(rgba)
+      ? `#${rgba.slice(0, 6).toLowerCase()}`
+      : FALLBACK_ACCENT_COLOR
+    if (color === this.systemAccentColor) return
+    this.systemAccentColor = color
+    this.broadcast()
+  }
 
   startTray() {
     if (this.tray) return
@@ -126,6 +140,7 @@ export class Desktop {
     return {
       ...this.note.state(),
       colorScheme: nativeTheme.shouldUseDarkColors ? ('dark' as const) : ('light' as const),
+      systemAccentColor: this.systemAccentColor,
       exitPending: this.preparingQuit,
       mainNavigation: this.mainNavigation
     }
@@ -244,6 +259,7 @@ export class Desktop {
 
   dispose() {
     nativeTheme.removeListener('updated', this.onAppearanceChanged)
+    systemPreferences.removeListener('accent-color-changed', this.onAccentColorChanged)
     this.note?.dispose()
     this.tray?.destroy()
   }

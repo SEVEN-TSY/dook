@@ -54,6 +54,8 @@ export const IPC_CHANNELS = {
   deleteTask: 'tasks:delete',
   openWindow: 'app:open-window',
   getBootstrap: 'app:get-bootstrap',
+  checkForUpdates: 'app:check-for-updates',
+  openLatestRelease: 'app:open-latest-release',
   runDiagnostics: 'app:run-diagnostics'
 } as const
 

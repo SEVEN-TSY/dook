@@ -1,6 +1,7 @@
 import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { DockEdge, WindowSettings } from '../../shared/contracts'
+import { normalizeThemeColor } from '../../shared/theme-color'
 
 export interface DesktopPreferences {
   settings: WindowSettings
@@ -12,7 +13,7 @@ export function readPreferences(directory: string): DesktopPreferences {
   const defaults: DesktopPreferences = {
     settings: {
       appearance: 'system',
-      themeColor: '#526fc4',
+      themeColor: 'system',
       launchAtLogin: true,
       defaultAlwaysOnTop: true,
       edgeAutoHide: true,
@@ -25,11 +26,8 @@ export function readPreferences(directory: string): DesktopPreferences {
     const saved = JSON.parse(readFileSync(resolve(directory, 'desktop-settings.json'), 'utf8'))
     if (['system', 'light', 'dark'].includes(saved.settings?.appearance))
       defaults.settings.appearance = saved.settings.appearance
-    if (
-      typeof saved.settings?.themeColor === 'string' &&
-      /^#[0-9a-f]{6}$/i.test(saved.settings.themeColor)
-    )
-      defaults.settings.themeColor = saved.settings.themeColor.toLowerCase()
+    defaults.settings.themeColor =
+      normalizeThemeColor(saved.settings?.themeColor) ?? defaults.settings.themeColor
     if (typeof saved.settings?.launchAtLogin === 'boolean')
       defaults.settings.launchAtLogin = saved.settings.launchAtLogin
     if (typeof saved.settings?.defaultAlwaysOnTop === 'boolean')
