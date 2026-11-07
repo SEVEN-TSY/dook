@@ -14,7 +14,7 @@ export async function topicRefinementSmoke({ main, note, phase, js, click, input
   )
   if (phase.endsWith('restart')) {
     const topics = (await js(note, 'window.myTodo.listInspirationTopics()')).data
-    assert.ok(topics.some((topic) => topic.name === '持久主题甲'))
+    assert.ok(topics.some((topic) => topic.name === '持久主题甲已改名'))
     assert.ok(topics.some((topic) => topic.name === '归集新增主题'))
     const idea = (await js(note, 'window.myTodo.listInspirations()')).data.find(
       (item) => item.description === '待归集小记'
@@ -61,7 +61,27 @@ export async function topicRefinementSmoke({ main, note, phase, js, click, input
     () => js(main, `Boolean(document.querySelector('[aria-label="重命名持久主题甲"]'))`),
     '内部确认正常创建'
   )
+  const groupAppearance = await js(
+    main,
+    `(() => {
+      const heading = document.querySelector('.inspiration-heading[aria-current]');
+      const { left, width } = heading.parentElement.getBoundingClientRect();
+      return { left, width, fontSize: getComputedStyle(heading).fontSize };
+    })()`
+  )
   await click(main, '[aria-label="重命名持久主题甲"]')
+  assert.deepEqual(
+    await js(
+      main,
+      `(() => {
+        const input = document.querySelector('[aria-label="主题名称"]');
+        const { left, width } = input.form.getBoundingClientRect();
+        return { left, width, fontSize: getComputedStyle(input).fontSize };
+      })()`
+    ),
+    groupAppearance,
+    '改名框对齐选中分组的边缘和字号'
+  )
   await input(main, '[aria-label="主题名称"]', '待清除改名', null)
   await click(main, '[aria-label="清除主题名称"]')
   assert.equal(
@@ -79,19 +99,21 @@ export async function topicRefinementSmoke({ main, note, phase, js, click, input
     '改名确认保存'
   )
   await click(main, '[aria-label="重命名持久主题甲"]')
-  await input(main, '[aria-label="主题名称"]', '未确认改名', null)
-  await js(
-    main,
-    `document.querySelector('.inspiration-group-title').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))`
-  )
+  await input(main, '[aria-label="主题名称"]', '持久主题甲已改名', null)
+  await js(main, `document.querySelector('[aria-label="保存主题名称"]').focus()`)
   assert.equal(
-    await js(main, `Boolean(document.querySelector('[aria-label="主题名称"]'))`),
-    false,
-    '改名点击外部取消'
+    await js(main, `document.querySelector('[aria-label="主题名称"]')?.value`),
+    '持久主题甲已改名',
+    '编辑区内切换焦点保留草稿'
+  )
+  await js(main, `document.querySelector('.inspiration-views button').focus()`)
+  await waitFor(
+    () => js(main, `Boolean(document.querySelector('[aria-label="重命名持久主题甲已改名"]'))`),
+    '改名离开编辑区自动保存'
   )
   assert.ok(
     (await js(note, 'window.myTodo.listInspirationTopics()')).data.some(
-      (topic) => topic.name === '持久主题甲'
+      (topic) => topic.name === '持久主题甲已改名'
     )
   )
   await js(
@@ -211,7 +233,7 @@ export async function topicRefinementSmoke({ main, note, phase, js, click, input
   )
   await js(
     main,
-    `Array.from(document.querySelectorAll('.inspiration-nav-item .inspiration-heading')).find(x => x.textContent === '持久主题甲').click()`
+    `Array.from(document.querySelectorAll('.inspiration-nav-item .inspiration-heading')).find(x => x.textContent === '持久主题甲已改名').click()`
   )
   await click(main, '[aria-label="归集主题"]')
   assert.equal(

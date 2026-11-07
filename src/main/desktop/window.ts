@@ -6,7 +6,7 @@ import { appIcon } from './brand'
 
 export function mainWindowTitleBar() {
   return {
-    color: nativeTheme.shouldUseDarkColors ? '#202020' : '#ffffff',
+    color: '#00000000',
     symbolColor: nativeTheme.shouldUseDarkColors ? '#e3e3e3' : '#303744',
     height: 32
   }

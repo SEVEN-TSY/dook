@@ -38,3 +38,28 @@ export function habitIsDue(schedule: HabitSchedule | undefined, date: string, no
   }
   return true
 }
+
+export function nextHabitExecution(
+  schedule: HabitSchedule | undefined,
+  now: Date,
+  generatedToday: boolean
+): string | null {
+  const time = schedule?.time ?? '00:00'
+  const [hours, minutes] = time.split(':').map(Number)
+  for (let offset = 0; offset <= 366; offset++) {
+    if (offset === 0 && generatedToday) continue
+    const candidate = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + offset,
+      hours,
+      minutes
+    )
+    const date = `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, '0')}-${String(candidate.getDate()).padStart(2, '0')}`
+    if (habitIsDue(schedule, date, candidate)) {
+      // An overdue, ungenerated occurrence will run on the next scheduler check.
+      return new Date(Math.max(candidate.getTime(), now.getTime())).toISOString()
+    }
+  }
+  return null
+}

@@ -23,7 +23,7 @@ export function HabitSchedulePopover({
 }: {
   habit: Habit
   beforeOpen: () => Promise<boolean>
-  onSaved: (habit: Habit) => void
+  onSaved: () => void
   disabled: boolean
 }) {
   const [open, setOpen] = useState(false)
@@ -68,8 +68,8 @@ export function HabitSchedulePopover({
             if (saving) return
             setSaving(true)
             try {
-              const updated = unwrap(await getDesktopApi().setHabitSchedule(habit.id, schedule))
-              onSaved(updated)
+              unwrap(await getDesktopApi().setHabitSchedule(habit.id, schedule))
+              onSaved()
               setOpen(false)
             } catch (error) {
               setError(error instanceof Error ? error.message : '周期保存失败，请重试。')

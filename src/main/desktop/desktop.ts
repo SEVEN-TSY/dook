@@ -38,7 +38,7 @@ export class Desktop {
     this.tray = new Tray(appIcon().resize({ width: 32, height: 32 }))
     this.tray.setToolTip('DOOK')
     this.tray.on('click', () => {
-      void this.openWindow('note')
+      void this.openWindow('note', undefined, { fromTray: true })
     })
     const menu = Menu.buildFromTemplate([
       {
@@ -62,7 +62,11 @@ export class Desktop {
     this.tray.setContextMenu(menu)
   }
 
-  async openWindow(kind: WindowKind, page?: MainPage): Promise<void> {
+  async openWindow(
+    kind: WindowKind,
+    page?: MainPage,
+    options?: { fromTray?: boolean }
+  ): Promise<void> {
     if (this.exiting || this.preparingQuit) return
     if (kind === 'main' && page)
       this.mainNavigation = { page, revision: (this.mainNavigation?.revision ?? 0) + 1 }
@@ -95,15 +99,21 @@ export class Desktop {
     }
     this.visibleIntent.set(window, true)
     await this.loading.get(kind)
-    if (
-      window.isDestroyed() ||
-      this.exiting ||
-      this.preparingQuit ||
-      !this.visibleIntent.get(window)
-    )
-      return
-    if (kind === 'note') this.note?.show()
-    else {
+    const canShow = () =>
+      !window.isDestroyed() &&
+      !this.exiting &&
+      !this.preparingQuit &&
+      this.visibleIntent.get(window)
+    if (!canShow()) return
+    if (kind === 'note') {
+      if (options?.fromTray) {
+        this.note?.prepareOpening(() => {
+          if (!canShow()) return false
+          this.note?.show(options)
+          return true
+        })
+      } else this.note?.show(options)
+    } else {
       if (window.isMinimized()) window.restore()
       window.show()
       window.focus()
@@ -167,8 +177,8 @@ export class Desktop {
   finishNoteMotion(window: BrowserWindow, revision: number) {
     if (window === this.windows.get('note')) this.note?.finishNoteMotion(revision)
   }
-  finishCapsulePreparation(window: BrowserWindow, revision: number) {
-    if (window === this.windows.get('note')) this.note?.finishCapsulePreparation(revision)
+  finishEdgePreparation(window: BrowserWindow, revision: number) {
+    if (window === this.windows.get('note')) this.note?.finishEdgePreparation(revision)
   }
 
   async protect<T>(action: () => Promise<T>): Promise<T> {

@@ -251,6 +251,31 @@ test('主题可独立创建，删除后保留小记及其他主题', () => {
   }
 })
 
+test('主题新建、归集时新建和改名均限制名称为20个字', () => {
+  const database = new AppDatabase(':memory:')
+  const service = new AppService(database, undefined, undefined, {
+    inspirations: new InspirationRepository(database.connection)
+  })
+  try {
+    const name = '字'.repeat(20)
+    const tooLong = `${name}长`
+    const idea = service.createInspiration('想法')
+    const topic = service.createInspirationTopic(` ${name} `)
+    assert.equal(topic.name, name)
+    assert.throws(() => service.createInspirationTopic(tooLong), /最多20个字/)
+    assert.throws(() => service.createInspirationTopic(tooLong, idea.id), /最多20个字/)
+    assert.throws(() => service.renameInspirationTopic(topic.id, tooLong), /最多20个字/)
+    assert.deepEqual(service.listInspirationTopics(), [topic])
+    assert.deepEqual(service.listInspirations()[0]?.topicIds, [])
+
+    const newName = '名'.repeat(20)
+    service.renameInspirationTopic(topic.id, newName)
+    assert.equal(service.inspirationTopicDetails(topic.id).name, newName)
+  } finally {
+    database.close()
+  }
+})
+
 test('归档保留内容和主题，禁止旧编辑，恢复后可删除已归档记录', () => {
   const database = new AppDatabase(':memory:')
   const service = new AppService(database, undefined, undefined, {
@@ -285,8 +310,9 @@ test('归档状态、内容和主题跨重启保留，恢复后重新进入主�
   const directory = mkdtempSync(join(tmpdir(), 'mytodo-archive-'))
   const path = join(directory, 'app.sqlite')
   let database = new AppDatabase(path)
+  let now = new Date('2026-11-06T08:00:00Z')
   const open = () =>
-    new AppService(database, undefined, undefined, {
+    new AppService(database, undefined, () => now, {
       inspirations: new InspirationRepository(database.connection)
     })
   try {
@@ -294,15 +320,35 @@ test('归档状态、内容和主题跨重启保留，恢复后重新进入主�
     const topic = service.createInspirationTopic('持久主题')
     const idea = service.createInspiration('持久小记', topic.id)
     service.appendInspiration(idea.id, '持久补充')
+    now = new Date('2026-11-07T09:00:00Z')
     service.archiveInspiration(idea.id)
+    assert.equal(
+      database.connection.prepare('SELECT archived_at FROM inspirations WHERE id = ?').get(idea.id)
+        ?.archived_at,
+      now.toISOString()
+    )
     database.close()
     database = new AppDatabase(path)
     service = open()
     assert.deepEqual(service.listInspirations(), [])
     const archived = service.listInspirationPage(0, 20, { kind: 'archive' }).items[0]
     assert.equal(archived?.id, idea.id)
+    assert.equal(archived?.createdAt, idea.createdAt)
+    assert.equal(archived?.archivedAt, now.toISOString())
     assert.deepEqual(archived?.topicIds, [topic.id])
     assert.equal(archived?.additions[0]?.content, '持久补充')
+    service.restoreInspiration(idea.id)
+    assert.equal(service.listInspirationPage(0, 20).items[0]?.archivedAt, undefined)
+    now = new Date('2026-11-08T10:00:00Z')
+    service.archiveInspiration(idea.id)
+    assert.equal(
+      service.listInspirationPage(0, 20, { kind: 'archive' }).items[0]?.archivedAt,
+      now.toISOString()
+    )
+    assert.equal(
+      service.listInspirationPage(0, 20, { kind: 'archive' }).items[0]?.createdAt,
+      idea.createdAt
+    )
     service.restoreInspiration(idea.id)
     assert.equal(
       service.listInspirationPage(0, 20, { kind: 'topic', topicId: topic.id }).items[0]?.id,

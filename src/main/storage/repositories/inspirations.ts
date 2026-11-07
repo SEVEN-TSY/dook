@@ -129,12 +129,14 @@ export class InspirationRepository implements InspirationStore {
     where = where
       ? `WHERE archived = 0 AND (${where.slice(6)})`
       : `WHERE archived = ${group?.kind === 'archive' ? 1 : 0}`
+    const order = group?.kind === 'archive' ? 'archived_at' : 'created_at'
     const rows = this.database
       .prepare(
-        `SELECT id, description, created_at FROM inspirations ${where} ORDER BY created_at IS NULL, created_at DESC, sequence DESC LIMIT ? OFFSET ?`
+        `SELECT id, description, created_at, archived_at FROM inspirations ${where} ORDER BY ${order} IS NULL, ${order} DESC, sequence DESC LIMIT ? OFFSET ?`
       )
       .all(...parameters, limit + 1, offset)
     const items = rows.slice(0, limit).map((row) => ({
+      ...(row.archived_at === null ? {} : { archivedAt: String(row.archived_at) }),
       id: String(row.id),
       description: String(row.description),
       createdAt: row.created_at === null ? null : String(row.created_at),
@@ -193,17 +195,24 @@ export class InspirationRepository implements InspirationStore {
     return idea
   }
 
-  archive(id: string): void {
-    this.changeArchive(id, 0, 1)
+  archive(id: string, archivedAt: string): void {
+    this.changeArchive(id, 0, 1, archivedAt)
   }
   restore(id: string): void {
     this.changeArchive(id, 1, 0)
   }
-  private changeArchive(id: string, from: number, to: number): void {
+  private changeArchive(
+    id: string,
+    from: number,
+    to: number,
+    archivedAt: string | null = null
+  ): void {
     if (
       !this.database
-        .prepare('UPDATE inspirations SET archived = ? WHERE id = ? AND archived = ?')
-        .run(to, id, from).changes
+        .prepare(
+          'UPDATE inspirations SET archived = ?, archived_at = ? WHERE id = ? AND archived = ?'
+        )
+        .run(to, archivedAt, id, from).changes
     )
       throw new Error('小记状态已变化或不存在。')
   }

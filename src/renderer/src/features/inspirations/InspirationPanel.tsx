@@ -1,6 +1,7 @@
 import { CreatedTime } from '../shared/CreatedTime'
 import { Toast } from '../../components/Toast'
-import { Archive, CornerDownLeft, Tags, Pencil, Plus, X, RotateCcw, Trash2 } from 'lucide-react'
+import { TaskActionIcon } from '../../components/AppIcon'
+import { Archive, CalendarPlus, CornerDownLeft, Tags, Pencil, Plus, X, Trash2 } from 'lucide-react'
 import { ComposerToggle, InlineComposer } from '../shared/InlineComposer'
 import { Popover, PopoverAnchor, PopoverContent } from '../../components/ui/popover'
 const dateKey = (date: Date) =>
@@ -8,6 +9,7 @@ const dateKey = (date: Date) =>
 
 import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import type { Ref } from 'react'
+import { INSPIRATION_TOPIC_NAME_MAX_LENGTH } from '../../../../shared/contracts'
 import type { Inspiration, InspirationTopic } from '../../../../shared/contracts'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
 import { useInspirationInput } from './useInspirationInput'
@@ -16,6 +18,9 @@ import { Button } from '../../components/ui/button'
 import { ListDescription } from '../shared/ListDescription'
 import { ClearableInput } from '../../components/ui/clearable-input'
 import { useDeleteConfirmation } from '../../components/DeleteConfirmation'
+import { useSerialSave } from '../shared/useSerialSave'
+
+type TopicRenameDraft = { id: string; name: string; saved: string }
 
 export interface InspirationPanelHandle {
   save: () => Promise<boolean>
@@ -77,32 +82,38 @@ export function InspirationPanel({
   const pendingTopics = useRef(0)
   const topicQueue = useRef<Promise<void>>(Promise.resolve())
   const refreshCurrent = useRef<() => Promise<void>>(async () => {})
-  const [renameId, setRenameId] = useState<string | null>(null)
-  const [renameValue, setRenameValue] = useState('')
+  const renameDraft = useRef<TopicRenameDraft | null>(null)
+  const [, redrawRename] = useState(0)
+  const setRenameDraft = (draft: TopicRenameDraft | null) => {
+    renameDraft.current = draft
+    redrawRename((value) => value + 1)
+  }
+  const setRenameValue = (name: string) => {
+    if (!renameDraft.current) return
+    renameDraft.current.name = name
+    redrawRename((value) => value + 1)
+  }
   const topicForm = useRef<HTMLFormElement>(null)
-  const renameForm = useRef<HTMLFormElement>(null)
   const topicEditVersion = useRef(0)
-  const cancelTopicEdit = () => {
+  const cancelTopicCreation = () => {
     ++topicEditVersion.current
     setCreatingTopic(false)
     setTopicName('')
-    setRenameId(null)
-    setRenameValue('')
   }
   useEffect(() => {
-    if (!creatingTopic && !renameId) return
+    if (!creatingTopic) return
     const outside = (event: PointerEvent) => {
       if (!(event.target instanceof Node)) return
-      if (topicForm.current?.contains(event.target) || renameForm.current?.contains(event.target))
-        return
-      cancelTopicEdit()
+      if (!topicForm.current?.contains(event.target)) cancelTopicCreation()
     }
     document.addEventListener('pointerdown', outside)
     return () => document.removeEventListener('pointerdown', outside)
-  }, [creatingTopic, renameId])
+  }, [creatingTopic])
   const [editingGroup, setEditingGroup] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
   const [hasMore, setHasMore] = useState(false)
+  const [archiveTodayExpanded, setArchiveTodayExpanded] = useState(true)
+  const [archiveHistoryExpanded, setArchiveHistoryExpanded] = useState(false)
   const [dateGroup, setDateGroup] = useState(() => dateKey(new Date()))
   const [topicGroup, setTopicGroup] = useState('unassigned')
   const groupKey = view === 'date' ? dateGroup : topicGroup
@@ -168,11 +179,11 @@ export function InspirationPanel({
           : undefined
         const items: Inspiration[] = []
         let hasMore = true
-        while (items.length < loadedCount.current && hasMore) {
+        while ((groupKey === 'archive' || items.length < loadedCount.current) && hasMore) {
           const result = unwrap(
             await getDesktopApi().listInspirationPage(
               items.length,
-              Math.min(100, loadedCount.current - items.length),
+              groupKey === 'archive' ? 100 : Math.min(100, loadedCount.current - items.length),
               groupQuery()
             )
           )
@@ -251,7 +262,28 @@ export function InspirationPanel({
     notifyError,
     () => setEditing(null)
   )
-  const save = async () => (await Promise.all([original.save(), newIdea.save()])).every(Boolean)
+  const rename = useSerialSave(
+    renameDraft,
+    async (draft) => {
+      if (!draft) return 'done'
+      const name = draft.name.trim()
+      if (name === draft.saved) {
+        setRenameDraft(null)
+        return 'done'
+      }
+      unwrap(await getDesktopApi().renameInspirationTopic(draft.id, name))
+      draft.saved = name
+      if (renameDraft.current === draft) notifySuccess('主题已修改')
+      void refreshCurrent.current()
+      return 'continue'
+    },
+    notifyError,
+    '修改主题失败。'
+  )
+  const save = async () =>
+    (await Promise.all([original.save(), newIdea.save(), !renameDraft.current || rename.save()])).every(
+      Boolean
+    )
   const queueTopicChange = (action: () => Promise<void>, onSettled?: () => void) => {
     const session = pickerSession.current
     ++pendingTopics.current
@@ -304,10 +336,10 @@ export function InspirationPanel({
           })),
           {
             key: 'history',
-            label: '历史小记',
+            label: '一周以前',
             items: ideas
           },
-          { key: 'archive', label: '已归档小记', items: ideas }
+          { key: 'archive', label: '已归档', items: ideas }
         ]
     : [{ key: 'all', label: '', items: ideas }]
   return (
@@ -421,6 +453,7 @@ export function InspirationPanel({
                       <ClearableInput
                         aria-label="新增主题名称"
                         placeholder="主题名称"
+                        maxLength={INSPIRATION_TOPIC_NAME_MAX_LENGTH}
                         value={topicName}
                         onClear={() => {
                           ++topicEditVersion.current
@@ -433,7 +466,7 @@ export function InspirationPanel({
                         autoFocus
                         onKeyDown={(event) => {
                           if (event.key === 'Escape') {
-                            cancelTopicEdit()
+                            cancelTopicCreation()
                           }
                         }}
                       />
@@ -450,8 +483,8 @@ export function InspirationPanel({
                     <button
                       aria-label="新增主题"
                       title="新增主题"
-                      onClick={() => {
-                        cancelTopicEdit()
+                      onClick={async () => {
+                        if (renameDraft.current && !(await rename.save())) return
                         setCreatingTopic(true)
                       }}
                     >
@@ -462,45 +495,42 @@ export function InspirationPanel({
               )}
               {view === 'topic' &&
                 group.key !== 'unassigned' &&
-                (renameId === group.key ? (
+                (renameDraft.current?.id === group.key ? (
                   <form
-                    ref={renameForm}
                     className="inspiration-topic-form"
-                    onSubmit={async (event) => {
+                    onBlur={(event) => {
+                      if (!event.currentTarget.contains(event.relatedTarget)) void rename.save()
+                    }}
+                    onSubmit={(event) => {
                       event.preventDefault()
-                      const editVersion = topicEditVersion.current
-                      try {
-                        unwrap(await getDesktopApi().renameInspirationTopic(group.key, renameValue))
-                        if (editVersion === topicEditVersion.current) setRenameId(null)
-                        notifySuccess('主题已修改')
-                        void refresh()
-                      } catch (error) {
-                        if (editVersion === topicEditVersion.current)
-                          notifyError(error instanceof Error ? error.message : '修改主题失败。')
-                      }
+                      if (!rename.composing.current) void rename.save()
                     }}
                   >
                     <ClearableInput
                       aria-label="主题名称"
-                      value={renameValue}
-                      onClear={() => {
-                        ++topicEditVersion.current
-                        setRenameValue('')
+                      maxLength={INSPIRATION_TOPIC_NAME_MAX_LENGTH}
+                      value={renameDraft.current.name}
+                      onClear={() => setRenameValue('')}
+                      onChange={(event) => setRenameValue(event.target.value)}
+                      onCompositionStart={() => {
+                        rename.composing.current = true
                       }}
-                      onChange={(event) => {
-                        ++topicEditVersion.current
-                        setRenameValue(event.target.value)
+                      onCompositionEnd={(event) => {
+                        setRenameValue(event.currentTarget.value)
+                        rename.endComposition()
                       }}
                       autoFocus
                       onKeyDown={(event) => {
-                        if (event.key === 'Escape') cancelTopicEdit()
+                        if (event.key !== 'Escape' || event.nativeEvent.isComposing) return
+                        rename.resetComposition()
+                        setRenameDraft(null)
                       }}
                     />
                     <button
                       type="submit"
                       aria-label="保存主题名称"
                       title="保存"
-                      disabled={!renameValue.trim()}
+                      disabled={!renameDraft.current.name.trim()}
                     >
                       <CornerDownLeft size={15} />
                     </button>
@@ -510,10 +540,10 @@ export function InspirationPanel({
                     <button
                       aria-label={`重命名${group.label}`}
                       title="重命名"
-                      onClick={() => {
-                        cancelTopicEdit()
-                        setRenameId(group.key)
-                        setRenameValue(group.label)
+                      onClick={async () => {
+                        if (renameDraft.current && !(await rename.save())) return
+                        if (creatingTopic) cancelTopicCreation()
+                        setRenameDraft({ id: group.key, name: group.label, saved: group.label })
                       }}
                     >
                       <Pencil size={13} />
@@ -545,7 +575,6 @@ export function InspirationPanel({
                             setPicker(null)
                             setTopicGroup('unassigned')
                           }
-                          setRenameId(null)
                           notifySuccess('主题已删除')
                           void refresh()
                         } catch (error) {
@@ -573,87 +602,151 @@ export function InspirationPanel({
         >
           {groups
             .filter((group) => !workbench || group.key === groupKey)
+            .flatMap((group) => {
+              if (!workbench || group.key !== 'archive') return [{ ...group, expanded: true }]
+              const archivedToday = (idea: Inspiration) =>
+                Boolean(idea.archivedAt && dateKey(new Date(idea.archivedAt)) === dates[0])
+              return [
+                {
+                  key: 'archive-today',
+                  label: '今天',
+                  items: group.items.filter(archivedToday),
+                  expanded: archiveTodayExpanded
+                },
+                {
+                  key: 'archive-history',
+                  label: '历史',
+                  items: group.items.filter((idea) => !archivedToday(idea)),
+                  expanded: archiveHistoryExpanded
+                }
+              ]
+            })
             .map((group) => (
-              <div key={group.key} className="inspiration-date-group">
-                {workbench && (
-                  <>
-                    <div className="inspiration-group-header">
-                      <h2 className="inspiration-group-title">{group.label}</h2>
-                      <span className="inspiration-group-count">
-                        {ideas.length}
-                        {hasMore ? '+' : ''}条小记
-                      </span>
-                      {(view === 'topic' || groupKey === dates[0]) && (
-                        <ComposerToggle
-                          label="新增小记"
-                          expanded={creatingIdea}
-                          onClick={() => {
-                            setCreatingIdea(!creatingIdea)
-                            if (!creatingIdea)
-                              requestAnimationFrame(() => newIdeaField.current?.focus())
+              <div
+                key={group.key}
+                className={groupKey === 'archive' ? 'task-archive-group' : 'inspiration-date-group'}
+              >
+                {workbench && groupKey === 'archive' ? (
+                  <header className="task-card-heading">
+                    <h2>
+                      <button
+                        type="button"
+                        className="task-archive-toggle"
+                        aria-expanded={group.expanded}
+                        onClick={() => {
+                          const toggle =
+                            group.key === 'archive-history'
+                              ? setArchiveHistoryExpanded
+                              : setArchiveTodayExpanded
+                          toggle((expanded) => !expanded)
+                        }}
+                      >
+                        <svg
+                          viewBox="0 0 12 12"
+                          width="12"
+                          height="12"
+                          fill="none"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d={group.expanded ? 'm3 4.5 3 3 3-3' : 'm4.5 3 3 3-3 3'}
+                            stroke="currentColor"
+                            strokeWidth="1.3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                        {group.label}
+                        <span className="task-card-count">{group.items.length}</span>
+                      </button>
+                    </h2>
+                  </header>
+                ) : (
+                  workbench && (
+                    <>
+                      <div className="inspiration-group-header">
+                        <h2 className="inspiration-group-title">{group.label}</h2>
+                        <span className="inspiration-group-count">
+                          {ideas.length}
+                          {hasMore ? '+' : ''}条小记
+                        </span>
+                        {(view === 'topic' || groupKey === dates[0]) && (
+                          <ComposerToggle
+                            label="新增小记"
+                            expanded={creatingIdea}
+                            onClick={() => {
+                              setCreatingIdea(!creatingIdea)
+                              if (!creatingIdea)
+                                requestAnimationFrame(() => newIdeaField.current?.focus())
+                            }}
+                          />
+                        )}
+                      </div>
+                      {creatingIdea && (view === 'topic' || groupKey === dates[0]) && (
+                        <InlineComposer
+                          ref={newIdeaField}
+                          onDismiss={() => setCreatingIdea(false)}
+                          autoFocus
+                          tone="inspiration"
+                          multiline
+                          aria-label="新增小记内容"
+                          placeholder="记下一个想法…"
+                          value={newIdea.value}
+                          onValueChange={newIdea.setValue}
+                          onClear={() => newIdea.setValue('')}
+                          onSubmit={newIdea.submit}
+                          submitLabel="记录小记"
+                          saving={newIdea.saving}
+                          onCompositionStart={() => {
+                            newIdea.composing.current = true
                           }}
+                          onCompositionEnd={newIdea.endComposition}
                         />
                       )}
-                    </div>
-                    {creatingIdea && (view === 'topic' || groupKey === dates[0]) && (
-                      <InlineComposer
-                        ref={newIdeaField}
-                        onDismiss={() => setCreatingIdea(false)}
-                        autoFocus
-                        tone="inspiration"
-                        multiline
-                        aria-label="新增小记内容"
-                        placeholder="记下一个想法…"
-                        value={newIdea.value}
-                        onValueChange={newIdea.setValue}
-                        onClear={() => newIdea.setValue('')}
-                        onSubmit={newIdea.submit}
-                        submitLabel="记录小记"
-                        saving={newIdea.saving}
-                        onCompositionStart={() => {
-                          newIdea.composing.current = true
-                        }}
-                        onCompositionEnd={newIdea.endComposition}
-                      />
-                    )}
-                  </>
+                    </>
+                  )
                 )}
-                {group.items.length === 0 && (
-                  <p className="inspiration-empty">
-                    {workbench ? '还没有小记。' : '在下方切换为小记，记下新的想法。'}
+                {group.expanded && group.items.length === 0 && (
+                  <p className={groupKey === 'archive' ? 'task-card-empty' : 'inspiration-empty'}>
+                    {groupKey === 'archive'
+                      ? group.label === '今天'
+                        ? '今天还没有归档小记。'
+                        : '还没有历史归档小记。'
+                      : workbench
+                        ? '还没有小记。'
+                        : '在下方切换为小记，记下新的想法。'}
                   </p>
                 )}
-                {group.items.map((idea) => (
-                  <article key={idea.id} data-inspiration-id={idea.id} className="inspiration-item">
-                    {workbench && group.key === 'archive' ? (
-                      <div className="inspiration-row main-list-row">
-                        <div className="main-list-content">
-                          <div className="inspiration-summary">
-                            <span>{idea.description}</span>
-                          </div>
-                          <p className="list-meta">
-                            <CreatedTime value={idea.createdAt} />
+                {(group.expanded ? group.items : []).map((idea) => (
+                  <article
+                    key={idea.id}
+                    data-inspiration-id={idea.id}
+                    className={workbench ? 'inspiration-item list-row-divider' : 'inspiration-item'}
+                  >
+                    {workbench && groupKey === 'archive' ? (
+                      <div className="note-archive-row">
+                        <div className="task-content">
+                          <span className="note-archive-description" title={idea.description}>
+                            {idea.description}
+                          </span>
+                          <p className="list-meta task-archive-times">
+                            <span className="task-archive-time">
+                              <span title="归档时间">
+                                <Archive size={12} aria-hidden="true" />
+                              </span>
+                              <CreatedTime value={idea.archivedAt} label="归档时间" />
+                            </span>
+                            <span className="task-archive-time">
+                              <span title="创建时间">
+                                <CalendarPlus size={12} aria-hidden="true" />
+                              </span>
+                              <CreatedTime value={idea.createdAt} label="创建时间" />
+                            </span>
                           </p>
                         </div>
-                        <div className="inspiration-row-actions">
+                        <div className="note-archive-actions" tabIndex={-1} data-delete-focus-group>
                           <button
-                            className="inspiration-supplement"
-                            title="恢复小记"
-                            aria-label="恢复小记"
-                            onClick={async () => {
-                              try {
-                                unwrap(await getDesktopApi().restoreInspiration(idea.id))
-                                notifySuccess('小记已恢复')
-                                void refresh()
-                              } catch (error) {
-                                notifyError(error instanceof Error ? error.message : '恢复失败。')
-                              }
-                            }}
-                          >
-                            <RotateCcw size={15} />
-                          </button>
-                          <button
-                            className="inspiration-supplement"
+                            className="task-delete note-archive-delete"
                             title="永久删除小记"
                             aria-label="永久删除小记"
                             onClick={async () => {
@@ -677,7 +770,23 @@ export function InspirationPanel({
                               }
                             }}
                           >
-                            <Trash2 size={15} />
+                            <Trash2 size={15} aria-hidden="true" />
+                          </button>
+                          <button
+                            className="task-pin"
+                            title="恢复小记"
+                            aria-label="恢复小记"
+                            onClick={async () => {
+                              try {
+                                unwrap(await getDesktopApi().restoreInspiration(idea.id))
+                                notifySuccess('小记已恢复')
+                                void refresh()
+                              } catch (error) {
+                                notifyError(error instanceof Error ? error.message : '恢复失败。')
+                              }
+                            }}
+                          >
+                            <TaskActionIcon name="restore" />
                           </button>
                         </div>
                       </div>
@@ -900,6 +1009,7 @@ export function InspirationPanel({
                 <div className="inspiration-topic-picker-entry">
                   <FormInput
                     aria-label="新主题名称"
+                    maxLength={INSPIRATION_TOPIC_NAME_MAX_LENGTH}
                     className="h-7 rounded-none border-0 bg-transparent text-xs shadow-none focus-visible:ring-0 dark:bg-transparent"
                     value={newTopic}
                     onClear={() => {

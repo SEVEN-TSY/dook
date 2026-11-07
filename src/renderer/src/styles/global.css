@@ -56,6 +56,7 @@ p {
   flex-direction: column;
 }
 .tasks-page.note {
+  --note-list-row-outset: 6px;
   padding: 12px 16px;
   height: 100vh;
   overflow: hidden;
@@ -89,6 +90,7 @@ html[data-window='note'] {
   min-height: 0;
   margin-top: 4px;
   margin-right: -13px;
+  margin-left: calc(-1 * var(--note-list-row-outset));
   overflow: hidden;
 }
 .note-pages-track {
@@ -111,10 +113,10 @@ html[data-window='note'] {
 }
 .note-page-divider-track > span {
   flex: 0 0 50%;
-  background: light-dark(var(--app-border), var(--app-hover));
-}
-.note-page-divider-track > span + span {
-  background: light-dark(var(--app-border), var(--app-hover));
+  background: light-dark(
+    color-mix(in srgb, var(--app-accent) 20%, var(--app-surface)),
+    var(--app-hover)
+  );
 }
 .note-pane {
   flex: 0 0 50%;
@@ -126,6 +128,7 @@ html[data-window='note'] {
 .note-jottings-list {
   height: 100%;
   margin: 0;
+  padding-left: var(--note-list-row-outset);
   padding-right: 13px;
   overflow-y: auto;
   overflow-x: hidden;
@@ -219,9 +222,9 @@ h1 {
   gap: 10px;
   min-height: 52px;
   padding: 8px 2px;
-  border-bottom: 1px solid var(--app-border);
 }
-.task-row:hover {
+.task-row:hover,
+.note .note-archive-row:hover {
   background: var(--app-hover);
 }
 .task-description {
@@ -246,7 +249,7 @@ h1 {
 .task-delete {
   background: transparent;
   border: 0;
-  color: light-dark(#8a94a5, #adadad);
+  color: var(--app-action-icon);
   font-size: 20px;
   width: 26px;
   height: 28px;
@@ -867,14 +870,14 @@ h1 {
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.habit-list button {
+.habit-list :where(.main-list-actions) button {
   border: 0;
   background: transparent;
   color: var(--app-muted);
   padding: 4px;
   font-size: 12px;
 }
-.habit-list button:hover {
+.habit-list :where(.main-list-actions) button:hover {
   color: var(--app-accent);
   background: var(--app-hover);
 }
@@ -1104,7 +1107,12 @@ h1 {
   gap: 8px;
   height: 48px;
   padding: 3px 2px;
-  border-bottom: 1px solid var(--app-border);
+}
+.note :is(.task-row, .note-archive-row) {
+  --list-divider-inset: var(--note-list-row-outset);
+  margin-inline: calc(-1 * var(--note-list-row-outset));
+  padding-inline: calc(2px + var(--note-list-row-outset));
+  border-radius: 6px;
 }
 .note-archive-description {
   flex: 1;
@@ -1115,6 +1123,9 @@ h1 {
   color: var(--app-muted);
   font-size: 13px;
 }
+.note .note-archive-row[data-archived-task-id] .note-archive-description {
+  color: var(--app-text);
+}
 .note-archive-actions {
   display: flex;
   align-items: center;
@@ -1122,7 +1133,7 @@ h1 {
 .note-archive-delete {
   visibility: hidden;
 }
-.note-archive-row:hover .note-archive-delete,
+:is(.note-archive-row, .habit-list > li):hover .note-archive-delete,
 .note-archive-actions:focus-within .note-archive-delete {
   visibility: visible;
 }
@@ -1383,6 +1394,7 @@ h1 {
 }
 .note .task-row.drop-after::after {
   bottom: 0;
+  border-bottom: 0;
 }
 .note .task-pin {
   display: flex;

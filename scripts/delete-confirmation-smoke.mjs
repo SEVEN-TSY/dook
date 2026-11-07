@@ -137,8 +137,9 @@ export async function deleteConfirmationSmoke({
   const habit = (await js(note, `window.myTodo.createHabit('习惯删除验证')`)).data
   await click(main, '.workbench-nav [aria-label="习惯"]')
   await click(main, `[data-habit-id="${habit.id}"] [data-testid=habit-archive]`)
-  await click(main, '[aria-label="已归档习惯"]')
+  await click(main, '[aria-label="已暂停习惯"]')
   const habitDelete = `[data-habit-id="${habit.id}"] [data-testid=habit-delete]`
+  await focus(main, `[data-habit-id="${habit.id}"] [data-testid=habit-restore]`)
   await focus(main, habitDelete)
   await click(main, habitDelete)
   await waitFor(
@@ -309,7 +310,7 @@ export async function deleteConfirmationSmoke({
     main,
     `Array.from(document.querySelectorAll('.inspiration-views button')).find(x => x.textContent === '日期').click()`
   )
-  await click(main, '[title="已归档小记"]')
+  await click(main, '[title="已归档"]')
   await click(main, '[aria-label="永久删除小记"]')
   await waitFor(
     () => js(main, 'Boolean(document.querySelector("[role=alertdialog]"))'),

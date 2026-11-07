@@ -3,7 +3,7 @@ import type { Habit } from '../../../../shared/contracts'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
 import { useSerialSave } from '../shared/useSerialSave'
 
-export function useHabitEdit(report: (message: string) => void, updated: (habit: Habit) => void) {
+export function useHabitEdit(report: (message: string) => void, updated: () => void) {
   const session = useRef<{ id: string | null; text: string; saved: string }>({
     id: null,
     text: '',
@@ -38,7 +38,7 @@ export function useHabitEdit(report: (message: string) => void, updated: (habit:
       }
       const habit = unwrap(await getDesktopApi().updateHabit(draft.id, text))
       draft.saved = habit.description
-      updated(habit)
+      updated()
       report('')
       return 'continue'
     },

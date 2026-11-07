@@ -36,6 +36,7 @@ export function NoteTransition({ desktop }: { desktop: DesktopState }) {
     const compactScaleX = compact.width / target.width
     const compactScaleY = compact.height / target.height
     const duration = opening ? 460 : 300
+    const closingFadeEnd = 0.15
     const keyframes: Keyframe[] = Array.from({ length: 61 }, (_, index) => {
       const time = index / 60
       // 阻尼弹簧解：轻微越过终点后回落，终帧严格落在终态。
@@ -43,8 +44,9 @@ export function NoteTransition({ desktop }: { desktop: DesktopState }) {
         index === 60
           ? 1
           : 1 - Math.exp(-10 * time) * (Math.cos(7 * time) + (10 / 7) * Math.sin(7 * time))
-      const travel = opening ? spring : 1 - (1 - time) ** 3
-      const amount = opening ? travel : 1 - travel
+      // 页面内容完全淡出后再收缩表面，避免文字和控件悬在表面之外。
+      const closingProgress = Math.max(0, (time - closingFadeEnd) / (1 - closingFadeEnd))
+      const amount = opening ? spring : (1 - closingProgress) ** 3
       const scaleX = Math.max(0.002, compactScaleX + (1 - compactScaleX) * amount)
       const scaleY = Math.max(0.002, compactScaleY + (1 - compactScaleY) * amount)
       const x = (compact.x - target.x) * (1 - amount)
@@ -67,7 +69,7 @@ export function NoteTransition({ desktop }: { desktop: DesktopState }) {
     const content = page.animate(
       opening
         ? [{ opacity: 0 }, { opacity: 0, offset: 0.35 }, { opacity: 1 }]
-        : [{ opacity: 1 }, { opacity: 0, offset: 0.32 }, { opacity: 0 }],
+        : [{ opacity: 1 }, { opacity: 0, offset: closingFadeEnd }, { opacity: 0 }],
       { duration, easing: 'linear', fill: 'both' }
     )
     void shape.finished

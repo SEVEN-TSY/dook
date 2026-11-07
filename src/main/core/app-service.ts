@@ -11,6 +11,7 @@ import type {
 import { localDate } from './tasks'
 import type { TaskStore } from './tasks'
 import type { HabitStore } from './habits'
+import { validateInspirationTopicName } from './inspirations'
 import type { InspirationStore } from './inspirations'
 
 export interface StorageDiagnostics {
@@ -30,12 +31,17 @@ export class AppService {
     return this.habitStore().list()
   }
 
+  listHabitOverview(): Habit[] {
+    return this.habitStore().list(false, this.now().toISOString())
+  }
+
   listArchivedHabits(): Habit[] {
     return this.habitStore().list(true)
   }
 
   archiveHabit(id: string): void {
-    this.habitStore().archive(this.taskId(id), localDate(this.now()))
+    const now = this.now()
+    this.habitStore().archive(this.taskId(id), localDate(now), now.toISOString())
   }
 
   restoreHabit(id: string): void {
@@ -107,10 +113,10 @@ export class AppService {
   }
 
   createInspirationTopic(name: string, inspirationId?: string) {
-    if (typeof name !== 'string' || !name.trim()) throw new Error('主题名称不能为空。')
+    const topicName = validateInspirationTopicName(name)
     if (inspirationId !== undefined && (typeof inspirationId !== 'string' || !inspirationId))
       throw new Error('小记标识无效。')
-    return this.inspirationStore().createTopic(name.trim(), inspirationId)
+    return this.inspirationStore().createTopic(topicName, inspirationId)
   }
 
   inspirationTopicDetails(id: string) {
@@ -125,8 +131,8 @@ export class AppService {
 
   renameInspirationTopic(id: string, name: string) {
     if (typeof id !== 'string' || !id) throw new Error('主题标识无效。')
-    if (typeof name !== 'string' || !name.trim()) throw new Error('主题名称不能为空。')
-    this.inspirationStore().renameTopic(id, name.trim())
+    const topicName = validateInspirationTopicName(name)
+    this.inspirationStore().renameTopic(id, topicName)
   }
 
   setInspirationTopic(inspirationId: string, topicId: string, included: boolean) {
@@ -142,7 +148,7 @@ export class AppService {
   }
 
   archiveInspiration(id: string) {
-    this.inspirationStore().archive(id)
+    this.inspirationStore().archive(id, this.now().toISOString())
   }
   restoreInspiration(id: string) {
     this.inspirationStore().restore(id)

@@ -4,6 +4,8 @@ import type { DesktopState, DockEdge, WindowSettings } from '../../shared/contra
 import { readPreferences, writePreferences } from './preferences'
 import { isOuterEdge, nearbyEdge, snapBounds, visibleBounds } from './note-geometry'
 
+const TRAY_REVEAL_GRACE_MS = 2500
+
 export class NoteController {
   private readonly preferences
   private freePinned: boolean
@@ -16,6 +18,11 @@ export class NoteController {
   private edgeRevealRevision = 0
   private awaitingCapsulePaint = false
   private revealTimer?: ReturnType<typeof setTimeout>
+  private openingPreparation?: {
+    revision: number
+    complete: () => boolean
+    timer: ReturnType<typeof setTimeout>
+  }
   private noteMotion?: 'opening' | 'closing'
   private noteMotionRevision = 0
   private noteMotionSource: 'capsule' | 'strip' = 'strip'
@@ -26,6 +33,7 @@ export class NoteController {
   private awaitingEntry = true
   private insideSince = 0
   private outsideSince = 0
+  private trayKeepOpenUntil = 0
   private applying = false
   private dragging = false
   private edgeDragMoved = false
@@ -78,7 +86,8 @@ export class NoteController {
       edgeRevealed: this.edgeRevealed,
       edgeCapsuleVisible: this.edgeCapsuleVisible,
       edgeCapsulePreparing: this.edgeCapsuleVisible && this.edgeRevealTarget && !this.edgeRevealed,
-      edgeRevealRevision: this.edgeRevealRevision,
+      edgeOpening: Boolean(this.openingPreparation),
+      edgeRevealRevision: this.openingPreparation?.revision ?? this.edgeRevealRevision,
       noteMotion: this.noteMotion,
       noteMotionRevision: this.noteMotionRevision,
       noteMotionSource: this.noteMotionSource
@@ -199,7 +208,34 @@ export class NoteController {
     this.persist()
   }
 
-  show(focus = true) {
+  prepareOpening(complete: () => boolean) {
+    if (this.openingPreparation) {
+      this.openingPreparation.complete = complete
+      return
+    }
+    if (!this.collapsed || !this.window.isVisible()) {
+      complete()
+      return
+    }
+    this.setDragging(false)
+    clearTimeout(this.revealTimer)
+    const revision = ++this.edgeRevealRevision
+    this.openingPreparation = {
+      revision,
+      complete,
+      timer: setTimeout(() => this.finishEdgePreparation(revision), 1000)
+    }
+    // 保留细条窗口原位，等渲染层绘制空帧后再展开。
+    this.notify()
+  }
+
+  private cancelOpeningPreparation() {
+    clearTimeout(this.openingPreparation?.timer)
+    this.openingPreparation = undefined
+  }
+
+  show({ focus = true, fromTray = false } = {}) {
+    this.cancelOpeningPreparation()
     const wasCollapsed = this.collapsed
     const source = this.edgeCapsuleVisible ? 'capsule' : 'strip'
     this.cancelMotion()
@@ -208,7 +244,8 @@ export class NoteController {
     this.collapsed = false
     this.awaitingEntry = false
     this.insideSince = this.outsideSince = 0
-    if (wasCollapsed && this.edge && source !== 'capsule') {
+    this.trayKeepOpenUntil = fromTray ? Date.now() + TRAY_REVEAL_GRACE_MS : 0
+    if (wasCollapsed && this.edge) {
       this.startNoteMotion('opening', source)
     }
     this.apply()
@@ -220,6 +257,7 @@ export class NoteController {
   }
 
   hide() {
+    this.cancelOpeningPreparation()
     this.cancelMotion()
     this.setDragging(false)
     this.resetReveal()
@@ -262,7 +300,10 @@ export class NoteController {
       this.collapsed = true
       this.resetReveal()
       this.apply()
-    } else this.notify()
+    } else {
+      if (this.trayKeepOpenUntil) this.trayKeepOpenUntil = Date.now() + TRAY_REVEAL_GRACE_MS
+      this.notify()
+    }
   }
 
   private collapseNote() {
@@ -278,14 +319,19 @@ export class NoteController {
     this.edgeRevealed = this.edgeCapsuleVisible = this.edgeRevealTarget = false
   }
 
-  finishCapsulePreparation(revision: number) {
-    if (
-      !this.awaitingCapsulePaint ||
-      revision !== this.edgeRevealRevision ||
-      !this.collapsed ||
-      this.disposed ||
-      this.window.isDestroyed()
-    )
+  finishEdgePreparation(revision: number) {
+    if (this.disposed || this.window.isDestroyed()) return
+    if (this.openingPreparation) {
+      if (revision !== this.openingPreparation.revision) return
+      const { complete } = this.openingPreparation
+      this.cancelOpeningPreparation()
+      if (!complete()) {
+        this.resetReveal()
+        this.apply()
+      }
+      return
+    }
+    if (!this.awaitingCapsulePaint || revision !== this.edgeRevealRevision || !this.collapsed)
       return
     clearTimeout(this.revealTimer)
     this.awaitingCapsulePaint = false
@@ -455,7 +501,7 @@ export class NoteController {
   private trackPointer() {
     if (this.disposed || this.window.isDestroyed()) return
     if (!this.edge || !this.window.isVisible() || this.dragging || this.noteMotion) return
-    if (this.awaitingCapsulePaint) return
+    if (this.awaitingCapsulePaint || this.openingPreparation) return
     const point = screen.getCursorScreenPoint()
     const bounds = this.window.getBounds()
     const hitBounds =
@@ -503,7 +549,7 @@ export class NoteController {
         return
       }
       this.outsideSince ||= now
-      if (now - this.outsideSince >= 600) {
+      if (now >= this.trayKeepOpenUntil && now - this.outsideSince >= 600) {
         this.collapseNote()
       }
     }
@@ -512,6 +558,7 @@ export class NoteController {
   dispose() {
     if (this.disposed) return
     this.disposed = true
+    this.cancelOpeningPreparation()
     this.cancelMotion()
     this.resetReveal()
     clearInterval(this.timer)

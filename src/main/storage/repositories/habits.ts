@@ -1,4 +1,5 @@
-import { habitIsDue } from '../../core/habit-schedule'
+import { habitIsDue, nextHabitExecution } from '../../core/habit-schedule'
+import { localDate } from '../../core/tasks'
 import { defaultHabitSchedule } from '../../../shared/habit-schedule'
 import { randomUUID } from 'node:crypto'
 import type { DatabaseSync, SQLOutputValue } from 'node:sqlite'
@@ -6,6 +7,7 @@ import type { Habit, HabitSchedule } from '../../../shared/contracts'
 import type { HabitStore } from '../../core/habits'
 
 const fromRow = (row: Record<string, SQLOutputValue>): Habit => ({
+  ...(row.archived_at == null ? {} : { archivedAt: String(row.archived_at) }),
   id: String(row.id),
   description: String(row.description),
   createdAt: row.created_at == null ? null : String(row.created_at),
@@ -15,13 +17,25 @@ const fromRow = (row: Record<string, SQLOutputValue>): Habit => ({
 export class HabitRepository implements HabitStore {
   constructor(private readonly database: DatabaseSync) {}
 
-  list(archived = false): Habit[] {
-    return this.database
+  list(archived = false, now?: string): Habit[] {
+    const habits = this.database
       .prepare(
-        'SELECT id, description, created_at, schedule FROM habits WHERE archived = ? ORDER BY sequence'
+        'SELECT id, description, created_at, archived_at, schedule FROM habits WHERE archived = ? ORDER BY sequence'
       )
       .all(archived ? 1 : 0)
       .map(fromRow)
+    if (!now || archived) return habits
+    const current = new Date(now)
+    const generated = new Set(
+      this.database
+        .prepare('SELECT habit_id FROM habit_generations WHERE date = ?')
+        .all(localDate(current))
+        .map((row) => String(row.habit_id))
+    )
+    return habits.map((habit) => ({
+      ...habit,
+      nextExecutionAt: nextHabitExecution(habit.schedule, current, generated.has(habit.id))
+    }))
   }
 
   create(description: string, date: string, createdAt: string): Habit {
@@ -94,11 +108,11 @@ export class HabitRepository implements HabitStore {
     })
   }
 
-  archive(id: string, date: string): void {
+  archive(id: string, date: string, archivedAt: string): void {
     this.transaction(() => {
       const result = this.database
-        .prepare('UPDATE habits SET archived = 1 WHERE id = ? AND archived = 0')
-        .run(id)
+        .prepare('UPDATE habits SET archived = 1, archived_at = ? WHERE id = ? AND archived = 0')
+        .run(archivedAt, id)
       if (!result.changes) throw new Error('习惯不存在，可能已归档或删除。')
       this.database.prepare('DELETE FROM tasks WHERE habit_id = ? AND date = ?').run(id, date)
     })
@@ -108,7 +122,7 @@ export class HabitRepository implements HabitStore {
     this.transaction(() => {
       const row = this.database
         .prepare(
-          'UPDATE habits SET archived = 0 WHERE id = ? AND archived = 1 RETURNING id, description, created_at, schedule'
+          'UPDATE habits SET archived = 0, archived_at = NULL WHERE id = ? AND archived = 1 RETURNING id, description, created_at, schedule'
         )
         .get(id)
       if (!row) throw new Error('归档习惯不存在，可能已恢复或删除。')

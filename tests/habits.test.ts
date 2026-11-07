@@ -134,9 +134,14 @@ test('习惯创建失败不留下半条结果，解除数据库写锁后可重�
 
 test('习惯任务不允许直接编辑描述或转换为多天任务，仍可完成和置顶', () => {
   const database = new AppDatabase(':memory:')
-  const service = new AppService(database, new TaskRepository(database.connection), undefined, {
-    habits: new HabitRepository(database.connection)
-  })
+  const service = new AppService(
+    database,
+    new TaskRepository(database.connection),
+    () => new Date(2026, 10, 2, 12),
+    {
+      habits: new HabitRepository(database.connection)
+    }
+  )
   try {
     service.createHabit('检查构建')
     const task = service.listToday().tasks[0]

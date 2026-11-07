@@ -158,11 +158,14 @@ export async function listMetadataSmoke({ main, js, click, waitFor, capture }) {
   const habit = (await js(main, `window.myTodo.createHabit('创建时间习惯')`)).data
   await waitFor(
     () => js(main, `Boolean(document.querySelector('[data-habit-id="${habit.id}"] time'))`),
-    '习惯显示创建时间'
+    '习惯显示下一次执行时间'
   )
-  assert.match(
-    await js(main, `document.querySelector('[data-habit-id="${habit.id}"] time').textContent`),
-    /^\d{2}:\d{2}$/
+  assert.equal(
+    await js(
+      main,
+      `document.querySelector('[data-habit-id="${habit.id}"] .list-meta').textContent.includes('周一至周五 07:00')`
+    ),
+    true
   )
   await js(
     main,
@@ -208,7 +211,7 @@ export async function listMetadataSmoke({ main, js, click, waitFor, capture }) {
     () => js(main, `!document.querySelector('[data-habit-id="${habit.id}"]')`),
     '习惯归档退出普通列表'
   )
-  await click(main, '.archive-view-switch [aria-label="已归档习惯"]')
+  await click(main, '.archive-view-switch [aria-label="已暂停习惯"]')
   await waitFor(
     () =>
       js(
@@ -217,7 +220,7 @@ export async function listMetadataSmoke({ main, js, click, waitFor, capture }) {
       ),
     '图标切换归档习惯'
   )
-  await click(main, '.archive-view-switch [aria-label="当前习惯"]')
+  await click(main, '.archive-view-switch [aria-label="活跃习惯"]')
   assert.equal(
     await js(
       main,

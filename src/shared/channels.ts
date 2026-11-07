@@ -6,7 +6,7 @@ export const IPC_CHANNELS = {
   setInteraction: 'desktop:interaction',
   setNoteDragging: 'desktop:dragging',
   finishNoteMotion: 'desktop:motion-finished',
-  finishCapsulePreparation: 'desktop:capsule-prepared',
+  finishEdgePreparation: 'desktop:edge-prepared',
   saveReply: 'desktop:save-reply',
   listHabits: 'habits:list',
   listArchivedHabits: 'habits:list-archived',

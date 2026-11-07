@@ -11,7 +11,7 @@ import { noteArchiveSmoke } from './note-archive-smoke.mjs'
 import { mainOverviewSmoke } from './main-overview-smoke.mjs'
 import { deleteConfirmationSmoke } from './delete-confirmation-smoke.mjs'
 import { habitsSmoke } from './smoke-habits.mjs'
-import { app, BrowserWindow, dialog, Tray, screen } from 'electron'
+import { app, BrowserWindow, dialog, Tray, screen, desktopCapturer } from 'electron'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -327,6 +327,32 @@ async function dockingSizeSmoke(note) {
       await js(note, `window.myTodo.finishNoteMotion(${closingRevision - 1})`)
       assert.equal((await state(note)).noteMotion, 'closing', '过期动画回调不能结束当前过渡')
       assert.deepEqual(note.getContentSize(), size, '收回动画结束前保留便签绘制空间')
+      const closingHandoff = await js(
+        note,
+        `(() => {
+        const page = document.querySelector('.tasks-page.note');
+        const shell = document.querySelector('.note-morph-surface');
+        const animations = [page.getAnimations()[0], shell.getAnimations()[0]];
+        const times = animations.map(animation => animation.currentTime);
+        animations.forEach(animation => { animation.currentTime = 40; });
+        const pageRect = page.getBoundingClientRect();
+        const beforeFade = shell.getBoundingClientRect();
+        animations.forEach(animation => { animation.currentTime = 50; });
+        const afterFade = shell.getBoundingClientRect();
+        const result = {
+          opacity: Number(getComputedStyle(page).opacity),
+          holdsUntilFade: beforeFade.width === pageRect.width && beforeFade.height === pageRect.height,
+          shrinksAfterFade: afterFade.width < pageRect.width && afterFade.height < pageRect.height
+        };
+        animations.forEach((animation, index) => { animation.currentTime = times[index]; });
+        return result;
+      })()`
+      )
+      assert.deepEqual(
+        closingHandoff,
+        { opacity: 0, holdsUntilFade: true, shrinksAfterFade: true },
+        '页头、列表和底部控件一起淡出，之后便签表面收缩'
+      )
       await waitFor(async () => (await state(note)).collapsed, '吸附收起')
       const strip = note.getBounds()
       pointer =
@@ -355,6 +381,7 @@ async function dockingSizeSmoke(note) {
       await js(
         note,
         `(() => {
+        window.stripViewport = [innerWidth, innerHeight];
         window.capsulePreparation = [];
         window.stopCapsulePreparation = window.myTodo.onWindowState(state => {
           if (state.edgeCapsulePreparing) window.capsulePreparation.push([innerWidth, innerHeight]);
@@ -370,12 +397,12 @@ async function dockingSizeSmoke(note) {
         note,
         `(() => {
         window.stopCapsulePreparation();
-        return window.capsulePreparation;
+        return { frames: window.capsulePreparation, stripViewport: window.stripViewport };
       })()`
       )
       assert.deepEqual(
-        preparation[0],
-        [strip.width, strip.height],
+        preparation.frames[0],
+        preparation.stripViewport,
         '必须在细条窗口尺寸下先隐藏细条，再扩展胶囊绘制空间'
       )
       await assertPushMotion(note, '.edge-energy', edge)
@@ -466,7 +493,11 @@ async function dockingSizeSmoke(note) {
         const started = performance.now();
         while (performance.now() - started < 250) {
           await new Promise(requestAnimationFrame);
-          frames.push({ width: innerWidth, capsuleVisible: Boolean(document.querySelector('.edge-handle')) });
+          frames.push({
+            width: innerWidth,
+            capsuleVisible: Boolean(document.querySelector('.edge-handle')),
+            morphVisible: Boolean(document.querySelector('.note-morph-surface')?.getAnimations().length)
+          });
         }
         return { capsuleWidth, frames };
       })()`
@@ -477,17 +508,22 @@ async function dockingSizeSmoke(note) {
         ),
         '放大原生窗口之前必须先绘制胶囊消失的一帧，避免旧胶囊被搬到便签左侧'
       )
-      await waitFor(async () => !(await state(note)).collapsed, '点击胶囊直接显示便签')
-      assert.equal((await state(note)).noteMotion, undefined, '胶囊展开不播放形变动画')
+      assert.ok(
+        capsuleHandoff.frames.some((frame) => frame.morphVisible),
+        '点击胶囊播放展开形变'
+      )
+      await waitFor(async () => {
+        const desktop = await state(note)
+        return !desktop.collapsed && !desktop.noteMotion
+      }, '胶囊展开动画结束')
       assert.equal(
         await js(note, `document.querySelectorAll('.edge-handle, .note-morph').length`),
-        0,
-        '胶囊原地消失，不残留胶囊副本或动画表面'
+        0
       )
       assert.equal(
         await js(note, `getComputedStyle(document.querySelector('.tasks-page.note')).opacity`),
         '1',
-        '便签内容直接显示'
+        '动画结束后便签内容完全显示'
       )
       if (phase === 'dock') {
         writeFileSync(
@@ -865,11 +901,40 @@ async function runSmoke() {
         y: area.y + area.height - 10
       })
       try {
-        trayClick()
         await waitFor(
-          async () => !(await state(note)).collapsed && note.isFocused(),
-          '托盘唤出贴边便签'
+          () => js(note, `Boolean(document.querySelector('.edge-handle:not(.capsule-visible)'))`),
+          '托盘唤出前显示贴边细条'
         )
+        await js(
+          note,
+          `(() => {
+          const stripViewport = innerHeight;
+          window.trayHandoff = (async () => {
+            const deadline = performance.now() + 1500;
+            let clearedBeforeResize = false;
+            while (performance.now() < deadline) {
+              await new Promise(requestAnimationFrame);
+              if (innerHeight !== stripViewport) return clearedBeforeResize;
+              if (!document.querySelector('.edge-handle')) clearedBeforeResize = true;
+            }
+            return false;
+          })();
+        })()`
+        )
+        trayClick()
+        assert.equal(
+          await js(note, 'window.trayHandoff'),
+          true,
+          '单击托盘后先在原窗口内清除细条，再放大便签窗口'
+        )
+        await waitFor(async () => {
+          const desktop = await state(note)
+          return !desktop.collapsed && !desktop.noteMotion && note.isFocused()
+        }, '托盘唤出并完全展开贴边便签')
+        const openedAt = performance.now()
+        await waitFor(async () => (await state(note)).noteMotion === 'closing', '托盘唤出后收回')
+        const dwell = performance.now() - openedAt
+        assert.ok(dwell >= 2400 && dwell <= 3100, `托盘唤出后约2.5秒开始收回，实测${dwell}毫秒`)
         await waitFor(async () => (await state(note)).collapsed, '无需先进入便签即可自动收回')
         trayClick()
         await waitFor(
@@ -881,7 +946,7 @@ async function runSmoke() {
           () => js(note, `document.activeElement?.dataset.testid === 'task-new'`),
           '空输入框聚焦'
         )
-        await new Promise((resolve) => setTimeout(resolve, 1100))
+        await new Promise((resolve) => setTimeout(resolve, 2800))
         assert.equal((await state(note)).collapsed, false, '空输入框聚焦时鼠标移出也不自动收回')
         await js(note, `document.querySelector('[data-testid=task-new]').blur()`)
         await waitFor(async () => (await state(note)).collapsed, '输入框失焦后恢复自动收回')
@@ -921,6 +986,9 @@ async function runSmoke() {
         () => js(main, `navigator.windowControlsOverlay?.visible`),
         '原生窗口按钮内嵌于内容区'
       )
+      const modalTask = (await js(main, `window.myTodo.createTask('窗口按钮遮罩验证')`)).data
+      await js(main, `window.myTodo.archiveTask('${modalTask.id}')`)
+      await click(main, '.archive-view-switch [aria-label="已归档任务"]')
       for (const appearance of ['light', 'dark']) {
         await js(
           main,
@@ -950,6 +1018,30 @@ async function runSmoke() {
           true,
           '顶部可拖动且不遮挡窗口按钮和新增按钮'
         )
+        await click(main, `[aria-label="永久删除：${modalTask.description}"]`)
+        await waitFor(
+          () => js(main, 'Boolean(document.querySelector("[role=alertdialog]"))'),
+          '窗口遮罩打开'
+        )
+        const sources = await desktopCapturer.getSources({
+          types: ['window'],
+          thumbnailSize: { width: 1600, height: 1200 }
+        })
+        const source = sources.find((source) => source.id === main.getMediaSourceId())
+        assert.ok(source && !source.thumbnail.isEmpty(), '捕获包含原生按钮的窗口')
+        const { width } = source.thumbnail.getSize()
+        const bitmap = source.thumbnail.toBitmap()
+        const pixel = (x, y) => [...bitmap.subarray((y * width + x) * 4, (y * width + x) * 4 + 3)]
+        assert.deepEqual(
+          pixel(width - 25, 10),
+          pixel(width - 250, 10),
+          `${appearance}弹窗遮罩与原生窗口按钮区域背景一致`
+        )
+        writeFileSync(
+          resolve(output, `window-controls-modal-${appearance}.png`),
+          source.thumbnail.toPNG()
+        )
+        await click(main, '[data-testid=delete-cancel]')
       }
       main.maximize()
       await waitFor(() => main.isMaximized(), '主界面最大化')
@@ -997,8 +1089,9 @@ async function runSmoke() {
       menuClick('退出')
       return
     }
-    if (phase === 'habit-archive') {
+    if (phase === 'habit-archive' || phase === 'habit-schedule') {
       await habitArchiveSmoke({
+        scheduleOnly: phase === 'habit-schedule',
         main,
         note,
         js,
@@ -1341,7 +1434,7 @@ async function runSmoke() {
         )
         await js(
           main,
-          `Array.from(document.querySelectorAll('.inspiration-nav-item .inspiration-heading')).find(x => x.textContent === '已归档小记').click()`
+          `Array.from(document.querySelectorAll('.inspiration-nav-item .inspiration-heading')).find(x => x.textContent === '已归档').click()`
         )
         await waitFor(
           () =>
@@ -2030,8 +2123,8 @@ async function runSmoke() {
       assert.deepEqual(headings, [
         '今天',
         ...Array.from({ length: 6 }, (_, i) => localDate(i + 1)),
-        '历史小记',
-        '已归档小记'
+        '一周以前',
+        '已归档'
       ])
       await js(
         main,
@@ -2151,7 +2244,7 @@ async function runSmoke() {
         '归档移出主题'
       )
       await chooseView('日期')
-      await chooseGroup('已归档小记')
+      await chooseGroup('已归档')
       await waitFor(
         () => js(main, `document.querySelectorAll('.inspiration-item').length === 1`),
         '归档区显示'

@@ -1,3 +1,4 @@
+import { Trash2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Inspiration } from '../../../../shared/contracts'
@@ -69,7 +70,7 @@ export function NotePages({
           >
             {ideas.length === 0 && <NoteEmpty kind="inspiration" onAdd={onAdd} />}
             {ideas.map((idea) => (
-              <div key={idea.id} className="task-row" data-note-jotting-id={idea.id}>
+              <div key={idea.id} className="task-row list-row-divider" data-note-jotting-id={idea.id}>
                 <span className="note-jotting-marker" aria-hidden="true" />
                 <div className="task-content">{renderDescription(idea)}</div>
                 <div className="note-task-actions">
@@ -107,7 +108,11 @@ export function NotePages({
             </button>
             <div hidden={!archiveExpanded} aria-label="已归档小记">
               {archivedIdeas.map((idea) => (
-                <div className="note-archive-row" key={idea.id} data-archived-jotting-id={idea.id}>
+                <div
+                  className="note-archive-row list-row-divider"
+                  key={idea.id}
+                  data-archived-jotting-id={idea.id}
+                >
                   <span className="note-jotting-marker" aria-hidden="true" />
                   <span className="note-archive-description" title={idea.description}>
                     {idea.description}
@@ -121,7 +126,7 @@ export function NotePages({
                       disabled={archiving}
                       onClick={() => void onDelete(idea)}
                     >
-                      <TaskActionIcon name="delete" />
+                      <Trash2 size={15} aria-hidden="true" />
                     </button>
                     <button
                       type="button"

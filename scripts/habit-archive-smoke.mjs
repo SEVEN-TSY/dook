@@ -1,4 +1,5 @@
 export async function habitArchiveSmoke({
+  scheduleOnly = false,
   main,
   note,
   js,
@@ -17,18 +18,36 @@ export async function habitArchiveSmoke({
     () =>
       js(
         main,
-        `document.querySelector('[aria-label="当前习惯"] .archive-filter-count')?.textContent === '1'`
+        `document.querySelector('[aria-label="活跃习惯"] .archive-filter-count')?.textContent === '1'`
       ),
     '习惯数量显示在切换栏'
   )
   assert.equal(
-    await js(main, `document.querySelector('[aria-label="当前习惯"] > span').textContent`),
-    '当前'
+    await js(main, `document.querySelector('[aria-label="活跃习惯"] > span').textContent`),
+    '活跃'
   )
   assert.equal(
     await js(main, `Boolean(document.querySelector('${row} [data-testid=habit-edit]'))`),
     false,
     '移除独立编辑按钮'
+  )
+  const executionTime = `${row} .list-meta time`
+  const initialExecution = await js(main, `document.querySelector('${executionTime}')?.dateTime`)
+  assert.ok(initialExecution, '新习惯自动显示下一次执行时间')
+  await click(main, `${row} [data-testid=habit-description]`)
+  await input(main, '[data-testid=habit-edit-input]', '更新习惯描述')
+  await waitFor(
+    () =>
+      js(
+        main,
+        `document.querySelector('${row} [data-testid=habit-description]')?.textContent === '更新习惯描述'`
+      ),
+    '描述保存后刷新习惯行'
+  )
+  assert.equal(
+    await js(main, `document.querySelector('${executionTime}')?.dateTime`),
+    initialExecution,
+    '编辑描述保留下次执行时间'
   )
   await click(main, `${row} [data-testid=habit-schedule]`)
   await waitFor(
@@ -95,6 +114,15 @@ export async function habitArchiveSmoke({
   )
   let saved = (await js(main, 'window.myTodo.listHabits()')).data[0]
   assert.deepEqual(saved.schedule, { kind: 'weekly', time: '09:30', weekdays: [1] })
+  assert.ok(saved.nextExecutionAt, '保存新周期后重新计算下次执行时间')
+  await waitFor(
+    () =>
+      js(
+        main,
+        `document.querySelector('${executionTime}')?.dateTime === ${JSON.stringify(saved.nextExecutionAt)}`
+      ),
+    '习惯行显示新周期的下次执行时间'
+  )
   await click(main, `${row} [data-testid=habit-schedule]`)
   await waitFor(
     () => js(main, `document.querySelector('[aria-label="生成时间"]')?.dataset.time === '09:30'`),
@@ -142,28 +170,62 @@ export async function habitArchiveSmoke({
     () =>
       js(
         main,
-        `document.querySelector('[aria-label="当前习惯"] .archive-filter-count')?.textContent === '0' && document.querySelector('[aria-label="已归档习惯"] .archive-filter-count')?.textContent === '1'`
+        `document.querySelector('[aria-label="活跃习惯"] .archive-filter-count')?.textContent === '0' && document.querySelector('[aria-label="已暂停习惯"] .archive-filter-count')?.textContent === '1'`
       ),
     '归档同步两个数量'
   )
-  await click(main, '[aria-label="已归档习惯"]')
+  await click(main, '[aria-label="已暂停习惯"]')
   await waitFor(() => js(main, `Boolean(document.querySelector('${row}'))`), '已归档列表')
+  await capture(main, 'habit-paused-overview.png')
+  const archivedHabit = (await archived()).find((item) => item.id === habit.id)
+  assert.ok(archivedHabit.archivedAt && !Number.isNaN(Date.parse(archivedHabit.archivedAt)))
+  assert.equal(archivedHabit.createdAt, habit.createdAt)
+  assert.equal(
+    await js(main, `document.querySelector('${row} .list-meta').textContent.includes('已暂停')`),
+    true
+  )
+  assert.equal(
+    await js(
+      main,
+      `document.querySelector('${row} .list-meta').textContent.includes('每天 00:00')`
+    ),
+    true
+  )
   assert.equal(
     await js(main, `Boolean(document.querySelector('${row} [data-testid=habit-edit]'))`),
     false
   )
   await click(main, `${row} [data-testid=habit-restore]`)
   await waitFor(async () => (await tasks()).some((x) => x.habitId === habit.id), '恢复同步便签')
-  await click(main, '[aria-label="当前习惯"]')
+  await click(main, '[aria-label="活跃习惯"]')
+  await waitFor(
+    () => js(main, `Boolean(document.querySelector('${row} .list-meta time')?.dateTime)`),
+    '下一次执行时间显示'
+  )
+  assert.match(
+    await js(main, `document.querySelector('${row} .list-meta').textContent`),
+    /每天 00:00/
+  )
+  await capture(main, 'habit-active-overview.png')
   await click(main, `${row} [data-testid=habit-archive]`)
   await waitFor(async () => (await archived()).length === 1, '再次归档')
-  await click(main, '[aria-label="已归档习惯"]')
+  await click(main, '[aria-label="已暂停习惯"]')
+  const deleteVisibility = () =>
+    js(
+      main,
+      `(() => { const button = document.querySelector('${row} [data-testid=habit-delete]'); return button && getComputedStyle(button).visibility })()`
+    )
+  main.webContents.sendInputEvent({ type: 'mouseMove', x: 4, y: 64 })
+  await waitFor(async () => (await deleteVisibility()) === 'hidden', '已暂停习惯默认隐藏永久删除')
+  await js(main, `document.querySelector('${row} [data-testid=habit-restore]').focus()`)
+  assert.equal(await deleteVisibility(), 'visible', '操作区聚焦后显示永久删除')
   await click(main, `${row} [data-testid=habit-delete]`)
   await click(main, '[data-testid=delete-cancel]')
   assert.equal((await archived()).length, 1)
   await click(main, `${row} [data-testid=habit-delete]`)
   await click(main, '[data-testid=delete-confirm]')
   await waitFor(async () => (await archived()).length === 0, '确认永久删除')
+  if (scheduleOnly) return
   const task = (await js(main, `window.myTodo.createTask('子事项详情验证')`)).data
   await click(main, '.workbench-nav [aria-label="任务"]')
   await js(

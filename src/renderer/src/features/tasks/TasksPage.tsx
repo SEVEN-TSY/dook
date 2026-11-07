@@ -8,11 +8,13 @@ import {
   ChevronsDown,
   Plus,
   Archive,
+  CalendarPlus,
   MoreHorizontal,
   Pin,
   PinOff,
   Repeat,
   SkipForward,
+  Trash2,
   TrendingUp,
   Zap
 } from 'lucide-react'
@@ -116,6 +118,8 @@ export function TasksPage({
   const mainTaskInput = useRef<HTMLTextAreaElement>(null)
   const [expandedNoteGroups, setExpandedNoteGroups] = useState({ today: true, 'multi-day': false })
   const [archiveExpanded, setArchiveExpanded] = useState(false)
+  const [archiveHistoryExpanded, setArchiveHistoryExpanded] = useState(false)
+  const [archiveTodayExpanded, setArchiveTodayExpanded] = useState(true)
   const [draggingTask, setDraggingTask] = useState<Task | null>(null)
   const [dropTarget, setDropTarget] = useState<{ id: string; before: boolean } | null>(null)
   const noteInput = useRef<HTMLInputElement>(null)
@@ -205,7 +209,11 @@ export function TasksPage({
         }
       }
       if (version === categoryCountVersion.current) {
-        setArchivedIdeas(archivedItems.filter(isToday))
+        setArchivedIdeas(
+          archivedItems.filter(
+            (idea) => idea.archivedAt && new Date(idea.archivedAt).toDateString() === date
+          )
+        )
         setInspirationCount(current.length)
         setTodayIdeas(
           current.reverse().sort((a, b) => Date.parse(b.createdAt!) - Date.parse(a.createdAt!))
@@ -398,15 +406,30 @@ export function TasksPage({
       setError(error instanceof Error ? error.message : '窗口操作失败。')
     }
   }
-  const visibleArchived =
-    kind === 'note'
-      ? archived.filter((task) => {
-          if (!task.archivedAt || !today) return false
-          const date = new Date(task.archivedAt)
-          const localDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-          return localDate === today.date
-        })
-      : archived
+  const archivedToday = (task: Task) => {
+    if (!task.archivedAt || !today) return false
+    const date = new Date(task.archivedAt)
+    const localDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    return localDate === today.date
+  }
+  const visibleArchived = kind === 'note' ? archived.filter(archivedToday) : archived
+  const archiveGroups =
+    kind === 'main'
+      ? [
+          {
+            key: 'today',
+            label: '今天',
+            tasks: archived.filter(archivedToday),
+            expanded: archiveTodayExpanded
+          },
+          {
+            key: 'history',
+            label: '历史',
+            tasks: archived.filter((task) => !archivedToday(task)),
+            expanded: archiveHistoryExpanded
+          }
+        ]
+      : [{ key: 'today', label: '', tasks: visibleArchived, expanded: true }]
   const openNoteComposer = () => {
     setAdding(true)
     requestAnimationFrame(() => noteInput.current?.focus())
@@ -434,59 +457,110 @@ export function TasksPage({
         已归档<span className="note-group-count">{visibleArchived.length}</span>
       </button>
       <div hidden={kind === 'main' ? !taskArchiveView : !archiveExpanded} aria-label="已归档任务">
-        {kind === 'main' && visibleArchived.length === 0 && (
-          <p className="inspiration-empty">还没有已归档任务。</p>
-        )}
-        {visibleArchived.map((task) => (
-          <div className="note-archive-row" key={task.id} data-archived-task-id={task.id}>
-            {kind === 'main' ? (
-              <div className="task-content">
-                <span className="note-archive-description" title={task.description}>
-                  {task.description}
-                </span>
-                <p className="list-meta">
-                  <CreatedTime value={task.updatedAt ?? task.createdAt} />
-                </p>
-              </div>
-            ) : (
-              <span className="note-archive-description" title={task.description}>
-                {task.description}
-              </span>
+        {archiveGroups.map((group) => (
+          <div key={group.key} className={kind === 'main' ? 'task-archive-group' : undefined}>
+            {kind === 'main' && (
+              <header className="task-card-heading">
+                <h2>
+                  <button
+                    type="button"
+                    className="task-archive-toggle"
+                    aria-expanded={group.expanded}
+                    onClick={() => {
+                      const toggle =
+                        group.key === 'history'
+                          ? setArchiveHistoryExpanded
+                          : setArchiveTodayExpanded
+                      toggle((expanded) => !expanded)
+                    }}
+                  >
+                    <svg viewBox="0 0 12 12" width="12" height="12" fill="none" aria-hidden="true">
+                      <path
+                        d={group.expanded ? 'm3 4.5 3 3 3-3' : 'm4.5 3 3 3-3 3'}
+                        stroke="currentColor"
+                        strokeWidth="1.3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    {group.label}
+                    <span className="task-card-count">{group.tasks.length}</span>
+                  </button>
+                </h2>
+              </header>
             )}
-            <div className="note-archive-actions" tabIndex={-1} data-delete-focus-group>
-              <button
-                type="button"
-                className="task-delete note-archive-delete"
-                title="永久删除"
-                aria-label={`永久删除：${task.description}`}
-                disabled={busy}
-                onClick={async () => {
-                  if (
-                    (await flush.current()) &&
-                    (await deletion.confirm({
-                      title: '删除归档任务',
-                      description: '永久删除这项任务？',
-                      detail: `${task.description}。任务及其子事项将被永久删除，无法恢复。`
-                    }))
-                  )
-                    await deleteArchived(task.id)
-                }}
+            {kind === 'main' && group.tasks.length === 0 && group.expanded && (
+              <p className="task-card-empty">
+                {group.label === '今天' ? '今天还没有归档任务。' : '还没有历史归档任务。'}
+              </p>
+            )}
+            {(group.expanded ? group.tasks : []).map((task) => (
+              <div
+                className="note-archive-row list-row-divider"
+                key={task.id}
+                data-archived-task-id={task.id}
               >
-                <TaskActionIcon name="delete" />
-              </button>
-              <button
-                type="button"
-                className="task-pin"
-                title="恢复任务"
-                aria-label={`恢复：${task.description}`}
-                disabled={busy}
-                onClick={async () => {
-                  if (await flush.current()) await restore(task.id)
-                }}
-              >
-                <TaskActionIcon name="restore" />
-              </button>
-            </div>
+                {kind === 'main' ? (
+                  <div className="task-content">
+                    <span className="note-archive-description" title={task.description}>
+                      {task.description}
+                    </span>
+                    <p className="list-meta task-archive-times">
+                      <span className="task-archive-time">
+                        <span title="归档时间">
+                          <Archive size={12} aria-hidden="true" />
+                        </span>
+                        <CreatedTime value={task.archivedAt} label="归档时间" />
+                      </span>
+                      <span className="task-archive-time">
+                        <span title="创建时间">
+                          <CalendarPlus size={12} aria-hidden="true" />
+                        </span>
+                        <CreatedTime value={task.createdAt} label="创建时间" />
+                      </span>
+                    </p>
+                  </div>
+                ) : (
+                  <span className="note-archive-description" title={task.description}>
+                    {task.description}
+                  </span>
+                )}
+                <div className="note-archive-actions" tabIndex={-1} data-delete-focus-group>
+                  <button
+                    type="button"
+                    className="task-delete note-archive-delete"
+                    title="永久删除"
+                    aria-label={`永久删除：${task.description}`}
+                    disabled={busy}
+                    onClick={async () => {
+                      if (
+                        (await flush.current()) &&
+                        (await deletion.confirm({
+                          title: '删除归档任务',
+                          description: '永久删除这项任务？',
+                          detail: `${task.description}。任务及其子事项将被永久删除，无法恢复。`
+                        }))
+                      )
+                        await deleteArchived(task.id)
+                    }}
+                  >
+                    <Trash2 size={15} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className="task-pin"
+                    title="恢复任务"
+                    aria-label={`恢复：${task.description}`}
+                    disabled={busy}
+                    onClick={async () => {
+                      if (await flush.current()) await restore(task.id)
+                    }}
+                  >
+                    <TaskActionIcon name="restore" />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         ))}
       </div>
@@ -581,7 +655,11 @@ export function TasksPage({
                   key={String(archived)}
                   type="button"
                   className="archive-filter"
-                  aria-label={`${archived ? '已归档' : '当前'}${page === 'task' ? '任务' : '习惯'}`}
+                  aria-label={
+                    page === 'task'
+                      ? `${archived ? '已归档' : '当前'}任务`
+                      : `${archived ? '已暂停' : '活跃'}习惯`
+                  }
                   aria-pressed={(page === 'task' ? taskArchiveView : habitArchiveView) === archived}
                   onClick={async () => {
                     if ((page === 'task' ? taskArchiveView : habitArchiveView) === archived) return
@@ -596,7 +674,15 @@ export function TasksPage({
                     }
                   }}
                 >
-                  <span>{archived ? '已归档' : page === 'task' ? '当前任务' : '当前'}</span>
+                  <span>
+                    {page === 'task'
+                      ? archived
+                        ? '已归档'
+                        : '当前任务'
+                      : archived
+                        ? '已暂停'
+                        : '活跃'}
+                  </span>
                   <span
                     className="archive-filter-count"
                     title={page === 'task' && !archived ? '已完成／任务总数' : '数量'}
@@ -689,7 +775,7 @@ export function TasksPage({
                         </p>
                       )}
                       {noteGroups[group].map((task) => (
-                        <div key={task.id} className="task-inline-card">
+                        <div key={task.id} className="task-inline-card list-row-divider">
                           <div
                             data-task-id={task.id}
                             data-task-kind={task.kind}
@@ -830,6 +916,7 @@ export function TasksPage({
                               </DropdownMenuTrigger>
                               <DropdownMenuContent
                                 align="end"
+                                className="[&_[role=menuitem]:is(:hover,[data-highlighted]):not([data-disabled])>svg]:text-primary"
                                 onOpenAutoFocus={(event) => {
                                   if (hoverMenu.current) event.preventDefault()
                                 }}
@@ -1238,7 +1325,7 @@ export function TasksPage({
               {noteGroups[group].map((task) => (
                 <div
                   key={task.id}
-                  className={`task-row ${task.completed ? 'completed' : ''} ${draggingTask?.id === task.id ? 'is-dragging' : ''} ${dropTarget?.id === task.id ? (dropTarget.before ? 'drop-before' : 'drop-after') : ''} ${locateTaskOnConvert && locatedTask === task.id ? 'task-located' : ''}`}
+                  className={`task-row list-row-divider ${task.completed ? 'completed' : ''} ${draggingTask?.id === task.id ? 'is-dragging' : ''} ${dropTarget?.id === task.id ? (dropTarget.before ? 'drop-before' : 'drop-after') : ''} ${locateTaskOnConvert && locatedTask === task.id ? 'task-located' : ''}`}
                   onAnimationEnd={(event) => {
                     if (
                       event.target === event.currentTarget &&

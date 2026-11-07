@@ -128,7 +128,11 @@ export async function inspirationPageSmoke({
     )
     await js(main, `document.querySelector('[data-testid=inspiration-edit]').blur()`)
     await waitFor(
-      () => js(main, `Boolean(document.querySelector('[role=alert], [data-sonner-toast][data-type=error] [data-title]'))`),
+      () =>
+        js(
+          main,
+          `Boolean(document.querySelector('[role=alert], [data-sonner-toast][data-type=error] [data-title]'))`
+        ),
       '已有正文清空不可保存'
     )
     assert.equal(
@@ -174,13 +178,40 @@ export async function inspirationPageSmoke({
     )
     await js(
       main,
-      `Array.from(document.querySelectorAll('.inspiration-nav-item .inspiration-heading')).find(x => x.textContent === '已归档小记').click()`
+      `Array.from(document.querySelectorAll('.inspiration-nav-item .inspiration-heading')).find(x => x.textContent === '已归档').click()`
     )
     await waitFor(
       () => js(main, `Boolean(document.querySelector('[aria-label="恢复小记"]'))`),
       '已归档小记显示'
     )
-    await click(main, '.inspiration-summary')
+    const archiveTimes = await js(
+      main,
+      `Array.from(document.querySelectorAll('.task-archive-times time')).map(time => ({label: time.getAttribute('aria-label'), value: time.dateTime}))`
+    )
+    assert.equal(archiveTimes.length, 2)
+    assert.match(archiveTimes[0].label, /^归档时间：/)
+    assert.match(archiveTimes[1].label, /^创建时间：/)
+    assert.ok(archiveTimes.every((time) => time.value && !Number.isNaN(Date.parse(time.value))))
+    assert.deepEqual(
+      await js(
+        main,
+        `Array.from(document.querySelectorAll('.inspiration-list .task-archive-toggle')).map(button => [button.textContent.replace(/[0-9]+$/, ''), button.getAttribute('aria-expanded'), button.querySelector('.task-card-count').textContent])`
+      ),
+      [
+        ['今天', 'true', '1'],
+        ['历史', 'false', '0']
+      ]
+    )
+    await js(main, `document.querySelector('[aria-label="恢复小记"]').focus()`)
+    assert.equal(
+      await js(
+        main,
+        `getComputedStyle(document.querySelector('[aria-label="永久删除小记"]')).visibility`
+      ),
+      'visible',
+      '键盘聚焦恢复按钮时显示永久删除'
+    )
+    await click(main, '.note-archive-description')
     assert.equal(
       await js(
         main,

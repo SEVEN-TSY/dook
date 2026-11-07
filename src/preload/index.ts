@@ -11,8 +11,8 @@ const api: DesktopApi = {
   setInteraction: (active) => ipcRenderer.invoke(IPC_CHANNELS.setInteraction, active),
   setNoteDragging: (active) => ipcRenderer.invoke(IPC_CHANNELS.setNoteDragging, active),
   finishNoteMotion: (revision) => ipcRenderer.invoke(IPC_CHANNELS.finishNoteMotion, revision),
-  finishCapsulePreparation: (revision) =>
-    ipcRenderer.invoke(IPC_CHANNELS.finishCapsulePreparation, revision),
+  finishEdgePreparation: (revision) =>
+    ipcRenderer.invoke(IPC_CHANNELS.finishEdgePreparation, revision),
   onWindowState: (listener) => {
     const callback = (_event: Electron.IpcRendererEvent, state: DesktopState) => listener(state)
     ipcRenderer.on(WINDOW_STATE, callback)

@@ -221,7 +221,7 @@ export function SubitemsPanel({
         submitLabel="添加子事项"
         aria-label="新增子事项"
         data-testid="subitem-new"
-        placeholder="输入子事项描述"
+        placeholder="添加子事项"
         saving={busy}
         onCompositionStart={() => {
           newInput.composing.current = true

@@ -7,6 +7,75 @@ import { AppDatabase } from '../src/main/storage/database'
 import { AppService } from '../src/main/core/app-service'
 import { HabitRepository } from '../src/main/storage/repositories/habits'
 import { TaskRepository } from '../src/main/storage/repositories/tasks'
+import { nextHabitExecution } from '../src/main/core/habit-schedule'
+import { formatHabitSchedule, formatNextHabitExecution } from '../src/shared/habit-schedule'
+
+test('下一次执行按本地日期跨周、跨月及间隔周期计算，未生成的过期计划立即待执行', () => {
+  const now = new Date(2026, 10, 7, 8)
+  assert.equal(
+    nextHabitExecution({ kind: 'weekly', weekdays: [1, 2, 3, 4, 5], time: '07:00' }, now, false),
+    new Date(2026, 10, 9, 7).toISOString()
+  )
+  assert.equal(
+    nextHabitExecution({ kind: 'daily', time: '07:00' }, now, true),
+    new Date(2026, 10, 8, 7).toISOString()
+  )
+  assert.equal(nextHabitExecution({ kind: 'daily', time: '07:00' }, now, false), now.toISOString())
+  assert.equal(
+    nextHabitExecution(
+      { kind: 'interval', intervalDays: 365, startsOn: '2026-11-07', time: '07:00' },
+      now,
+      true
+    ),
+    new Date(2027, 10, 7, 7).toISOString()
+  )
+  assert.equal(
+    nextHabitExecution(
+      { kind: 'interval', intervalDays: 3, startsOn: '2026-10-31', time: '09:00' },
+      now,
+      false
+    ),
+    new Date(2026, 10, 9, 9).toISOString()
+  )
+  assert.equal(
+    formatHabitSchedule({ kind: 'weekly', weekdays: [5, 1, 3], time: '07:00' }),
+    '每周一、三、五 07:00'
+  )
+  assert.equal(
+    formatHabitSchedule({ kind: 'weekly', weekdays: [1, 2, 3, 4, 5], time: '07:00' }),
+    '周一至周五 07:00'
+  )
+  assert.equal(formatNextHabitExecution(new Date(2026, 10, 8, 7).toISOString(), now), '明天 07:00')
+})
+
+test('习惯概览结合生成记录，不因删除任务或修改时间而重复计划今天，暂停后不再活跃', () => {
+  const { db, service, at } = fixture()
+  try {
+    at(2, 6)
+    const habit = service.createHabit('调度概览')
+    assert.equal(
+      service.listHabitOverview()[0].nextExecutionAt,
+      new Date(2026, 10, 2, 7).toISOString()
+    )
+    at(2, 8)
+    service.ensureDailyTasks()
+    service.skipHabitTask(service.listToday().tasks[0].id)
+    service.setHabitSchedule(habit.id, { kind: 'daily', time: '10:00' })
+    assert.equal(
+      service.listHabitOverview()[0].nextExecutionAt,
+      new Date(2026, 10, 3, 10).toISOString()
+    )
+    service.archiveHabit(habit.id)
+    assert.deepEqual(service.listHabitOverview(), [])
+    service.restoreHabit(habit.id)
+    assert.equal(
+      service.listHabitOverview()[0].nextExecutionAt,
+      new Date(2026, 10, 2, 10).toISOString()
+    )
+  } finally {
+    db.close()
+  }
+})
 
 function fixture() {
   const db = new AppDatabase(':memory:')

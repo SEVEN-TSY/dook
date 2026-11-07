@@ -17,7 +17,9 @@ test('创建时间按本地自然日显示，跨年日期完整，旧记录不�
     formatCreatedTime(new Date(2025, 10, 2, 8, 9).toISOString(), now),
     '2025年11月02日 08:09'
   )
-  assert.equal(formatCreatedTime(null, now), '创建时间未知')
+  assert.equal(formatCreatedTime(null, now), '未知')
+  assert.equal(formatCreatedTime(undefined, now), '未知')
+  assert.equal(formatCreatedTime('invalid', now), '未知')
 })
 
 test('任务和习惯保存核心时钟的创建时间，编辑、转换、归档恢复及每日生成保留各自时间', () => {

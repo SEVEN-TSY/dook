@@ -1,7 +1,7 @@
 export function formatCreatedTime(value: string | null | undefined, now = new Date()) {
-  if (!value) return '创建时间未知'
+  if (!value) return '未知'
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '创建时间未知'
+  if (Number.isNaN(date.getTime())) return '未知'
   const pad = (number: number) => String(number).padStart(2, '0')
   const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`
   const today =

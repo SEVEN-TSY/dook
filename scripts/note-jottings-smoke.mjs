@@ -150,12 +150,19 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
   await capture(note, 'note-header-task.png')
   await selectKind('inspiration')
   await waitFor(
-    () => js(note, `document.querySelector('.note-heading-label[aria-hidden=false] h1')?.textContent === '小记'`),
+    () =>
+      js(
+        note,
+        `document.querySelector('.note-heading-label[aria-hidden=false] h1')?.textContent === '小记'`
+      ),
     '类别切换显示小记页'
   )
   assert.equal((await visible()).length, 1, '显示今天的小记')
   assert.equal(
-    await js(note, `document.querySelector('.note-heading-label[aria-hidden=false] .task-date').textContent`),
+    await js(
+      note,
+      `document.querySelector('.note-heading-label[aria-hidden=false] .task-date').textContent`
+    ),
     '今天 · 1条'
   )
   assert.equal(
@@ -319,6 +326,10 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
   )
   await js(main, `window.myTodo.archiveInspiration('${excluded.old}')`)
   await js(main, `window.myTodo.archiveInspiration('${excluded.legacy}')`)
+  db.prepare('UPDATE inspirations SET archived_at = ? WHERE id = ?').run(
+    previousDay.toISOString(),
+    excluded.old
+  )
   const dateProbe = await js(
     main,
     `(async () => {
@@ -327,17 +338,25 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
     return idea.id;
   })()`
   )
-  await waitFor(async () => (await archiveCount()) === '3', '当天归档小记跨窗口同步')
-  assert.equal(
+  await waitFor(
+    async () =>
+      (await archiveCount()) === '4' &&
+      (await js(
+        note,
+        `Boolean(document.querySelector('[data-archived-jotting-id="${dateProbe}"]'))`
+      )),
+    '当天归档小记跨窗口同步'
+  )
+  assert.deepEqual(
     await js(
       note,
-      `Array.from(document.querySelectorAll('[data-archived-jotting-id]')).some(x => /昨天的小记|无日期的小记/.test(x.textContent))`
+      `Array.from(document.querySelectorAll('[data-archived-jotting-id]')).map(x => x.dataset.archivedJottingId).filter(id => ${JSON.stringify([excluded.old, excluded.legacy])}.includes(id))`
     ),
-    false,
-    '已归档也仅显示今天记录的小记'
+    [excluded.legacy],
+    '按归档日期筛选，包含今天归档的无创建日期小记'
   )
   await js(main, `window.myTodo.deleteArchivedInspiration('${dateProbe}')`)
-  await waitFor(async () => (await archiveCount()) === '2', '删除同步归档计数')
+  await waitFor(async () => (await archiveCount()) === '3', '删除同步归档计数')
   const remove = `${archivedRow('已归档的小记')} [title="永久删除小记"]`
   await js(note, `document.querySelector(${JSON.stringify(remove)}).focus()`)
   await click(note, remove)
@@ -346,10 +365,10 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
     '归档小记使用应用内删除确认'
   )
   await click(note, '[data-testid=delete-cancel]')
-  assert.equal(await archiveCount(), '2', '取消删除保留小记')
+  assert.equal(await archiveCount(), '3', '取消删除保留小记')
   await click(note, remove)
   await click(note, '[data-testid=delete-confirm]')
-  await waitFor(async () => (await archiveCount()) === '1', '确认永久删除小记')
+  await waitFor(async () => (await archiveCount()) === '2', '确认永久删除小记')
   assert.equal(
     (await js(main, `window.myTodo.listInspirationPage(0,100,{kind:'archive'})`)).data.items.some(
       (x) => x.description === '已归档的小记'

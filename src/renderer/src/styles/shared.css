@@ -14,6 +14,7 @@
   --app-accent-fill: color-mix(in srgb, var(--app-accent) 65%, var(--app-panel));
   --app-text: light-dark(#303744, #e3e3e3);
   --app-muted: light-dark(#6a7588, #adadad);
+  --app-action-icon: light-dark(#8a94a5, #adadad);
   --app-surface: light-dark(#fafbfe, #202020);
   --app-border: light-dark(#d5dae3, #393939);
   --app-hover: var(--app-accent-hover);
@@ -33,6 +34,20 @@
 /* Structural focus targets restore focus without drawing a selection frame. */
 :is(main, section, aside, div)[tabindex='-1']:focus {
   outline: none;
+}
+
+/* Keep the straight separator between rows independent of the rounded hover surface. */
+.list-row-divider:has(+ .list-row-divider) {
+  position: relative;
+  border-bottom: 1px solid transparent;
+}
+.list-row-divider:has(+ .list-row-divider)::after {
+  content: '';
+  position: absolute;
+  inset-inline: var(--list-divider-inset, 0px);
+  bottom: -1px;
+  border-bottom: 1px solid var(--app-border);
+  pointer-events: none;
 }
 
 /* All checkbox surfaces share the task-list control, including topic selection. */

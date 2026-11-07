@@ -27,6 +27,7 @@ const phases =
           'window-controls',
           'list-metadata',
           'habit-archive',
+          'habit-schedule',
           'drag',
           'dock',
           'note-convert',

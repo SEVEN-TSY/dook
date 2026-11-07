@@ -251,7 +251,7 @@ export function SettingsPage({ state, hidden }: { state: DesktopState | null; hi
         <div className="settings-about-content">
           <strong className="settings-about-name">DOOK</strong>
           <p>规划工作，随时小记。From DO to OK.</p>
-          <p className="settings-copyright">Copyright © 2026 SEVEN-TSY</p>
+          <p className="settings-copyright">Copyright © 2026 SEVEN-TSY v0.1.0</p>
           <dl className="settings-about-details">
             <div>
               <dt>源码仓库</dt>

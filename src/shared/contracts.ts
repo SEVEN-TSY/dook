@@ -57,7 +57,7 @@ export interface DesktopApi {
   setInteraction: (active: boolean) => Promise<ApiResult<void>>
   setNoteDragging: (active: boolean) => Promise<ApiResult<boolean>>
   finishNoteMotion: (revision: number) => Promise<ApiResult<void>>
-  finishCapsulePreparation: (revision: number) => Promise<ApiResult<void>>
+  finishEdgePreparation: (revision: number) => Promise<ApiResult<void>>
   onWindowState: (listener: (state: DesktopState) => void) => () => void
   onSaveRequested: (listener: () => Promise<boolean>) => () => void
   listHabits: () => Promise<ApiResult<Habit[]>>
@@ -162,6 +162,7 @@ export interface DesktopState {
   edgeRevealed?: boolean
   edgeCapsuleVisible?: boolean
   edgeCapsulePreparing?: boolean
+  edgeOpening?: boolean
   edgeRevealRevision?: number
   noteMotion?: 'opening' | 'closing'
   noteMotionRevision?: number
@@ -179,6 +180,8 @@ export interface HabitSchedule {
 }
 
 export interface Habit {
+  nextExecutionAt?: string | null
+  archivedAt?: string | null
   schedule?: HabitSchedule
   createdAt?: string | null
   id: string
@@ -229,12 +232,15 @@ export interface InspirationPage {
   hasMore: boolean
 }
 
+export const INSPIRATION_TOPIC_NAME_MAX_LENGTH = 20
+
 export interface InspirationTopic {
   id: string
   name: string
 }
 
 export interface Inspiration {
+  archivedAt?: string | null
   id: string
   description: string
   additions: InspirationAddition[]

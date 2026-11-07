@@ -119,17 +119,17 @@ export function registerIpc(handlers: Handlers): () => void {
       throw new Error('动画标识无效。')
     handlers.desktop.finishNoteMotion(window, revision)
   })
-  register(IPC_CHANNELS.finishCapsulePreparation, (window, revision) => {
+  register(IPC_CHANNELS.finishEdgePreparation, (window, revision) => {
     if (typeof revision !== 'number' || !Number.isSafeInteger(revision))
-      throw new Error('胶囊交接标识无效。')
-    handlers.desktop.finishCapsulePreparation(window, revision)
+      throw new Error('贴边交接标识无效。')
+    handlers.desktop.finishEdgePreparation(window, revision)
   })
   register(IPC_CHANNELS.saveReply, (window, id, success) => {
     if (typeof id !== 'string' || typeof success !== 'boolean') throw new Error('保存回复无效。')
     handlers.desktop.saves.reply(window, id, success)
   })
   register(IPC_CHANNELS.runDiagnostics, handlers.runDiagnostics)
-  register(IPC_CHANNELS.listHabits, () => handlers.service.listHabits())
+  register(IPC_CHANNELS.listHabits, () => handlers.service.listHabitOverview())
   register(IPC_CHANNELS.listArchivedHabits, () => handlers.service.listArchivedHabits())
   register(IPC_CHANNELS.archiveHabit, (_, id) =>
     mutate(() => handlers.service.archiveHabit(text(id)))

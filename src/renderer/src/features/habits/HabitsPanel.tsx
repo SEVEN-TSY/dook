@@ -1,6 +1,6 @@
 import { HabitSchedulePopover } from './HabitSchedulePopover'
-import { CreatedTime } from '../shared/CreatedTime'
-import { Archive, RotateCcw, Trash2 } from 'lucide-react'
+import { formatHabitSchedule, formatNextHabitExecution } from '../../../../shared/habit-schedule'
+import { CalendarClock, Clock3, Pause, Play, Trash2 } from 'lucide-react'
 import { Toast } from '../../components/Toast'
 import { AppIcon } from '../../components/AppIcon'
 import { useDeleteConfirmation } from '../../components/DeleteConfirmation'
@@ -43,8 +43,7 @@ export function HabitsPanel({
   const composing = useRef(false)
   const saveAfterComposition = useRef(false)
   const save = useRef(async () => true)
-  const edited = useHabitEdit(setError, (habit) => {
-    setHabits((current) => current.map((item) => (item.id === habit.id ? habit : item)))
+  const edited = useHabitEdit(setError, () => {
     setSuccess('习惯已更新')
   })
   const flush = useRef(async () => true)
@@ -111,7 +110,11 @@ export function HabitsPanel({
       void refresh()
     })
     void refresh()
+    const timer = window.setInterval(() => void refresh(), 60_000)
+    window.addEventListener('focus', refresh)
     return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refresh)
       active = false
       unsubscribe()
     }
@@ -122,20 +125,28 @@ export function HabitsPanel({
     edited.start(habit)
     setError('')
   }
-  const act = async (habit: Habit, action: 'archive' | 'restore' | 'delete') => {
+  const act = async (
+    habit: Habit,
+    action: 'archive' | 'restore' | 'delete',
+    trigger?: HTMLButtonElement
+  ) => {
     if (busy || !(await flush.current())) return
+    if (
+      action === 'delete' &&
+      !(await deletion.confirm(
+        {
+          title: '永久删除习惯',
+          description: '永久删除这个习惯？',
+          detail: `${habit.description}。习惯将被永久删除，无法恢复，历史任务保留。`
+        },
+        trigger
+      ))
+    )
+      return
     setBusy(true)
     try {
       const api = getDesktopApi()
       if (action === 'delete') {
-        if (
-          !(await deletion.confirm({
-            title: '永久删除习惯',
-            description: '永久删除这个习惯？',
-            detail: `${habit.description}。习惯将被永久删除，无法恢复，历史任务保留。`
-          }))
-        )
-          return
         unwrap(await api.deleteArchivedHabit(habit.id))
       } else if (action === 'archive') {
         unwrap(await api.archiveHabit(habit.id))
@@ -143,7 +154,7 @@ export function HabitsPanel({
         unwrap(await api.restoreHabit(habit.id))
       }
       setError('')
-      setSuccess({ archive: '习惯已归档', restore: '习惯已恢复', delete: '习惯已永久删除' }[action])
+      setSuccess({ archive: '习惯已暂停', restore: '习惯已启用', delete: '习惯已永久删除' }[action])
     } catch (error) {
       setError(error instanceof Error ? error.message : '习惯操作失败，请重试。')
     } finally {
@@ -201,11 +212,11 @@ export function HabitsPanel({
         </div>
       )}
       {archiveView && archivedHabits.length === 0 && (
-        <p className="inspiration-empty">还没有已归档习惯。</p>
+        <p className="inspiration-empty">还没有已暂停的习惯。</p>
       )}
       <ul className="habit-list">
         {(archiveView ? archivedHabits : habits).map((habit) => (
-          <li key={habit.id} data-habit-id={habit.id} className="main-list-row">
+          <li key={habit.id} data-habit-id={habit.id} className="main-list-row list-row-divider">
             <div className="habit-description">
               {archiveView ? (
                 <span className="habit-archived-description" title={habit.description}>
@@ -222,65 +233,80 @@ export function HabitsPanel({
                   previewTestId="habit-description"
                 />
               )}
-              <p className="list-meta">
-                <CreatedTime value={habit.createdAt} />
+              <p className="list-meta task-archive-times">
+                <span className="task-archive-time" title="下一次执行时间">
+                  <Clock3 size={12} aria-hidden="true" />
+                  {archiveView ? (
+                    <span>已暂停</span>
+                  ) : (
+                    <time
+                      dateTime={habit.nextExecutionAt ?? undefined}
+                      title={
+                        habit.nextExecutionAt
+                          ? `下一次执行：${new Date(habit.nextExecutionAt).toLocaleString('zh-CN', { hour12: false })}`
+                          : '下一次执行：未知'
+                      }
+                    >
+                      {formatNextHabitExecution(habit.nextExecutionAt)}
+                    </time>
+                  )}
+                </span>
+                <span className="task-archive-time" title="调度计划">
+                  <CalendarClock size={12} aria-hidden="true" />
+                  {formatHabitSchedule(habit.schedule)}
+                </span>
               </p>
             </div>
-            <div className="main-list-actions">
-              {archiveView ? (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    title="恢复习惯"
-                    aria-label="恢复习惯"
-                    data-testid="habit-restore"
-                    disabled={busy}
-                    onClick={() => void act(habit, 'restore')}
-                  >
-                    <RotateCcw size={15} />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    title="永久删除习惯"
-                    aria-label="永久删除习惯"
-                    data-testid="habit-delete"
-                    disabled={busy}
-                    onClick={() => void act(habit, 'delete')}
-                  >
-                    <Trash2 size={15} />
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <HabitSchedulePopover
-                    habit={habit}
-                    disabled={busy}
-                    beforeOpen={() => flush.current()}
-                    onSaved={(updated) => {
-                      setHabits((current) =>
-                        current.map((item) => (item.id === updated.id ? updated : item))
-                      )
-                      setError('')
-                      setSuccess('定时周期已保存')
-                    }}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    title="归档习惯"
-                    aria-label={`归档习惯：${habit.description}`}
-                    data-testid="habit-archive"
-                    disabled={busy}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => void act(habit, 'archive')}
-                  >
-                    <Archive size={15} />
-                  </Button>
-                </>
-              )}
-            </div>
+            {archiveView ? (
+              <div className="note-archive-actions" tabIndex={-1} data-delete-focus-group>
+                <button
+                  type="button"
+                  className="task-delete note-archive-delete"
+                  title="永久删除习惯"
+                  aria-label="永久删除习惯"
+                  data-testid="habit-delete"
+                  disabled={busy}
+                  onClick={(event) => void act(habit, 'delete', event.currentTarget)}
+                >
+                  <Trash2 size={15} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="task-pin"
+                  title="启用习惯"
+                  aria-label="启用习惯"
+                  data-testid="habit-restore"
+                  disabled={busy}
+                  onClick={() => void act(habit, 'restore')}
+                >
+                  <Play size={15} aria-hidden="true" />
+                </button>
+              </div>
+            ) : (
+              <div className="main-list-actions">
+                <HabitSchedulePopover
+                  habit={habit}
+                  disabled={busy}
+                  beforeOpen={() => flush.current()}
+                  onSaved={() => {
+                    setError('')
+                    setSuccess('定时周期已保存')
+                  }}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  title="暂停习惯"
+                  aria-label={`暂停习惯：${habit.description}`}
+                  data-testid="habit-archive"
+                  disabled={busy}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => void act(habit, 'archive')}
+                >
+                  <Pause size={15} />
+                </Button>
+              </div>
+            )}
           </li>
         ))}
       </ul>

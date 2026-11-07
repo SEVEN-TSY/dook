@@ -144,5 +144,15 @@ export const migrations = [
     version: 17,
     name: 'subitem_order',
     sql: `ALTER TABLE task_subitems ADD COLUMN sort_order INTEGER;`
+  },
+  {
+    version: 18,
+    name: 'inspiration_archived_time',
+    sql: `ALTER TABLE inspirations ADD COLUMN archived_at TEXT;`
+  },
+  {
+    version: 19,
+    name: 'habit_archived_time',
+    sql: `ALTER TABLE habits ADD COLUMN archived_at TEXT;`
   }
 ] as const

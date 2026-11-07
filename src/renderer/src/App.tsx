@@ -65,20 +65,22 @@ export function App() {
   const kind =
     new URLSearchParams(window.location.search).get('window') === 'note' ? 'note' : 'main'
   const collapsed = kind === 'note' && Boolean(desktop?.collapsed)
+  const preparingEdge =
+    kind === 'note' && Boolean(desktop?.edgeOpening || (collapsed && desktop?.edgeCapsulePreparing))
+  const edgeRevealRevision = desktop?.edgeRevealRevision
   useEffect(() => {
-    if (!collapsed || !desktop?.edgeCapsulePreparing) return
-    const revision = desktop.edgeRevealRevision ?? 0
+    if (!preparingEdge || edgeRevealRevision === undefined) return
     let secondFrame = 0
     const firstFrame = requestAnimationFrame(() => {
       secondFrame = requestAnimationFrame(() => {
-        void getDesktopApi().finishCapsulePreparation(revision)
+        void getDesktopApi().finishEdgePreparation(edgeRevealRevision)
       })
     })
     return () => {
       cancelAnimationFrame(firstFrame)
       cancelAnimationFrame(secondFrame)
     }
-  }, [collapsed, desktop?.edgeCapsulePreparing, desktop?.edgeRevealRevision])
+  }, [preparingEdge, edgeRevealRevision])
   useEffect(() => {
     document.documentElement.dataset.window = kind
   }, [kind])
@@ -97,7 +99,7 @@ export function App() {
         style={collapsed ? { display: 'none' } : undefined}
       />
       {kind === 'note' && desktop?.noteMotion && <NoteTransition desktop={desktop} />}
-      {collapsed && !edgeOpening && (
+      {collapsed && !edgeOpening && !desktop?.edgeOpening && (
         <button
           className={`edge-handle ${desktop?.edge} ${desktop?.edgeCapsuleVisible ? 'capsule-visible' : ''} ${desktop?.edgeCapsulePreparing ? 'capsule-preparing' : ''} ${desktop?.edgeRevealed ? 'revealed' : ''}`}
           aria-label={`展开桌面便签，${summary}`}
