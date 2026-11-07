@@ -21,8 +21,8 @@ win:
       arch: [x64]
   artifactName: dook-${version}-setup.${ext}
 nsis:
-  # 保留既有安装的升级标识。
-  guid: 4c3cb011-5db6-5d55-ac50-6ff85b94b8d4
+  # 沿用electron-builder根据旧appId com.mytodo.desktop生成的安装标识。
+  guid: 90c646f5-435d-5609-9531-7294291184e5
   include: resources/installer.nsh
   oneClick: false
   allowToChangeInstallationDirectory: true
