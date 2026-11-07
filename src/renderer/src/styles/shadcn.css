@@ -84,6 +84,11 @@
   box-shadow: 0 2px 8px light-dark(#20273414, #00000033);
 }
 
+/* Hide older toasts immediately instead of fading them behind the new one. */
+[data-sonner-toaster].toaster [data-sonner-toast][data-visible='false'] {
+  visibility: hidden;
+}
+
 [data-sonner-toaster].toaster [data-sonner-toast] [data-icon] {
   width: 14px;
   height: 14px;

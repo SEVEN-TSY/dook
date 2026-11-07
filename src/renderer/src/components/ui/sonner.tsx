@@ -13,7 +13,8 @@ export function Toaster({ style, ...props }: ToasterProps) {
     <Sonner
       className="toaster group"
       position="top-center"
-      duration={3000}
+      duration={1500}
+      visibleToasts={1}
       richColors
       icons={{
         success: <CircleCheckIcon size={14} />,

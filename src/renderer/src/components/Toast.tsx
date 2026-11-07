@@ -21,7 +21,7 @@ export function Toast({
       if (active) dismiss.current()
     }
     const notify = error ? toast.error : toast.success
-    notify(message, { id, duration: 3000, onDismiss: finish, onAutoClose: finish })
+    notify(message, { id, onDismiss: finish, onAutoClose: finish })
     return () => {
       active = false
       toast.dismiss(id)

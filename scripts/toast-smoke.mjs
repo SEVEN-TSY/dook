@@ -19,6 +19,22 @@ export async function toastSmoke({ main, note, js, click, input, waitFor, captur
     )
   try {
     await click(main, '.workbench-nav [aria-label="任务"]')
+    await click(main, `${row} [data-testid=task-description]`)
+    await input(main, '[data-testid=task-edit]', '提示验收任务已编辑')
+    const visibleMessages = () =>
+      js(
+        main,
+        `Array.from(document.querySelectorAll('[data-sonner-toast]'))
+          .filter(toast => toast.checkVisibility({ opacityProperty: true, visibilityProperty: true }))
+          .map(toast => toast.textContent)`
+      )
+    await waitFor(async () => (await visibleMessages()).includes('任务已保存'), '显示编辑提示')
+    await click(main, `${row} input[type=checkbox]`)
+    await waitFor(async () => (await visibleMessages()).includes('操作成功'), '显示完成提示')
+    assert.deepEqual(await visibleMessages(), ['操作成功'], '连续操作只显示最新提示')
+    await waitFor(() => js(main, `!document.querySelector('[data-sonner-toast]')`), '连续提示消失')
+    assert.ok((await js(main, `window.dook.setTaskCompleted('${task.id}', false)`)).ok)
+
     for (const appearance of ['light', 'dark']) {
       await js(
         main,
@@ -52,7 +68,7 @@ export async function toastSmoke({ main, note, js, click, input, waitFor, captur
         await capture(window, `toast-${kind}-${appearance}-error.png`)
         await waitFor(
           () => js(window, `!document.querySelector('[data-sonner-toast]')`),
-          '约3秒自动消失'
+          '错误提示自动消失'
         )
         assert.equal(
           await js(window, `document.querySelector('[data-testid=task-edit]').value`),

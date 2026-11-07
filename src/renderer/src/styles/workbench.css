@@ -125,9 +125,6 @@
   flex: 1;
   padding: 0 40px 40px;
 }
-.workbench .workbench-main-list-page {
-  padding-left: 20px;
-}
 .workbench .workbench-main-inspiration {
   max-width: none;
   padding-left: 20px;
@@ -532,12 +529,15 @@
   min-width: 0;
 }
 .workbench .settings-page {
-  padding: 0;
+  padding: 12px 0 0;
   margin: 0;
-  max-width: 860px;
+  max-width: none;
   border: 0;
   background: transparent;
   min-height: 0;
+}
+.workbench .settings-page > * {
+  max-width: 860px;
 }
 .workbench .settings-group {
   margin-bottom: 28px;
@@ -1155,9 +1155,6 @@ html[data-window='main'] .inspiration-topic-error {
 .workbench-header .workbench-date:empty {
   display: none;
 }
-.workbench .settings-page {
-  max-width: 860px;
-}
 .workbench .settings-group {
   margin: 0 0 24px;
   padding: 0 22px;
@@ -1509,22 +1506,23 @@ html[data-window='main']:has(.workbench-main-inspiration) {
   transform: scaleX(1);
 }
 
-/* Keep the title and filters fixed; each list owns the remaining viewport. */
-html[data-window='main']:has(.workbench-main-list-page) {
+/* Keep the title and filters fixed above the scrollable content. */
+html[data-window='main']:has(.workbench-main-list-page, .page-settings) {
   overflow: hidden;
   scrollbar-gutter: auto;
 }
-.workbench .workbench-main-list-page {
+.workbench .workbench-main-list-page,
+.workbench.page-settings > .workbench-main {
   display: flex;
   flex-direction: column;
   max-width: none;
   height: 100vh;
-  padding-right: 0;
-  padding-bottom: 0;
+  padding: 0 0 0 20px;
   overflow: hidden;
 }
 .workbench-main-list-page > .workbench-header,
-.workbench-main-inspiration > .workbench-header {
+.workbench-main-inspiration > .workbench-header,
+.page-settings .workbench-header {
   flex: none;
   min-height: 0;
   padding-top: 30px;
@@ -1537,7 +1535,8 @@ html[data-window='main']:has(.workbench-main-list-page) {
   margin-right: 20px;
 }
 .workbench-main-list-page > .workbench-split,
-.workbench-main-list-page > .workbench-habit-page {
+.workbench-main-list-page > .workbench-habit-page,
+.workbench > .workbench-main > .settings-page {
   flex: 1;
   min-height: 0;
   margin-inline-start: calc(-1 * var(--list-row-outset));

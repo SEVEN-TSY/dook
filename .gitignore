@@ -13,4 +13,8 @@ coverage/
 *.tsbuildinfo
 .DS_Store
 /.scratch/
-/doc/
+/doc/**
+!/doc/codebase.md
+!/doc/mcp.md
+!/doc/todo.md
+!/doc/ui-style-guide.md
