@@ -413,12 +413,14 @@ h1 {
   display: none;
 }
 .note .task-heading {
-  cursor: move;
-  touch-action: none;
   user-select: none;
   min-height: 28px;
   align-items: flex-start;
   position: relative;
+}
+.note .note-drag-region {
+  -webkit-app-region: drag;
+  cursor: default;
 }
 .note-controls {
   display: flex;
@@ -1187,6 +1189,10 @@ h1 {
   height: 28px;
   border-radius: 6px;
   background: var(--app-surface);
+}
+/* 行尾操作区的背景不应遮住行间分割线。 */
+.note .task-row.list-row-divider::after {
+  z-index: 2;
 }
 .note .task-row:hover .note-task-actions {
   background: linear-gradient(var(--app-hover), var(--app-hover)), var(--app-surface);

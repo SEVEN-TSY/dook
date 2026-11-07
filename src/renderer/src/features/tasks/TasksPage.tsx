@@ -1083,23 +1083,10 @@ export function TasksPage({
       hidden={hidden}
     >
       <header
-        className="task-heading"
+        className={
+          deletion.open || desktop?.exitPending ? 'task-heading' : 'task-heading note-drag-region'
+        }
         title={kind === 'note' ? '拖动到桌面边缘吸附' : undefined}
-        onPointerDown={(event) => {
-          if (kind !== 'note' || event.button !== 0 || (event.target as Element).closest('button'))
-            return
-          event.preventDefault()
-          event.currentTarget.setPointerCapture(event.pointerId)
-          void windowAction(async () => unwrap(await getDesktopApi().setNoteDragging(true)))
-        }}
-        onPointerUp={(event) => {
-          if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
-          event.currentTarget.releasePointerCapture(event.pointerId)
-        }}
-        onLostPointerCapture={() => {
-          if (kind === 'note')
-            void windowAction(async () => unwrap(await getDesktopApi().setNoteDragging(false)))
-        }}
       >
         <div className="note-heading-viewport">
           <div

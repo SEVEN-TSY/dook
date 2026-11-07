@@ -14,7 +14,11 @@ coverage/
 .DS_Store
 /.scratch/
 /doc/**
+!/doc/assets/
+!/doc/assets/ui/
 !/doc/codebase.md
+!/doc/design-language.md
+!/doc/desktop-validation.md
 !/doc/mcp.md
 !/doc/todo.md
 !/doc/ui-style-guide.md

@@ -35,10 +35,9 @@ export class NoteController {
   private outsideSince = 0
   private trayKeepOpenUntil = 0
   private applying = false
-  private dragging = false
+  private nativeMoving = false
   private edgeDragMoved = false
   private dragTimer?: ReturnType<typeof setInterval>
-  private dragBounds?: Rectangle
   private edgeDrag?: {
     origin: { x: number; y: number }
     bounds: Rectangle
@@ -65,8 +64,9 @@ export class NoteController {
       ...this.preferences.position
     }
     this.recover()
+    window.on('will-move', this.willMove)
     window.on('moved', this.moved)
-    window.on('resized', this.moved)
+    window.on('resized', this.resized)
     window.on('blur', () => {
       this.setDragging(false)
     })
@@ -154,7 +154,7 @@ export class NoteController {
         this.window.setMaximumSize(bounds.width, bounds.height)
       }
       this.window.setBounds(bounds)
-      if (!this.collapsed && !this.dragging) {
+      if (!this.collapsed) {
         this.window.setMaximumSize(0, 0)
         this.window.setMinimumSize(
           Math.min(334, this.expanded.width),
@@ -168,24 +168,51 @@ export class NoteController {
     this.notify()
   }
 
-  private readonly moved = () => {
-    if (this.applying || this.dragging || this.collapsed || this.window.isDestroyed()) return
-    const bounds = this.window.getBounds()
-    if (this.dragBounds) {
-      bounds.width = this.dragBounds.width
-      bounds.height = this.dragBounds.height
+  private readonly willMove = () => {
+    if (this.applying || this.collapsed || this.nativeMoving) return
+    this.nativeMoving = true
+    this.outsideSince = 0
+    if (this.noteMotion) {
+      this.cancelMotion()
+      this.notify()
     }
-    if (JSON.stringify(bounds) === JSON.stringify(this.expanded)) {
-      this.dragging = false
+  }
+
+  private readonly resized = () => {
+    if (!this.nativeMoving) this.commitBounds()
+  }
+
+  private readonly moved = () => {
+    if (!this.nativeMoving) {
+      this.commitBounds()
       return
     }
+    // Windows在moved回调返回后才结束原生拖动，之后再校正外框尺寸。
+    setImmediate(() => {
+      if (this.nativeMoving) this.commitBounds()
+    })
+  }
+
+  private commitBounds() {
+    if (this.applying || this.collapsed || this.window.isDestroyed()) return
+    const bounds = this.window.getBounds()
+    const [width, height] = this.window.getContentSize()
+    // 保留拖动前的内容尺寸，避免Windows分数缩放使窗口变大。
+    bounds.width = this.nativeMoving ? this.expanded.width : width
+    bounds.height = this.nativeMoving ? this.expanded.height : height
+    this.nativeMoving = false
+    if (
+      width === bounds.width &&
+      height === bounds.height &&
+      JSON.stringify(bounds) === JSON.stringify(this.expanded)
+    )
+      return
     this.expanded = bounds
     const display = screen.getDisplayMatching(bounds)
     this.edge = this.preferences.settings.edgeAutoHide
       ? nearbyEdge(bounds, display, screen.getAllDisplays())
       : null
     if (this.edge) this.expanded = snapBounds(bounds, display, this.edge)
-    this.dragging = false
     this.awaitingEntry = true
     this.insideSince = this.outsideSince = 0
     this.apply()
@@ -194,6 +221,7 @@ export class NoteController {
 
   readonly recover = () => {
     if (this.window.isDestroyed()) return
+    this.nativeMoving = false
     this.setDragging(false)
     this.cancelMotion()
     this.resetReveal()
@@ -261,7 +289,7 @@ export class NoteController {
     this.cancelMotion()
     this.setDragging(false)
     this.resetReveal()
-    if (!this.collapsed) this.moved()
+    if (!this.collapsed) this.commitBounds()
     this.collapsed = false
     this.apply()
     this.window.hide()
@@ -397,11 +425,11 @@ export class NoteController {
   }
 
   setDragging(active: boolean) {
-    if (active === this.dragging || this.window.isDestroyed()) return this.edgeDragMoved
-    this.dragging = active
-    if (active) this.cancelMotion()
-    if (active) this.edgeDragMoved = false
-    if (active && this.collapsed && this.edge) {
+    if (this.window.isDestroyed()) return this.edgeDragMoved
+    if (active) {
+      if (this.edgeDrag || !this.collapsed || !this.edge) return false
+      this.cancelMotion()
+      this.edgeDragMoved = false
       this.edgeDrag = {
         origin: screen.getCursorScreenPoint(),
         bounds: { ...this.expanded },
@@ -411,7 +439,7 @@ export class NoteController {
       this.dragTimer = setInterval(() => this.moveEdgeDrag(), 16)
       return false
     }
-    if (!active && this.edgeDrag) {
+    if (this.edgeDrag) {
       this.moveEdgeDrag()
       this.edgeDragMoved = this.edgeDrag.moved
       clearInterval(this.dragTimer)
@@ -419,41 +447,8 @@ export class NoteController {
       this.edgeDrag = undefined
       this.insideSince = this.outsideSince = 0
       this.persist()
-      return this.edgeDragMoved
     }
-    if (active) {
-      const origin = screen.getCursorScreenPoint()
-      const bounds = this.window.getBounds()
-      const [width, height] = this.window.getContentSize()
-      bounds.width = width
-      bounds.height = height
-      this.dragBounds = bounds
-      // Windows分数缩放下，移动会对外接矩形取整；锁定内容尺寸，避免逐帧累积变大。
-      this.window.setMinimumSize(bounds.width, bounds.height)
-      this.window.setMaximumSize(bounds.width, bounds.height)
-      let previous = origin
-      this.dragTimer = setInterval(() => {
-        const point = screen.getCursorScreenPoint()
-        if (point.x === previous.x && point.y === previous.y) return
-        previous = point
-        this.window.setBounds({
-          ...bounds,
-          x: bounds.x + point.x - origin.x,
-          y: bounds.y + point.y - origin.y
-        })
-      }, 16)
-    } else {
-      clearInterval(this.dragTimer)
-      this.dragTimer = undefined
-      this.moved()
-      this.dragBounds = undefined
-      this.window.setMaximumSize(0, 0)
-      this.window.setMinimumSize(
-        Math.min(334, this.expanded.width),
-        Math.min(260, this.expanded.height)
-      )
-    }
-    return false
+    return this.edgeDragMoved
   }
 
   private moveEdgeDrag() {
@@ -500,7 +495,14 @@ export class NoteController {
 
   private trackPointer() {
     if (this.disposed || this.window.isDestroyed()) return
-    if (!this.edge || !this.window.isVisible() || this.dragging || this.noteMotion) return
+    if (
+      !this.edge ||
+      !this.window.isVisible() ||
+      this.nativeMoving ||
+      this.edgeDrag ||
+      this.noteMotion
+    )
+      return
     if (this.awaitingCapsulePaint || this.openingPreparation) return
     const point = screen.getCursorScreenPoint()
     const bounds = this.window.getBounds()
@@ -566,8 +568,9 @@ export class NoteController {
     screen.removeListener('display-added', this.recover)
     screen.removeListener('display-removed', this.recover)
     screen.removeListener('display-metrics-changed', this.recover)
+    this.window.removeListener('will-move', this.willMove)
     this.window.removeListener('moved', this.moved)
-    this.window.removeListener('resized', this.moved)
+    this.window.removeListener('resized', this.resized)
     this.persist()
   }
 }

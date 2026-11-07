@@ -203,39 +203,28 @@ async function edit(window, value, key = 'Enter') {
 }
 
 async function draggingSmoke(note) {
-  const cursor = screen.getCursorScreenPoint
   const before = note.getBounds()
   const size = note.getContentSize()
-  let point = { x: before.x + 80, y: before.y + 25 }
-  screen.getCursorScreenPoint = () => point
-  try {
-    note.focus()
-    note.webContents.sendInputEvent({
-      type: 'mouseDown',
-      x: 80,
-      y: 25,
-      button: 'left',
-      clickCount: 1
-    })
-    await new Promise((resolve) => setTimeout(resolve, 80))
-    for (let step = 1; step <= 19; step++) {
-      point = { x: before.x + 80 + step, y: before.y + 25 + step }
-      await waitFor(() => note.getBounds().x === before.x + step, '连续拖动跟随鼠标')
-      assert.deepEqual(note.getContentSize(), size, `第${step}次移动内容尺寸不变`)
-    }
-    note.webContents.sendInputEvent({
-      type: 'mouseUp',
-      x: 80,
-      y: 25,
-      button: 'left',
-      clickCount: 1
-    })
-    await new Promise((resolve) => setTimeout(resolve, 80))
-    assert.deepEqual(note.getContentSize(), size, '拖动结束内容尺寸不变')
-  } finally {
-    await js(note, 'window.dook.setNoteDragging(false)')
-    screen.getCursorScreenPoint = cursor
-  }
+  const dragRegion = (selector) =>
+    js(
+      note,
+      `getComputedStyle(document.querySelector(${JSON.stringify(selector)})).getPropertyValue('-webkit-app-region')`
+    )
+  assert.equal(await dragRegion('.note .task-heading'), 'drag', '头部使用原生拖动区')
+  assert.equal(await dragRegion('.note-controls'), 'no-drag', '头部按钮排除在拖动区外')
+  // 模拟原生移动通知，以及Windows在分数缩放下松手时产生的尺寸偏差。
+  const moved = { x: before.x + 19, y: before.y + 19, width: size[0] + 2, height: size[1] + 2 }
+  note.emit('will-move', {}, moved)
+  note.setBounds(moved)
+  const roundedSize = note.getContentSize()
+  assert.notDeepEqual(roundedSize, size, '模拟Windows尺寸取整误差')
+  note.emit('resized')
+  assert.deepEqual(note.getContentSize(), roundedSize, '拖动时等待原生移动结束')
+  note.emit('moved')
+  await waitFor(
+    () => note.getContentSize().every((dimension, index) => dimension === size[index]),
+    '拖动结束校正回原内容尺寸'
+  )
 }
 
 async function assertPushMotion(note, selector, edge, leaving = false) {
@@ -301,8 +290,6 @@ async function dockingSizeSmoke(note) {
       assert.equal((await state(note)).edge, null)
       const before = await surface()
       const origin = note.getBounds()
-      pointer = { x: origin.x + 80, y: origin.y + 25 }
-      await js(note, 'window.dook.setNoteDragging(true)')
       const x =
         edge === 'left'
           ? area.x + 10
@@ -310,10 +297,10 @@ async function dockingSizeSmoke(note) {
             ? area.x + area.width - size[0] - 10
             : area.x + 101
       const y = edge === 'top' ? area.y + 10 : area.y + 101
-      pointer = { x: pointer.x + x - origin.x, y: pointer.y + y - origin.y }
-      await waitFor(() => note.getBounds().x === x, '拖向吸附边缘')
-      assert.deepEqual(note.getContentSize(), size, '吸附前内容尺寸不变')
-      await js(note, 'window.dook.setNoteDragging(false)')
+      note.emit('will-move', {}, { ...origin, x, y })
+      note.setBounds({ x, y, width: size[0], height: size[1] })
+      assert.equal((await state(note)).edge, null, '原生拖动途中不吸附')
+      note.emit('moved')
       await waitFor(async () => (await state(note)).edge === edge, '松手吸附')
       await pause(100)
       assert.deepEqual(note.getContentSize(), size, `${edge}吸附后内容尺寸不变`)
@@ -547,7 +534,6 @@ async function dockingSizeSmoke(note) {
       assert.deepEqual(await surface(), before, `${edge}收起展开后便签表面宽高不变`)
     }
   } finally {
-    await js(note, 'window.dook.setNoteDragging(false)')
     screen.getCursorScreenPoint = cursor
   }
 }
@@ -574,31 +560,6 @@ async function dockingSmoke(main, note) {
     await dockingSizeSmoke(note)
     await move(area.x + 80, area.y + 90)
     await draggingSmoke(note)
-    const beforeDrag = note.getBounds()
-    pointer = { x: beforeDrag.x + 80, y: beforeDrag.y + 25 }
-    note.webContents.sendInputEvent({
-      type: 'mouseDown',
-      x: 80,
-      y: 25,
-      button: 'left',
-      clickCount: 1
-    })
-    await pause(100)
-    pointer = { x: pointer.x + 40, y: pointer.y + 30 }
-    await waitFor(() => note.getBounds().x === beforeDrag.x + 40, '头部拖动跟随鼠标')
-    note.webContents.sendInputEvent({
-      type: 'mouseUp',
-      x: 80,
-      y: 25,
-      button: 'left',
-      clickCount: 1
-    })
-    await pause(100)
-    assert.equal(
-      await js(note, `getComputedStyle(document.querySelector('.task-heading')).cursor`),
-      'move',
-      '四向移动光标'
-    )
     if ((await state(note)).pinned) await click(note, '[data-testid=note-pin]')
     await move(area.x + 18, area.y + 100)
     assert.equal((await state(note)).edge, 'left')
@@ -693,8 +654,7 @@ async function dockingSmoke(main, note) {
     assert.equal((await state(note)).edge, 'right')
     screen.getAllDisplays = () => [left]
     screen.getDisplayMatching = () => left
-    await js(note, 'window.dook.setNoteDragging(true)')
-    pointer = { x: pointer.x + area.width, y: pointer.y }
+    note.emit('will-move', {}, note.getBounds())
     screen.emit('display-removed', {}, right)
     await waitFor(
       () =>
@@ -964,9 +924,7 @@ async function runSmoke() {
       note.emit('moved')
       await draggingSmoke(note)
       await draggingSmoke(note)
-      await js(note, 'window.dook.setNoteDragging(true)')
-      await js(note, 'window.dook.setNoteDragging(false)')
-      assert.deepEqual(note.getMinimumSize(), [334, 260], '仅点击头部不锁死最小尺寸')
+      assert.deepEqual(note.getMinimumSize(), [334, 260], '拖动后恢复窗口最小尺寸')
       console.log('Electron drag size passed')
       app.exit(0)
       return
@@ -1452,8 +1410,8 @@ async function runSmoke() {
           false
         )
         assert.equal(
-          (await js(main, `window.dook.listInspirationPage(0, 20, {kind:'archive'})`)).data
-            .items[0].additions[0].content,
+          (await js(main, `window.dook.listInspirationPage(0, 20, {kind:'archive'})`)).data.items[0]
+            .additions[0].content,
           '归档持久补充'
         )
         await click(main, '[aria-label="恢复小记"]')

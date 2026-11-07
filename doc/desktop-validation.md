@@ -4,7 +4,7 @@
 
 ## 自动化入口
 
-运行`npm test`验证应用服务、真实SQLite、迁移和MCP；运行`npm run smoke`构建并在独立目录完成首次操作与重启恢复两阶段真实Electron验证。已构建后可用`node scripts/run-smoke.mjs drag`单独验证靠近边缘和自由区域的连续1px拖动、重复拖动及松手后内容尺寸保持不变。
+运行`npm test`验证应用服务、真实SQLite、迁移和MCP；运行`npm run smoke`构建并在独立目录完成首次操作与重启恢复两阶段真实Electron验证。已构建后可用`node scripts/run-smoke.mjs drag`单独验证原生拖动区域、按钮排除范围，以及重复移动后校正Windows分数缩放造成的内容尺寸偏差。
 
 `node scripts/run-smoke.mjs dock`单独验证左、右、上三边吸附前后以及收起再展开后的窗口内容与便签表面宽高一致，同时验证悬停呼出胶囊、沿边拖动、松手不展开、离开恢复细条和点击展开。该独立场景还验证胶囊仅展示完成数和总任务数，以及完成比例不包含多天任务的部分进度，截图保存为`note-capsule-left.png`、`note-capsule-right.png`和`note-capsule-top.png`。完整smoke也运行贴边交互检查。
 
