@@ -8,6 +8,8 @@
 
 DOOK是一款面向日常工作的待办与小记应用。今天要做的事、需要持续推进的事、按周期重复的事，以及想先记下来的想法和备忘，都可以放在这里。
 
+**[下载Windows x64版](https://github.com/SEVEN-TSY/dook/releases/latest)** · 提供安装包`.exe`和免安装包`.zip`。
+
 ## <img src="docs/assets/readme-icons/design.svg" width="28" height="26" align="absmiddle" alt="">设计理念
 
 - <img src="docs/assets/readme-icons/task.svg" width="20" height="19" align="absmiddle" alt="">**任务**｜今天要修登录页报错，我记一条，修完就勾掉。像重构鉴权这种要做几天的事，我放进「持续推进」，拆成迁移接口、补测试等子事项，分几天做完。
