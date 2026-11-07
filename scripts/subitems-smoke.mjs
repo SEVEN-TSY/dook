@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 
 export async function subitemsSmoke({ phase, main, note, input, click, js, waitFor }) {
   const description = '子事项回归：整理需求'
-  const tasks = async () => (await js(main, 'window.myTodo.listToday()')).data.tasks
+  const tasks = async () => (await js(main, 'window.dook.listToday()')).data.tasks
   const find = async () => (await tasks()).find((task) => task.description === description)
   const row = (id) => `[data-task-id="${id}"]`
   if (phase === 'create') {
@@ -71,9 +71,9 @@ export async function subitemsSmoke({ phase, main, note, input, click, js, waitF
       '不会恢复已删除的子事项'
     )
     await input(note, `${row(task.id)} [data-testid=subitem-new]`, '隐藏前保存子事项', null)
-    await js(note, 'window.myTodo.hideWindow()')
+    await js(note, 'window.dook.hideWindow()')
     await waitFor(() => !note.isVisible(), '等待子事项保存后隐藏')
-    await js(main, `window.myTodo.openWindow('note')`)
+    await js(main, `window.dook.openWindow('note')`)
     await waitFor(() => note.isVisible(), '恢复子事项窗口')
     await waitFor(async () => (await find())?.subitems?.length === 3, '隐藏握手保存子事项')
   } else if (phase === 'restart') {

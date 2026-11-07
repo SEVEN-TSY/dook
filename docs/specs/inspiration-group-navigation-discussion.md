@@ -1,6 +1,6 @@
 # 灵感分组导航交互讨论
 
-2026-11-01。状态：用户已统一确认交互清单及测试边界，已整理为《灵感分组导航改版：页内新增、主题管理与归档》，发布为[GitHub Issue #18](https://github.com/SEVEN-TSY/myTodo/issues/18)，标签为ready-for-agent；尚未实施。
+2026-11-01。状态：用户已统一确认交互清单及测试边界，已整理为《灵感分组导航改版：页内新增、主题管理与归档》，发布为[GitHub Issue #18](https://github.com/SEVEN-TSY/dook/issues/18)，标签为ready-for-agent；尚未实施。
 
 ## 已确认
 

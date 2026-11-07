@@ -67,7 +67,7 @@ export async function inspirationPageSmoke({
       true,
       '新增清除后保留焦点及展开'
     )
-    assert.equal((await js(main, `window.myTodo.listInspirations()`)).data.length, 0, '清除不提交')
+    assert.equal((await js(main, `window.dook.listInspirations()`)).data.length, 0, '清除不提交')
     assert.equal(
       await js(main, `Boolean(document.querySelector('[aria-label="清除新增小记内容"]'))`),
       false,
@@ -79,7 +79,7 @@ export async function inspirationPageSmoke({
       `document.querySelector('[aria-label="新增小记内容"]').dispatchEvent(new KeyboardEvent('keydown', {key:'Enter', isComposing:true, bubbles:true}))`
     )
     assert.equal(
-      (await js(main, `window.myTodo.listInspirations()`)).data.length,
+      (await js(main, `window.dook.listInspirations()`)).data.length,
       0,
       '输入法选字不提交'
     )
@@ -136,7 +136,7 @@ export async function inspirationPageSmoke({
       '已有正文清空不可保存'
     )
     assert.equal(
-      (await js(main, `window.myTodo.listInspirations()`)).data[0].description,
+      (await js(main, `window.dook.listInspirations()`)).data[0].description,
       '完整正文第一行\n第二行\n第三行',
       '空白未截断持久化正文'
     )
@@ -144,17 +144,17 @@ export async function inspirationPageSmoke({
     await js(main, `document.querySelector('[data-testid=inspiration-edit]').blur()`)
     await waitFor(
       async () =>
-        (await js(main, `window.myTodo.listInspirations()`)).data[0].description ===
+        (await js(main, `window.dook.listInspirations()`)).data[0].description ===
         '失焦保存后的正文',
       '正文原有失焦保存'
     )
 
-    const idea = (await js(main, `window.myTodo.createInspiration('保留正文和历史补充')`)).data
+    const idea = (await js(main, `window.dook.createInspiration('保留正文和历史补充')`)).data
     assert.equal(
       (
         await js(
           main,
-          `window.myTodo.appendInspiration('${idea.id}', '历史补充仍可读取', 'history-addition')`
+          `window.dook.appendInspiration('${idea.id}', '历史补充仍可读取', 'history-addition')`
         )
       ).ok,
       true
@@ -240,7 +240,7 @@ export async function inspirationPageSmoke({
     }
     await js(
       main,
-      `(async () => { const topic = (await window.myTodo.createInspirationTopic('记忆主题')).data; for (let i=0;i<28;i++) await window.myTodo.createInspiration('分页正文'+i, topic.id); })()`
+      `(async () => { const topic = (await window.dook.createInspirationTopic('记忆主题')).data; for (let i=0;i<28;i++) await window.dook.createInspiration('分页正文'+i, topic.id); })()`
     )
     await selectGroup('今天')
     await waitFor(
@@ -287,12 +287,12 @@ export async function inspirationPageSmoke({
     await input(main, '[aria-label="新增小记内容"]', '主题内新增')
     await waitFor(
       async () =>
-        (await js(main, `window.myTodo.listInspirations()`)).data.some(
+        (await js(main, `window.dook.listInspirations()`)).data.some(
           (x) => x.description === '主题内新增' && x.topicIds.length === 1
         ),
       '主题内新增保留自动归集'
     )
-    const db = new DatabaseSync(resolve(process.env.MYTODO_SMOKE_DATA, 'mytodo.sqlite'))
+    const db = new DatabaseSync(resolve(process.env.DOOK_SMOKE_DATA, 'dook.sqlite'))
     try {
       db.exec(
         `CREATE TRIGGER fail_inspiration BEFORE INSERT ON inspirations WHEN NEW.description = '失败后重试' BEGIN SELECT RAISE(ABORT, '测试保存失败'); END`
@@ -370,9 +370,9 @@ export async function inspirationPageSmoke({
       false,
       '便签不新增小记正文列表'
     )
-    const noteIdeas = (await js(note, `window.myTodo.listInspirations()`)).data
+    const noteIdeas = (await js(note, `window.dook.listInspirations()`)).data
     assert.deepEqual(
-      (await js(main, `window.myTodo.listInspirations()`)).data,
+      (await js(main, `window.dook.listInspirations()`)).data,
       noteIdeas,
       '双窗口读取同一持久化数据'
     )
@@ -392,7 +392,7 @@ export async function inspirationPageSmoke({
     // 退出前停在其他主题；重启应回到无主题。
     await selectGroup('记忆主题')
   }
-  const saved = (await js(main, `window.myTodo.listInspirationPage(0, 20, {kind:'archive'})`)).data
+  const saved = (await js(main, `window.dook.listInspirationPage(0, 20, {kind:'archive'})`)).data
     .items[0]
   assert.equal(saved.description, '保留正文和历史补充')
   assert.deepEqual(

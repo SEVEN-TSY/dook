@@ -1,4 +1,4 @@
-# myTodo技术栈选型调研
+# DOOK技术栈选型调研
 
 调研日期：2026-10-27。状态：用户已确定采用方案B（Electron），尚未搭建应用或实测性能。Tauri相关内容保留为比较资料。
 
@@ -44,7 +44,7 @@ Dawloom作者在一台Windows 11笔记本上，用相同的800×600计数器HTML
 | 安装后应用文件 | 3.00MB | 367.40MB |
 | 空闲私有内存，计入全部子进程 | 142MB | 149MB |
 
-内存是在启动15秒后测量，Tauri取5次中位数，Electron只有1次。作者未发布启动时间，因为测试时CPU存在其他构建负载。这是极简窗口的外部测量，尚未独立复现；不包含本项目的SQLite、任务列表、MCP和贴边逻辑，不能作为myTodo的预算或性能承诺。[测量作者的原文、代码与方法](https://dawloom.com/blog/tauri-vs-electron-vs-wpf-benchmark/)
+内存是在启动15秒后测量，Tauri取5次中位数，Electron只有1次。作者未发布启动时间，因为测试时CPU存在其他构建负载。这是极简窗口的外部测量，尚未独立复现；不包含本项目的SQLite、任务列表、MCP和贴边逻辑，不能作为DOOK的预算或性能承诺。[测量作者的原文、代码与方法](https://dawloom.com/blog/tauri-vs-electron-vs-wpf-benchmark/)
 
 ### 2.3 常驻与快速打开存在窗口策略取舍
 

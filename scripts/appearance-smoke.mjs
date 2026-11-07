@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { nativeTheme, screen, systemPreferences } from 'electron'
 
 export async function appearanceSmoke({ main, note, phase, js, click, waitFor, capture }) {
-  const state = async () => (await js(note, 'window.myTodo.getWindowState()')).data
+  const state = async () => (await js(note, 'window.dook.getWindowState()')).data
   const theme = (window) => js(window, `document.documentElement.dataset.theme`)
   await waitFor(
     () => js(main, `Boolean(document.querySelector('.workbench-header'))`),
@@ -73,7 +73,7 @@ export async function appearanceSmoke({ main, note, phase, js, click, waitFor, c
     await click(main, '[aria-label="深色外观"]')
     await js(
       note,
-      `(async () => { const {settings} = (await window.myTodo.getWindowState()).data; const result = await window.myTodo.updateSettings({...settings, themeColor:'#257c68'}); if (!result.ok) throw new Error(result.error) })()`
+      `(async () => { const {settings} = (await window.dook.getWindowState()).data; const result = await window.dook.updateSettings({...settings, themeColor:'#257c68'}); if (!result.ok) throw new Error(result.error) })()`
     )
     await waitFor(
       () =>
@@ -87,18 +87,18 @@ export async function appearanceSmoke({ main, note, phase, js, click, waitFor, c
     await capture(note, 'appearance-dark-note.png')
     const bad = await js(
       note,
-      `(async () => { const {settings} = (await window.myTodo.getWindowState()).data; return window.myTodo.updateSettings({...settings, appearance:'invalid'}) })()`
+      `(async () => { const {settings} = (await window.dook.getWindowState()).data; return window.dook.updateSettings({...settings, appearance:'invalid'}) })()`
     )
     assert.equal(bad.ok, false, '拒绝无效外观模式')
     assert.equal((await state()).settings.appearance, 'dark', '拒绝后保持原选择')
     await js(
       note,
       `(async () => {
-      const {settings} = (await window.myTodo.getWindowState()).data;
-      await window.myTodo.updateSettings({...settings, themeColor:'#393939'});
-      const task = (await window.myTodo.createTask('黑灰完成标识')).data;
-      await window.myTodo.setTaskCompleted(task.id, true);
-      await window.myTodo.openWindow('main','task');
+      const {settings} = (await window.dook.getWindowState()).data;
+      await window.dook.updateSettings({...settings, themeColor:'#393939'});
+      const task = (await window.dook.createTask('黑灰完成标识')).data;
+      await window.dook.setTaskCompleted(task.id, true);
+      await window.dook.openWindow('main','task');
     })()`
     )
     await waitFor(
@@ -113,7 +113,7 @@ export async function appearanceSmoke({ main, note, phase, js, click, waitFor, c
     await capture(main, 'appearance-dark-tasks.png')
     await js(
       note,
-      `(async () => { const {settings} = (await window.myTodo.getWindowState()).data; await window.myTodo.updateSettings({...settings, themeColor:'#257c68'}) })()`
+      `(async () => { const {settings} = (await window.dook.getWindowState()).data; await window.dook.updateSettings({...settings, themeColor:'#257c68'}) })()`
     )
     const cursor = screen.getCursorScreenPoint
     const area = screen.getPrimaryDisplay().workArea
@@ -153,7 +153,7 @@ export async function appearanceSmoke({ main, note, phase, js, click, waitFor, c
       const { settings } = await state()
       await js(
         note,
-        `window.myTodo.updateSettings(${JSON.stringify({ ...settings, edgeAutoHide: false })})`
+        `window.dook.updateSettings(${JSON.stringify({ ...settings, edgeAutoHide: false })})`
       )
     } finally {
       screen.getCursorScreenPoint = cursor

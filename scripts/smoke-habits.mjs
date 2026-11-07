@@ -5,12 +5,12 @@ export async function habitsSmoke({ phase, main, note, input, click, js, waitFor
     await input(main, '[data-testid=habit-new]', description)
     await waitFor(
       async () =>
-        (await js(main, 'window.myTodo.listHabits()')).data.some(
+        (await js(main, 'window.dook.listHabits()')).data.some(
           (habit) => habit.description === description
         ),
       '主界面创建习惯'
     )
-    const task = (await js(main, 'window.myTodo.listToday()')).data.tasks.find(
+    const task = (await js(main, 'window.dook.listToday()')).data.tasks.find(
       (task) => task.description === description
     )
     assert.ok(task.habitId)
@@ -27,27 +27,27 @@ export async function habitsSmoke({ phase, main, note, input, click, js, waitFor
     await click(note, `[data-task-id="${task.id}"] input[type=checkbox]`)
     await waitFor(
       async () =>
-        (await js(main, 'window.myTodo.listToday()')).data.tasks.find((item) => item.id === task.id)
+        (await js(main, 'window.dook.listToday()')).data.tasks.find((item) => item.id === task.id)
           ?.completed,
       '习惯任务完成同步'
     )
-    assert.deepEqual(await js(note, `window.myTodo.deleteTask(${JSON.stringify(task.id)})`), {
+    assert.deepEqual(await js(note, `window.dook.deleteTask(${JSON.stringify(task.id)})`), {
       ok: true,
       data: true
     })
     await waitFor(
       async () =>
-        !(await js(main, 'window.myTodo.listToday()')).data.tasks.some(
+        !(await js(main, 'window.dook.listToday()')).data.tasks.some(
           (item) => item.id === task.id
         ),
       '删除习惯任务同步'
     )
   } else if (phase === 'restart') {
-    const habits = (await js(main, 'window.myTodo.listHabits()')).data
+    const habits = (await js(main, 'window.dook.listHabits()')).data
     const habit = habits.find((habit) => habit.description === description)
     assert.ok(habit, '习惯重启保留')
     assert.equal(
-      (await js(note, 'window.myTodo.listToday()')).data.tasks.some(
+      (await js(note, 'window.dook.listToday()')).data.tasks.some(
         (task) => task.habitId === habit.id
       ),
       false,
@@ -58,8 +58,8 @@ export async function habitsSmoke({ phase, main, note, input, click, js, waitFor
 }
 
 async function habitMaintenanceSmoke({ phase, main, note, input, click, js, waitFor, assert }) {
-  const tasks = async () => (await js(main, 'window.myTodo.listToday()')).data.tasks
-  const habits = async () => (await js(main, 'window.myTodo.listHabits()')).data
+  const tasks = async () => (await js(main, 'window.dook.listToday()')).data.tasks
+  const habits = async () => (await js(main, 'window.dook.listHabits()')).data
   const persistedDescription = '习惯复用重启检查'
   if (phase === 'create') {
     for (const [index, window] of [main, note].entries()) {
@@ -84,7 +84,7 @@ async function habitMaintenanceSmoke({ phase, main, note, input, click, js, wait
       assert.equal((await tasks()).length, before + 1, '添加为习惯不额外生成任务')
       const duplicate = await js(
         window,
-        `window.myTodo.createHabitFromTask(${JSON.stringify(task.id)})`
+        `window.dook.createHabitFromTask(${JSON.stringify(task.id)})`
       )
       assert.equal(duplicate.data.id, linked.habitId, '重复操作复用习惯')
       await waitFor(
@@ -131,7 +131,7 @@ async function habitMaintenanceSmoke({ phase, main, note, input, click, js, wait
       async () => (await tasks()).find((item) => item.id === task.id)?.habitId,
       '重启任务关联习惯'
     )
-    await js(note, `window.myTodo.deleteTask(${JSON.stringify(task.id)})`)
+    await js(note, `window.dook.deleteTask(${JSON.stringify(task.id)})`)
     await waitFor(
       async () => !(await tasks()).some((item) => item.id === task.id),
       '删除当天复用任务'

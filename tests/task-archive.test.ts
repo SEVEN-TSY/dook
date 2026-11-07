@@ -11,7 +11,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { migrations } from '../src/main/storage/migrations'
 
 test('今天任务归档后只读且跨日重启保留，恢复到当天并保留状态', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'mytodo-archive-'))
+  const directory = mkdtempSync(join(tmpdir(), 'dook-archive-'))
   const path = join(directory, 'tasks.sqlite')
   let database = new AppDatabase(path)
   let now = new Date(2026, 10, 1, 12)
@@ -122,7 +122,7 @@ test('习惯任务继续暂停一次，归档不可改变习惯生成规则', ()
 })
 
 test('升级旧数据库后既有任务保持未归档且可归档恢复', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'mytodo-archive-migration-'))
+  const directory = mkdtempSync(join(tmpdir(), 'dook-archive-migration-'))
   const path = join(directory, 'tasks.sqlite')
   const legacy = new DatabaseSync(path)
   try {

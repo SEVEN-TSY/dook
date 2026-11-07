@@ -17,11 +17,11 @@ export async function listMetadataSmoke({ main, js, click, waitFor, capture }) {
   assert.equal(taskToolbar.selectedBottom, taskToolbar.bottom - 1, '选中下划线与栏底分割线重合')
   await js(
     main,
-    `Promise.all(Array.from({ length: 18 }, (_, i) => window.myTodo.createTask('列表任务' + i)))`
+    `Promise.all(Array.from({ length: 18 }, (_, i) => window.dook.createTask('列表任务' + i)))`
   )
-  const task = (await js(main, `window.myTodo.createTask('菜单布局回归')`)).data
-  await js(main, `window.myTodo.convertToMultiDay('${task.id}')`)
-  await js(main, `window.myTodo.setTaskProgress('${task.id}', 40)`)
+  const task = (await js(main, `window.dook.createTask('菜单布局回归')`)).data
+  await js(main, `window.dook.convertToMultiDay('${task.id}')`)
+  await js(main, `window.dook.setTaskProgress('${task.id}', 40)`)
   await waitFor(
     () => js(main, `Boolean(document.querySelector('.task-mini-progress'))`),
     '持续推进就绪'
@@ -102,7 +102,7 @@ export async function listMetadataSmoke({ main, js, click, waitFor, capture }) {
     await js(main, `document.querySelector('[data-task-id="${task.id}"] time').textContent`),
     /^\d{2}:\d{2}$/
   )
-  await js(main, `window.myTodo.archiveTask('${task.id}')`)
+  await js(main, `window.dook.archiveTask('${task.id}')`)
   await click(main, '.archive-view-switch [aria-label="已归档任务"]')
   await waitFor(
     () => js(main, `Boolean(document.querySelector('[data-archived-task-id="${task.id}"]'))`),
@@ -120,9 +120,9 @@ export async function listMetadataSmoke({ main, js, click, waitFor, capture }) {
     'true'
   )
   const longTask = (
-    await js(main, `window.myTodo.createTask('归档长任务' + 'veryLongDescription'.repeat(50))`)
+    await js(main, `window.dook.createTask('归档长任务' + 'veryLongDescription'.repeat(50))`)
   ).data
-  await js(main, `window.myTodo.archiveTask('${longTask.id}')`)
+  await js(main, `window.dook.archiveTask('${longTask.id}')`)
   await waitFor(
     () => js(main, `Boolean(document.querySelector('[data-archived-task-id="${longTask.id}"]'))`),
     '长名称归档任务就绪'
@@ -155,7 +155,7 @@ export async function listMetadataSmoke({ main, js, click, waitFor, capture }) {
     '返回普通任务'
   )
   await click(main, '.workbench-nav [aria-label="习惯"]')
-  const habit = (await js(main, `window.myTodo.createHabit('创建时间习惯')`)).data
+  const habit = (await js(main, `window.dook.createHabit('创建时间习惯')`)).data
   await waitFor(
     () => js(main, `Boolean(document.querySelector('[data-habit-id="${habit.id}"] time'))`),
     '习惯显示下一次执行时间'
@@ -169,7 +169,7 @@ export async function listMetadataSmoke({ main, js, click, waitFor, capture }) {
   )
   await js(
     main,
-    `Promise.all(Array.from({ length: 12 }, (_, i) => window.myTodo.createHabit('滚动习惯' + i)))`
+    `Promise.all(Array.from({ length: 12 }, (_, i) => window.dook.createHabit('滚动习惯' + i)))`
   )
   await waitFor(
     () => js(main, `document.querySelectorAll('[data-habit-id]').length === 13`),
@@ -228,7 +228,7 @@ export async function listMetadataSmoke({ main, js, click, waitFor, capture }) {
     ),
     'false'
   )
-  const idea = (await js(main, `window.myTodo.createInspiration('创建时间小记')`)).data
+  const idea = (await js(main, `window.dook.createInspiration('创建时间小记')`)).data
   await click(main, '.workbench-nav [aria-label="小记"]')
   await waitFor(
     () => js(main, `Boolean(document.querySelector('[data-inspiration-id="${idea.id}"] time'))`),
@@ -238,7 +238,7 @@ export async function listMetadataSmoke({ main, js, click, waitFor, capture }) {
     await js(main, `document.querySelector('[data-inspiration-id="${idea.id}"] time').textContent`),
     /^\d{2}:\d{2}$/
   )
-  const dated = (await js(main, `window.myTodo.createInspiration('历史小记')`)).data
+  const dated = (await js(main, `window.dook.createInspiration('历史小记')`)).data
   await waitFor(
     () => js(main, `Boolean(document.querySelector('[data-inspiration-id="${dated.id}"]'))`),
     '第二条小记'

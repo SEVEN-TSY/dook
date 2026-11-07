@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="91" height="20" role="img" aria-label="License: GPLv3">
+  <title>License: GPLv3</title>
+  <rect width="91" height="20" rx="4" fill="#896517"/>
+  <path d="M4 0h43v20H4a4 4 0 0 1-4-4V4a4 4 0 0 1 4-4Z" fill="#454b57"/>
+  <g fill="#fff" font-family="Verdana, Geneva, sans-serif" font-size="11" text-anchor="middle">
+    <text x="23.5" y="14">license</text>
+    <text x="69" y="14">GPLv3</text>
+  </g>
+</svg>

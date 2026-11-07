@@ -1,6 +1,6 @@
 # 桌面便签：任务归档、习惯双击与分栏设置
 
-状态：用户已确认规格及测试边界，已发布[GitHub Issue #24](https://github.com/SEVEN-TSY/myTodo/issues/24)，标签为ready-for-agent。
+状态：用户已确认规格及测试边界，已发布[GitHub Issue #24](https://github.com/SEVEN-TSY/dook/issues/24)，标签为ready-for-agent。
 
 ## Problem Statement
 

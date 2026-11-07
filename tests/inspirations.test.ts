@@ -29,7 +29,7 @@ test('小记创建后可读取，保留顺序且不产生今天任务', () => {
 })
 
 test('小记原始想法可编辑，补充内容按追加顺序保留并跨日重启恢复', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'mytodo-inspirations-'))
+  const directory = mkdtempSync(join(tmpdir(), 'dook-inspirations-'))
   const path = join(directory, 'app.sqlite')
   let database = new AppDatabase(path)
   let now = new Date(2026, 9, 27, 23, 59)
@@ -112,7 +112,7 @@ test('小记分页按原始记录时间倒序且跨日编辑保持时间', () =>
 })
 
 test('旧小记迁移保留原文补充并在分页中排在新小记之后', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'mytodo-old-inspirations-'))
+  const directory = mkdtempSync(join(tmpdir(), 'dook-old-inspirations-'))
   const path = join(directory, 'app.sqlite')
   const old = new DatabaseSync(path)
   old.exec(
@@ -307,7 +307,7 @@ test('归档保留内容和主题，禁止旧编辑，恢复后可删除已归�
 })
 
 test('归档状态、内容和主题跨重启保留，恢复后重新进入主题', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'mytodo-archive-'))
+  const directory = mkdtempSync(join(tmpdir(), 'dook-archive-'))
   const path = join(directory, 'app.sqlite')
   let database = new AppDatabase(path)
   let now = new Date('2026-11-06T08:00:00Z')

@@ -7,7 +7,7 @@ import { configureLaunchAtLogin } from '../src/main/desktop/login-item'
 import { readPreferences, writePreferences } from '../src/main/desktop/preferences'
 
 test('首次使用和旧配置默认开机自启，关闭后重启保留选择', () => {
-  const directory = mkdtempSync(resolve(tmpdir(), 'mytodo-settings-'))
+  const directory = mkdtempSync(resolve(tmpdir(), 'dook-settings-'))
   try {
     assert.equal(readPreferences(directory).settings.launchAtLogin, true)
     writeFileSync(
@@ -47,13 +47,15 @@ test('Windows安装版将开启和关闭选择传给系统，开发版和其他�
   configureLaunchAtLogin({ ...app, isPackaged: false }, true, 'win32')
   configureLaunchAtLogin(app, true, 'linux')
   assert.deepEqual(calls, [
+    { name: 'com.mytodo.desktop', openAtLogin: false },
     { openAtLogin: true, enabled: true },
+    { name: 'com.mytodo.desktop', openAtLogin: false },
     { openAtLogin: false, enabled: false }
   ])
 })
 
 test('持续推进默认显示，旧配置兼容且关闭后保存重读保留选择', () => {
-  const directory = mkdtempSync(resolve(tmpdir(), 'mytodo-sections-'))
+  const directory = mkdtempSync(resolve(tmpdir(), 'dook-sections-'))
   try {
     assert.equal(readPreferences(directory).settings.showMultiDay, true)
     writeFileSync(
@@ -81,7 +83,7 @@ test('持续推进默认显示，旧配置兼容且关闭后保存重读保留�
 })
 
 test('主题色默认跟随系统，固定颜色和系统选项均可保存，无效值回退到系统色', () => {
-  const directory = mkdtempSync(resolve(tmpdir(), 'mytodo-theme-'))
+  const directory = mkdtempSync(resolve(tmpdir(), 'dook-theme-'))
   try {
     const preferences = readPreferences(directory)
     assert.equal(preferences.settings.themeColor, 'system')

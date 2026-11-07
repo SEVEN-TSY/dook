@@ -13,10 +13,10 @@ export async function topicRefinementSmoke({ main, note, phase, js, click, input
     '主题导航'
   )
   if (phase.endsWith('restart')) {
-    const topics = (await js(note, 'window.myTodo.listInspirationTopics()')).data
+    const topics = (await js(note, 'window.dook.listInspirationTopics()')).data
     assert.ok(topics.some((topic) => topic.name === '持久主题甲已改名'))
     assert.ok(topics.some((topic) => topic.name === '归集新增主题'))
-    const idea = (await js(note, 'window.myTodo.listInspirations()')).data.find(
+    const idea = (await js(note, 'window.dook.listInspirations()')).data.find(
       (item) => item.description === '待归集小记'
     )
     assert.equal(idea.topicIds.length, 3, '归集及改名跨重启持久化')
@@ -112,13 +112,13 @@ export async function topicRefinementSmoke({ main, note, phase, js, click, input
     '改名离开编辑区自动保存'
   )
   assert.ok(
-    (await js(note, 'window.myTodo.listInspirationTopics()')).data.some(
+    (await js(note, 'window.dook.listInspirationTopics()')).data.some(
       (topic) => topic.name === '持久主题甲已改名'
     )
   )
   await js(
     note,
-    `(async () => { await window.myTodo.createInspirationTopic('持久主题乙'); await window.myTodo.createInspiration('待归集小记') })()`
+    `(async () => { await window.dook.createInspirationTopic('持久主题乙'); await window.dook.createInspiration('待归集小记') })()`
   )
   await js(
     main,
@@ -149,7 +149,7 @@ export async function topicRefinementSmoke({ main, note, phase, js, click, input
     `Array.from(document.querySelectorAll('.inspiration-topic-picker label')).find(x => x.textContent.includes('持久主题甲')).querySelector('input').click()`
   )
   await waitFor(
-    async () => (await js(note, 'window.myTodo.listInspirations()')).data[0].topicIds.length === 2,
+    async () => (await js(note, 'window.dook.listInspirations()')).data[0].topicIds.length === 2,
     '连续多主题同步另一窗口'
   )
   await input(main, '[aria-label="搜索主题"]', '主题乙', null)
@@ -227,7 +227,7 @@ export async function topicRefinementSmoke({ main, note, phase, js, click, input
     false
   )
   assert.equal(
-    (await js(note, 'window.myTodo.listInspirations()')).data[0].topicIds.length,
+    (await js(note, 'window.dook.listInspirations()')).data[0].topicIds.length,
     2,
     '关闭不回滚已保存的勾选'
   )
@@ -284,7 +284,7 @@ export async function topicRefinementSmoke({ main, note, phase, js, click, input
   )
   await waitFor(
     async () =>
-      (await js(note, 'window.myTodo.listInspirationTopics()')).data.some(
+      (await js(note, 'window.dook.listInspirationTopics()')).data.some(
         (item) => item.name === '较早创建'
       ),
     '较早创建完成'
@@ -297,7 +297,7 @@ export async function topicRefinementSmoke({ main, note, phase, js, click, input
   // 删除测试中的额外归集，重启阶段只需验证前三个持久主题。
   await js(
     note,
-    `(async () => { const topic = (await window.myTodo.listInspirationTopics()).data.find(x => x.name === '较早创建'); const idea = (await window.myTodo.listInspirations()).data[0]; await window.myTodo.setInspirationTopic(idea.id, topic.id, false) })()`
+    `(async () => { const topic = (await window.dook.listInspirationTopics()).data.find(x => x.name === '较早创建'); const idea = (await window.dook.listInspirations()).data[0]; await window.dook.setInspirationTopic(idea.id, topic.id, false) })()`
   )
   await waitFor(
     () =>

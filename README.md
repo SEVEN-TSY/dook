@@ -4,7 +4,9 @@
 
 # DOOK-From DO to OK.
 
-DOOK是一款Windows桌面待办与小记应用。用桌面便签快速记录和勾选，用主界面管理任务、习惯和小记。两处共用本地SQLite数据，修改即时同步。
+[![平台：Windows x64](docs/assets/badge-windows.svg)](#日常使用) [![数据：本地存储](docs/assets/badge-local-data.svg)](#本地数据与mcp) [![许可：GPLv3](docs/assets/badge-gplv3.svg)](LICENSE)
+
+DOOK是一款面向工作场景的待办小记应用。用桌面便签快速记录和勾选，用主界面管理任务、习惯和小记。两处共用本地SQLite数据，修改即时同步。
 
 ## 日常使用
 
@@ -61,9 +63,9 @@ npm run dev
 
 ## 本地数据与MCP
 
-开发版默认将数据保存在`%APPDATA%/myTodo-development/`，安装版使用`%APPDATA%/myTodo/`。目录内的`mytodo.sqlite`保存业务数据，`desktop-settings.json`保存窗口位置和偏好。可通过环境变量`MYTODO_DATA_DIR`覆盖数据目录。
+DOOK将任务、习惯和小记保存在本地SQLite数据库中，窗口位置和偏好也保存在本机。开发版和安装版使用独立的数据目录。
 
-本地MCP端点默认为`http://127.0.0.1:32145/mcp`，端口可通过`MYTODO_MCP_PORT`调整。凭证保存在数据目录下的`mcp-token`，当前提供`app_diagnostics`诊断工具。
+本地MCP端点默认为`http://127.0.0.1:32145/mcp`，当前提供`app_diagnostics`诊断工具。数据目录、端口设置和凭证用法见[MCP接入文档](doc/mcp.md)。
 
 ## 项目文档
 
@@ -72,3 +74,9 @@ npm run dev
 - [界面框架与样式](docs/ui-framework-and-styles.md)
 - [桌面便签验证](doc/desktop-validation.md)
 - [MCP接入](doc/mcp.md)
+
+## 开源许可
+
+DOOK以[GNU通用公共许可证第3版](LICENSE)发布（`GPL-3.0-only`）。第三方组件遵循各自的许可证。
+
+Copyright © 2026 SEVEN-TSY

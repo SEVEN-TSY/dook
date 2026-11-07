@@ -121,10 +121,10 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
   )
   await selectKind('task')
   await settled()
-  await js(note, `window.myTodo.createInspiration('便签小记验收')`)
+  await js(note, `window.dook.createInspiration('便签小记验收')`)
   await js(
     note,
-    `(async () => { const {settings} = (await window.myTodo.getWindowState()).data; await window.myTodo.updateSettings({...settings, appearance:'light', edgeAutoHide:false}) })()`
+    `(async () => { const {settings} = (await window.dook.getWindowState()).data; await window.dook.updateSettings({...settings, appearance:'light', edgeAutoHide:false}) })()`
   )
   const before = note.getContentSize()
   const heading = await js(
@@ -172,7 +172,7 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
     ),
     '50%'
   )
-  await js(main, `window.myTodo.createInspiration('最近一条小记')`)
+  await js(main, `window.dook.createInspiration('最近一条小记')`)
   assert.equal(
     await js(
       note,
@@ -199,7 +199,7 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
   await input(note, '[data-testid=jotting-edit]', '便签编辑后的小记')
   await waitFor(async () => (await visible())[0] === '便签编辑后的小记', '便签小记编辑保存')
   assert.equal(
-    (await js(main, `window.myTodo.listInspirations()`)).data.some(
+    (await js(main, `window.dook.listInspirations()`)).data.some(
       (idea) => idea.description === '便签编辑后的小记'
     ),
     true,
@@ -208,22 +208,22 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
   const excluded = await js(
     main,
     `(async () => {
-    const old = (await window.myTodo.createInspiration('昨天的小记')).data;
-    const legacy = (await window.myTodo.createInspiration('无日期的小记')).data;
-    const archived = (await window.myTodo.createInspiration('已归档的小记')).data;
-    await window.myTodo.archiveInspiration(archived.id);
+    const old = (await window.dook.createInspiration('昨天的小记')).data;
+    const legacy = (await window.dook.createInspiration('无日期的小记')).data;
+    const archived = (await window.dook.createInspiration('已归档的小记')).data;
+    await window.dook.archiveInspiration(archived.id);
     return {old:old.id, legacy:legacy.id};
   })()`
   )
-  const db = new DatabaseSync(resolve(process.env.MYTODO_SMOKE_DATA, 'mytodo.sqlite'))
+  const db = new DatabaseSync(resolve(process.env.DOOK_SMOKE_DATA, 'dook.sqlite'))
   const archiveProbe = await js(
     main,
     `(async () => {
-    const old = (await window.myTodo.createTask('昨天归档的任务')).data;
-    await window.myTodo.archiveTask(old.id);
-    const current = (await window.myTodo.createTask('今天归档的任务')).data;
-    await window.myTodo.convertToMultiDay(current.id);
-    await window.myTodo.archiveTask(current.id);
+    const old = (await window.dook.createTask('昨天归档的任务')).data;
+    await window.dook.archiveTask(old.id);
+    const current = (await window.dook.createTask('今天归档的任务')).data;
+    await window.dook.convertToMultiDay(current.id);
+    await window.dook.archiveTask(current.id);
     return {old: old.id, current: current.id};
   })()`
   )
@@ -234,7 +234,7 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
     archiveProbe.old
   )
   db.prepare('UPDATE tasks SET date = ? WHERE id = ?').run('2020-01-01', archiveProbe.current)
-  await js(main, `window.myTodo.createTask('触发归档日期刷新')`)
+  await js(main, `window.dook.createTask('触发归档日期刷新')`)
   await waitFor(
     () =>
       js(
@@ -244,7 +244,7 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
     '便签仅显示今天归档的任务，按归档时间包含旧多天任务'
   )
   assert.equal(
-    (await js(main, `window.myTodo.listArchivedTasks()`)).data.length,
+    (await js(main, `window.dook.listArchivedTasks()`)).data.length,
     2,
     '主界面保留历史归档'
   )
@@ -271,7 +271,7 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
     excluded.old
   )
   db.prepare('UPDATE inspirations SET created_at = NULL WHERE id = ?').run(excluded.legacy)
-  await js(main, `window.myTodo.createInspiration('日期筛选后的小记')`)
+  await js(main, `window.dook.createInspiration('日期筛选后的小记')`)
   await waitFor(async () => (await visible()).length === 3, '只显示当天未归档的小记')
   assert.equal(
     await js(
@@ -292,7 +292,7 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
   await click(note, '[data-note-jotting-id] [title="归档小记"]')
   await waitFor(async () => (await visible()).length === 2, '直接归档更新列表')
   assert.equal(
-    (await js(main, `window.myTodo.listInspirations()`)).data.some(
+    (await js(main, `window.dook.listInspirations()`)).data.some(
       (x) => x.description === '日期筛选后的小记'
     ),
     false,
@@ -324,8 +324,8 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
     async () => (await visible()).length === 2 && (await archiveCount()) === '2',
     '再次归档保留展开状态'
   )
-  await js(main, `window.myTodo.archiveInspiration('${excluded.old}')`)
-  await js(main, `window.myTodo.archiveInspiration('${excluded.legacy}')`)
+  await js(main, `window.dook.archiveInspiration('${excluded.old}')`)
+  await js(main, `window.dook.archiveInspiration('${excluded.legacy}')`)
   db.prepare('UPDATE inspirations SET archived_at = ? WHERE id = ?').run(
     previousDay.toISOString(),
     excluded.old
@@ -333,8 +333,8 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
   const dateProbe = await js(
     main,
     `(async () => {
-    const idea = (await window.myTodo.createInspiration('归档日期边界验收')).data;
-    await window.myTodo.archiveInspiration(idea.id);
+    const idea = (await window.dook.createInspiration('归档日期边界验收')).data;
+    await window.dook.archiveInspiration(idea.id);
     return idea.id;
   })()`
   )
@@ -355,7 +355,7 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
     [excluded.legacy],
     '按归档日期筛选，包含今天归档的无创建日期小记'
   )
-  await js(main, `window.myTodo.deleteArchivedInspiration('${dateProbe}')`)
+  await js(main, `window.dook.deleteArchivedInspiration('${dateProbe}')`)
   await waitFor(async () => (await archiveCount()) === '3', '删除同步归档计数')
   const remove = `${archivedRow('已归档的小记')} [title="永久删除小记"]`
   await js(note, `document.querySelector(${JSON.stringify(remove)}).focus()`)
@@ -370,7 +370,7 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
   await click(note, '[data-testid=delete-confirm]')
   await waitFor(async () => (await archiveCount()) === '2', '确认永久删除小记')
   assert.equal(
-    (await js(main, `window.myTodo.listInspirationPage(0,100,{kind:'archive'})`)).data.items.some(
+    (await js(main, `window.dook.listInspirationPage(0,100,{kind:'archive'})`)).data.items.some(
       (x) => x.description === '已归档的小记'
     ),
     false,
@@ -380,7 +380,7 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
   await click(note, '[data-testid=jotting-archive-toggle]')
   await js(
     main,
-    `(async () => { for(let i=0;i<18;i++) { await window.myTodo.createInspiration('长列表小记'+i); await window.myTodo.createTask('长列表任务'+i) } })()`
+    `(async () => { for(let i=0;i<18;i++) { await window.dook.createInspiration('长列表小记'+i); await window.dook.createTask('长列表任务'+i) } })()`
   )
   await waitFor(async () => (await visible()).length === 20, '长列表同步')
   await selectKind('task')
@@ -548,16 +548,16 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
   await mode('inspiration')
   await settled()
   await js(note, `document.querySelector('[data-testid=task-new]').blur()`)
-  await js(note, 'window.myTodo.hideWindow()')
+  await js(note, 'window.dook.hideWindow()')
   await waitFor(() => !note.isVisible(), '隐藏便签')
-  await js(main, `window.myTodo.openWindow('note')`)
+  await js(main, `window.dook.openWindow('note')`)
   await waitFor(() => note.isVisible(), '唤出便签')
   await mode('inspiration')
   await settled()
   await capture(note, 'note-jottings-light.png')
   await js(
     note,
-    `(async () => { const {settings} = (await window.myTodo.getWindowState()).data; await window.myTodo.updateSettings({...settings, appearance:'dark'}) })()`
+    `(async () => { const {settings} = (await window.dook.getWindowState()).data; await window.dook.updateSettings({...settings, appearance:'dark'}) })()`
   )
   await waitFor(() => js(note, `document.documentElement.dataset.theme === 'dark'`), '深色小记')
   await settled()
@@ -576,7 +576,7 @@ export async function noteJottingsSmoke({ main, note, phase, js, click, input, w
     )
     await waitFor(async () => (await visible()).length === 0, '跨日清空昨天的小记')
     await waitFor(async () => (await archiveCount()) === '0', '跨日清空昨天的归档小记')
-    await js(main, `window.myTodo.createInspiration('新一天的小记')`)
+    await js(main, `window.dook.createInspiration('新一天的小记')`)
     await waitFor(async () => (await visible()).length === 1, '跨日继续记录')
     assert.equal((await visible())[0], '新一天的小记')
   } finally {

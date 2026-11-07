@@ -9,7 +9,7 @@ export async function taskInlineSmoke({
   assert,
   capture
 }) {
-  const tasks = async () => (await js(note, 'window.myTodo.listToday()')).data.tasks
+  const tasks = async () => (await js(note, 'window.dook.listToday()')).data.tasks
   const get = async (id) => (await tasks()).find((t) => t.id === id)
   const row = (id) => `[data-task-id="${id}"]`
   const menu = async (id) => {
@@ -42,7 +42,7 @@ export async function taskInlineSmoke({
     assert.equal(await js(main, `document.querySelectorAll('.subitems-panel').length`), 0)
     return
   }
-  const task = (await js(note, `window.myTodo.createTask('新版行内验收')`)).data
+  const task = (await js(note, `window.dook.createTask('新版行内验收')`)).data
   await menu(task.id)
   await action('转为持续推进')
   await waitFor(async () => (await get(task.id)).kind === 'multi-day', '转换')
@@ -74,8 +74,8 @@ export async function taskInlineSmoke({
   )
   main.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' })
   main.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' })
-  await js(note, `window.myTodo.addSubitem('${task.id}', '第一项')`)
-  await js(note, `window.myTodo.addSubitem('${task.id}', '第二项')`)
+  await js(note, `window.dook.addSubitem('${task.id}', '第一项')`)
+  await js(note, `window.dook.addSubitem('${task.id}', '第二项')`)
   await waitFor(
     () => js(main, `Boolean(document.querySelector('${row(task.id)} .task-expand'))`),
     '子事项同步'
@@ -137,9 +137,9 @@ export async function taskInlineSmoke({
   await click(main, '[data-testid=delete-confirm]')
   await waitFor(async () => (await get(task.id)).kind === 'today', '确认转回当天')
   assert.equal((await get(task.id)).subitems?.length ?? 0, 0, '确认移除全部子事项')
-  const ordered = (await js(note, `window.myTodo.createTask('排序重启')`)).data
-  await js(note, `window.myTodo.addSubitem('${ordered.id}', '前项')`)
-  await js(note, `window.myTodo.addSubitem('${ordered.id}', '后项')`)
+  const ordered = (await js(note, `window.dook.createTask('排序重启')`)).data
+  await js(note, `window.dook.addSubitem('${ordered.id}', '前项')`)
+  await js(note, `window.dook.addSubitem('${ordered.id}', '后项')`)
   await waitFor(
     () => js(main, `Boolean(document.querySelector('${row(ordered.id)} .task-subitems-action'))`),
     '排序任务同步'

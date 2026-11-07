@@ -17,7 +17,7 @@ export interface StorageProbe {
 }
 
 export interface CoreProbe {
-  service: 'mytodo-core'
+  service: 'dook-core'
   checkedAt: string
   storage: StorageProbe
 }

@@ -23,7 +23,7 @@ function authorized(header: string | undefined, token: string): boolean {
 }
 
 function createProtocolServer(service: AppService): McpServer {
-  const server = new McpServer({ name: 'mytodo', version: '0.1.0' })
+  const server = new McpServer({ name: 'dook', version: '0.1.0' })
   server.registerTool(
     'app_diagnostics',
     {

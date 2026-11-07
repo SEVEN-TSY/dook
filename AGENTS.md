@@ -11,7 +11,7 @@
 
 ### Issue tracker
 
-任务和规格使用SEVEN-TSY/myTodo的GitHub Issues；操作前阅读`docs/agents/issue-tracker.md`。
+任务和规格使用SEVEN-TSY/dook的GitHub Issues；操作前阅读`docs/agents/issue-tracker.md`。
 
 ### Triage labels
 

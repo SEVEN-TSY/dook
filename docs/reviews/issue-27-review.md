@@ -1,6 +1,6 @@
 # #27实施与验收记录
 
-2026-11-02。实施分支：`codex/issue-27-integration`。规格：[#27](https://github.com/SEVEN-TSY/myTodo/issues/27)，子任务：[#28](https://github.com/SEVEN-TSY/myTodo/issues/28)、[#29](https://github.com/SEVEN-TSY/myTodo/issues/29)、[#30](https://github.com/SEVEN-TSY/myTodo/issues/30)。
+2026-11-02。实施分支：`codex/issue-27-integration`。规格：[#27](https://github.com/SEVEN-TSY/dook/issues/27)，子任务：[#28](https://github.com/SEVEN-TSY/dook/issues/28)、[#29](https://github.com/SEVEN-TSY/dook/issues/29)、[#30](https://github.com/SEVEN-TSY/dook/issues/30)。
 
 原工作区的未提交改动在隔离集成工作树中保存为基线`2926a7a`，没有覆盖原工作区。三个子任务在独立工作树以已确认的真实Electron、桌面桥接、AppService及SQLite边界实施并验证，再由merger合入同一分支。实现提交包括`746b6eb`、`ff73505`及`514cdd0`；最终审查修复提交为`7c9fcd4`、`c21ac2b`，合并点为`dcae6b8`。
 

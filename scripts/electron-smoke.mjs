@@ -23,10 +23,10 @@ import { topicRefinementSmoke } from './topic-refinement-smoke.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const output = resolve(root, '.local/smoke')
 mkdirSync(output, { recursive: true })
-process.env.MYTODO_DATA_DIR = process.env.MYTODO_SMOKE_DATA
-process.env.MYTODO_MCP_PORT = '0'
+process.env.DOOK_DATA_DIR = process.env.DOOK_SMOKE_DATA
+process.env.DOOK_MCP_PORT = '0'
 app.disableHardwareAcceleration()
-const phase = process.env.MYTODO_SMOKE_PHASE || 'create'
+const phase = process.env.DOOK_SMOKE_PHASE || 'create'
 const trays = new Set()
 let trayMenu
 const setContextMenu = Tray.prototype.setContextMenu
@@ -41,7 +41,7 @@ const findWindow = (kind) =>
   )
 const trayClick = () => [...trays][0].emit('click')
 const menuClick = (label) => trayMenu.items.find((item) => item.label === label).click()
-const state = async (window) => (await js(window, 'window.myTodo.getWindowState()')).data
+const state = async (window) => (await js(window, 'window.dook.getWindowState()')).data
 const waitFor = async (condition, label) => {
   const deadline = Date.now() + 12_000
   while (Date.now() < deadline) {
@@ -233,7 +233,7 @@ async function draggingSmoke(note) {
     await new Promise((resolve) => setTimeout(resolve, 80))
     assert.deepEqual(note.getContentSize(), size, '拖动结束内容尺寸不变')
   } finally {
-    await js(note, 'window.myTodo.setNoteDragging(false)')
+    await js(note, 'window.dook.setNoteDragging(false)')
     screen.getCursorScreenPoint = cursor
   }
 }
@@ -302,7 +302,7 @@ async function dockingSizeSmoke(note) {
       const before = await surface()
       const origin = note.getBounds()
       pointer = { x: origin.x + 80, y: origin.y + 25 }
-      await js(note, 'window.myTodo.setNoteDragging(true)')
+      await js(note, 'window.dook.setNoteDragging(true)')
       const x =
         edge === 'left'
           ? area.x + 10
@@ -313,7 +313,7 @@ async function dockingSizeSmoke(note) {
       pointer = { x: pointer.x + x - origin.x, y: pointer.y + y - origin.y }
       await waitFor(() => note.getBounds().x === x, '拖向吸附边缘')
       assert.deepEqual(note.getContentSize(), size, '吸附前内容尺寸不变')
-      await js(note, 'window.myTodo.setNoteDragging(false)')
+      await js(note, 'window.dook.setNoteDragging(false)')
       await waitFor(async () => (await state(note)).edge === edge, '松手吸附')
       await pause(100)
       assert.deepEqual(note.getContentSize(), size, `${edge}吸附后内容尺寸不变`)
@@ -324,7 +324,7 @@ async function dockingSizeSmoke(note) {
       pointer = { x: area.x + area.width / 2, y: area.y + area.height - 10 }
       await waitFor(async () => (await state(note)).noteMotion === 'closing', '便签沿贴边方向收回')
       const closingRevision = (await state(note)).noteMotionRevision
-      await js(note, `window.myTodo.finishNoteMotion(${closingRevision - 1})`)
+      await js(note, `window.dook.finishNoteMotion(${closingRevision - 1})`)
       assert.equal((await state(note)).noteMotion, 'closing', '过期动画回调不能结束当前过渡')
       assert.deepEqual(note.getContentSize(), size, '收回动画结束前保留便签绘制空间')
       const closingHandoff = await js(
@@ -383,7 +383,7 @@ async function dockingSizeSmoke(note) {
         `(() => {
         window.stripViewport = [innerWidth, innerHeight];
         window.capsulePreparation = [];
-        window.stopCapsulePreparation = window.myTodo.onWindowState(state => {
+        window.stopCapsulePreparation = window.dook.onWindowState(state => {
           if (state.edgeCapsulePreparing) window.capsulePreparation.push([innerWidth, innerHeight]);
         });
       })()`
@@ -547,7 +547,7 @@ async function dockingSizeSmoke(note) {
       assert.deepEqual(await surface(), before, `${edge}收起展开后便签表面宽高不变`)
     }
   } finally {
-    await js(note, 'window.myTodo.setNoteDragging(false)')
+    await js(note, 'window.dook.setNoteDragging(false)')
     screen.getCursorScreenPoint = cursor
   }
 }
@@ -693,7 +693,7 @@ async function dockingSmoke(main, note) {
     assert.equal((await state(note)).edge, 'right')
     screen.getAllDisplays = () => [left]
     screen.getDisplayMatching = () => left
-    await js(note, 'window.myTodo.setNoteDragging(true)')
+    await js(note, 'window.dook.setNoteDragging(true)')
     pointer = { x: pointer.x + area.width, y: pointer.y }
     screen.emit('display-removed', {}, right)
     await waitFor(
@@ -814,9 +814,9 @@ async function runSmoke() {
       const task = await js(
         note,
         `(async () => {
-        const { settings } = (await window.myTodo.getWindowState()).data;
-        await window.myTodo.updateSettings({ ...settings, showMultiDay: false });
-        return (await window.myTodo.createTask('便签转换持续推进')).data;
+        const { settings } = (await window.dook.getWindowState()).data;
+        await window.dook.updateSettings({ ...settings, showMultiDay: false });
+        return (await window.dook.createTask('便签转换持续推进')).data;
       })()`
       )
       await count(note, 1)
@@ -829,8 +829,8 @@ async function runSmoke() {
       await js(
         note,
         `(async () => {
-        const { settings } = (await window.myTodo.getWindowState()).data;
-        await window.myTodo.updateSettings({ ...settings, showMultiDay: true });
+        const { settings } = (await window.dook.getWindowState()).data;
+        await window.dook.updateSettings({ ...settings, showMultiDay: true });
       })()`
       )
       await new Promise((resolve) => setTimeout(resolve, 100))
@@ -867,7 +867,7 @@ async function runSmoke() {
       )
       const converted = await js(
         note,
-        `(async () => (await window.myTodo.listToday()).data.tasks[0])()`
+        `(async () => (await window.dook.listToday()).data.tasks[0])()`
       )
       assert.equal(converted.kind, 'multi-day')
       assert.equal(converted.description, task.description)
@@ -884,12 +884,12 @@ async function runSmoke() {
       await js(
         note,
         `(async () => {
-        const first = (await window.myTodo.createTask('已完成任务')).data;
-        await window.myTodo.setTaskCompleted(first.id, true);
-        const second = (await window.myTodo.createTask('推进中的任务')).data;
-        await window.myTodo.convertToMultiDay(second.id);
-        await window.myTodo.setTaskProgress(second.id, 60);
-        await window.myTodo.createInspiration('胶囊小记');
+        const first = (await window.dook.createTask('已完成任务')).data;
+        await window.dook.setTaskCompleted(first.id, true);
+        const second = (await window.dook.createTask('推进中的任务')).data;
+        await window.dook.convertToMultiDay(second.id);
+        await window.dook.setTaskProgress(second.id, 60);
+        await window.dook.createInspiration('胶囊小记');
       })()`
       )
       await count(note, 2)
@@ -964,8 +964,8 @@ async function runSmoke() {
       note.emit('moved')
       await draggingSmoke(note)
       await draggingSmoke(note)
-      await js(note, 'window.myTodo.setNoteDragging(true)')
-      await js(note, 'window.myTodo.setNoteDragging(false)')
+      await js(note, 'window.dook.setNoteDragging(true)')
+      await js(note, 'window.dook.setNoteDragging(false)')
       assert.deepEqual(note.getMinimumSize(), [334, 260], '仅点击头部不锁死最小尺寸')
       console.log('Electron drag size passed')
       app.exit(0)
@@ -986,15 +986,15 @@ async function runSmoke() {
         () => js(main, `navigator.windowControlsOverlay?.visible`),
         '原生窗口按钮内嵌于内容区'
       )
-      const modalTask = (await js(main, `window.myTodo.createTask('窗口按钮遮罩验证')`)).data
-      await js(main, `window.myTodo.archiveTask('${modalTask.id}')`)
+      const modalTask = (await js(main, `window.dook.createTask('窗口按钮遮罩验证')`)).data
+      await js(main, `window.dook.archiveTask('${modalTask.id}')`)
       await click(main, '.archive-view-switch [aria-label="已归档任务"]')
       for (const appearance of ['light', 'dark']) {
         await js(
           main,
           `(async () => {
-          const { settings } = (await window.myTodo.getWindowState()).data;
-          const result = await window.myTodo.updateSettings({ ...settings, appearance: '${appearance}' });
+          const { settings } = (await window.dook.getWindowState()).data;
+          const result = await window.dook.updateSettings({ ...settings, appearance: '${appearance}' });
           if (!result.ok) throw new Error(result.error);
         })()`
         )
@@ -1294,8 +1294,8 @@ async function runSmoke() {
             `主题内保存${text}`
           )
         }
-        const topicIdeas = (await js(main, 'window.myTodo.listInspirations()')).data
-        const currentTopic = (await js(main, 'window.myTodo.listInspirationTopics()')).data.find(
+        const topicIdeas = (await js(main, 'window.dook.listInspirations()')).data
+        const currentTopic = (await js(main, 'window.dook.listInspirationTopics()')).data.find(
           (topic) => topic.name === '新主题'
         )
         for (const text of ['连续新增一', '连续新增二']) {
@@ -1303,7 +1303,7 @@ async function runSmoke() {
             currentTopic.id
           ])
         }
-        const db = new DatabaseSync(resolve(process.env.MYTODO_SMOKE_DATA, 'mytodo.sqlite'))
+        const db = new DatabaseSync(resolve(process.env.DOOK_SMOKE_DATA, 'dook.sqlite'))
         try {
           db.exec(
             `CREATE TRIGGER fail_inspiration BEFORE INSERT ON inspirations WHEN NEW.description = '失败后重试' BEGIN SELECT RAISE(ABORT, '测试保存失败'); END`
@@ -1327,7 +1327,7 @@ async function runSmoke() {
           db.exec('DROP TRIGGER IF EXISTS fail_inspiration')
           db.close()
         }
-        const retry = (await js(main, 'window.myTodo.listInspirations()')).data.filter(
+        const retry = (await js(main, 'window.dook.listInspirations()')).data.filter(
           (i) => i.description === '失败后重试'
         )
         assert.equal(retry.length, 1)
@@ -1335,18 +1335,18 @@ async function runSmoke() {
         const archivedId = await js(
           main,
           `(async () => {
-          const topic = (await window.myTodo.createInspirationTopic('归档持久主题')).data;
-          const idea = (await window.myTodo.createInspiration('跨重启归档', topic.id)).data;
-          await window.myTodo.appendInspiration(idea.id, '归档持久补充');
-          await window.myTodo.archiveInspiration(idea.id);
+          const topic = (await window.dook.createInspirationTopic('归档持久主题')).data;
+          const idea = (await window.dook.createInspiration('跨重启归档', topic.id)).data;
+          await window.dook.appendInspiration(idea.id, '归档持久补充');
+          await window.dook.archiveInspiration(idea.id);
           return idea.id;
         })()`
         )
         assert.ok(archivedId)
-        const draft = (await js(main, 'window.myTodo.listInspirations()')).data.find(
+        const draft = (await js(main, 'window.dook.listInspirations()')).data.find(
           (idea) => idea.description === '切组前草稿'
         )
-        const originalTopic = (await js(main, 'window.myTodo.listInspirationTopics()')).data.find(
+        const originalTopic = (await js(main, 'window.dook.listInspirationTopics()')).data.find(
           (topic) => topic.name === '独立主题'
         )
         assert.deepEqual(draft.topicIds, [originalTopic.id], '草稿保存在原主题')
@@ -1364,7 +1364,7 @@ async function runSmoke() {
           '删除当前主题后切组'
         )
         assert.ok(
-          (await js(main, 'window.myTodo.listInspirations()')).data.some(
+          (await js(main, 'window.dook.listInspirations()')).data.some(
             (idea) => idea.description === '删除前草稿' && idea.topicIds.length === 0
           ),
           '删除主题前保存草稿'
@@ -1395,7 +1395,7 @@ async function runSmoke() {
         )
         const created = await js(
           main,
-          `(async () => { const idea = (await window.myTodo.createInspiration('保留想法')).data; await window.myTodo.appendInspiration(idea.id, '保留补充'); const topics = (await window.myTodo.listInspirationTopics()).data; const topic = topics.find(t => t.name === '改名主题'); await window.myTodo.setInspirationTopic(idea.id, topic.id, true); await window.myTodo.createInspirationTopic('其他主题', idea.id); return idea.id })()`
+          `(async () => { const idea = (await window.dook.createInspiration('保留想法')).data; await window.dook.appendInspiration(idea.id, '保留补充'); const topics = (await window.dook.listInspirationTopics()).data; const topic = topics.find(t => t.name === '改名主题'); await window.dook.setInspirationTopic(idea.id, topic.id, true); await window.dook.createInspirationTopic('其他主题', idea.id); return idea.id })()`
         )
         await click(main, '[aria-label="删除改名主题"]')
         await waitFor(
@@ -1408,7 +1408,7 @@ async function runSmoke() {
         )
         await click(main, '[data-testid=delete-cancel]')
         assert.ok(
-          (await js(note, 'window.myTodo.listInspirationTopics()')).data.some(
+          (await js(note, 'window.dook.listInspirationTopics()')).data.some(
             (t) => t.name === '改名主题'
           )
         )
@@ -1416,12 +1416,12 @@ async function runSmoke() {
         await click(main, '[data-testid=delete-confirm]')
         await waitFor(
           async () =>
-            !(await js(note, 'window.myTodo.listInspirationTopics()')).data.some(
+            !(await js(note, 'window.dook.listInspirationTopics()')).data.some(
               (t) => t.name === '改名主题'
             ),
           '删除同步'
         )
-        const idea = (await js(note, 'window.myTodo.listInspirations()')).data.find(
+        const idea = (await js(note, 'window.dook.listInspirations()')).data.find(
           (i) => i.id === created
         )
         assert.equal(idea.description, '保留想法')
@@ -1452,7 +1452,7 @@ async function runSmoke() {
           false
         )
         assert.equal(
-          (await js(main, `window.myTodo.listInspirationPage(0, 20, {kind:'archive'})`)).data
+          (await js(main, `window.dook.listInspirationPage(0, 20, {kind:'archive'})`)).data
             .items[0].additions[0].content,
           '归档持久补充'
         )
@@ -1461,17 +1461,17 @@ async function runSmoke() {
           () => js(main, `!document.querySelector('.inspiration-item')`),
           '重启后恢复归档'
         )
-        const restored = (await js(main, 'window.myTodo.listInspirations()')).data.find(
+        const restored = (await js(main, 'window.dook.listInspirations()')).data.find(
           (i) => i.description === '跨重启归档'
         )
-        const archiveTopic = (await js(main, 'window.myTodo.listInspirationTopics()')).data.find(
+        const archiveTopic = (await js(main, 'window.dook.listInspirationTopics()')).data.find(
           (t) => t.name === '归档持久主题'
         )
         assert.deepEqual(restored.topicIds, [archiveTopic.id], '重启后恢复主题关联')
-        const topics = (await js(note, 'window.myTodo.listInspirationTopics()')).data
+        const topics = (await js(note, 'window.dook.listInspirationTopics()')).data
         assert.ok(topics.some((t) => t.name === '其他主题'))
         assert.ok(!topics.some((t) => t.name === '改名主题'))
-        const idea = (await js(note, 'window.myTodo.listInspirations()')).data.find(
+        const idea = (await js(note, 'window.dook.listInspirations()')).data.find(
           (i) => i.description === '保留想法'
         )
         assert.equal(idea.additions[0].content, '保留补充')
@@ -1551,7 +1551,7 @@ async function runSmoke() {
           () =>
             js(
               main,
-              `(async () => (await window.myTodo.listInspirations()).data[0].topicIds.length === 1)()`
+              `(async () => (await window.dook.listInspirations()).data[0].topicIds.length === 1)()`
             ),
           '连续切换后的关联'
         )
@@ -1587,7 +1587,7 @@ async function runSmoke() {
         )
         await js(
           main,
-          `(async () => { const idea = (await window.myTodo.listInspirations()).data[0]; await window.myTodo.appendInspiration(idea.id, '持久补充', 'topic-history') })()`
+          `(async () => { const idea = (await window.dook.listInspirations()).data[0]; await window.dook.appendInspiration(idea.id, '持久补充', 'topic-history') })()`
         )
         await waitFor(
           () =>
@@ -1599,7 +1599,7 @@ async function runSmoke() {
         )
         await js(
           note,
-          `(async () => { const idea = (await window.myTodo.listInspirations()).data[0]; await window.myTodo.updateInspiration(idea.id, '双窗口更新') })()`
+          `(async () => { const idea = (await window.dook.listInspirations()).data[0]; await window.dook.updateInspiration(idea.id, '双窗口更新') })()`
         )
         await waitFor(
           () =>
@@ -1643,12 +1643,12 @@ async function runSmoke() {
           '重启后关联和正文保留'
         )
         assert.equal(
-          (await js(main, `window.myTodo.listInspirations()`)).data[0].additions[0].content,
+          (await js(main, `window.dook.listInspirations()`)).data[0].additions[0].content,
           '持久补充',
           '重启后补充数据保留'
         )
         assert.equal(
-          (await js(note, 'window.myTodo.listInspirations()')).data[0].description,
+          (await js(note, 'window.dook.listInspirations()')).data[0].description,
           '双窗口更新'
         )
         assert.equal(
@@ -1786,7 +1786,7 @@ async function runSmoke() {
         '任务待继续草稿',
         '任务新增切换展开收起并保留草稿'
       )
-      const lock = new DatabaseSync(resolve(process.env.MYTODO_SMOKE_DATA, 'mytodo.sqlite'))
+      const lock = new DatabaseSync(resolve(process.env.DOOK_SMOKE_DATA, 'dook.sqlite'))
       try {
         lock.exec('BEGIN IMMEDIATE')
         await input(main, '[data-testid=task-new]', '失败后保留草稿')
@@ -1982,7 +1982,7 @@ async function runSmoke() {
       )
       await captureDesign('inspiration-row-layout.png')
       assert.equal(
-        (await js(main, `window.myTodo.listInspirations()`)).data[0].description,
+        (await js(main, `window.dook.listInspirations()`)).data[0].description,
         '编辑后的小记\n保留下一行'
       )
       assert.equal(
@@ -2128,7 +2128,7 @@ async function runSmoke() {
       ])
       await js(
         main,
-        `(async () => { for (let i = 0; i < 25; i++) { const result = await window.myTodo.createInspiration('分页小记 ' + String(i).padStart(2, '0')); if (!result.ok) throw new Error('创建小记失败'); } })()`
+        `(async () => { for (let i = 0; i < 25; i++) { const result = await window.dook.createInspiration('分页小记 ' + String(i).padStart(2, '0')); if (!result.ok) throw new Error('创建小记失败'); } })()`
       )
       await waitFor(
         () => js(main, `document.querySelectorAll('.inspiration-item').length === 20`),
@@ -2165,7 +2165,7 @@ async function runSmoke() {
       assert.equal(new Set(loadedIdeas).size, 26, '分页无重复')
       await js(
         main,
-        `(async () => { const topic = (await window.myTodo.listInspirationTopics()).data.find(x => x.name === '工作流'); for (const idea of (await window.myTodo.listInspirations()).data) await window.myTodo.setInspirationTopic(idea.id, topic.id, true) })()`
+        `(async () => { const topic = (await window.dook.listInspirationTopics()).data.find(x => x.name === '工作流'); for (const idea of (await window.dook.listInspirations()).data) await window.dook.setInspirationTopic(idea.id, topic.id, true) })()`
       )
       await chooseView('主题')
       await waitFor(
@@ -2317,12 +2317,12 @@ async function runSmoke() {
       await js(
         main,
         `(async () => {
-        await window.myTodo.createTask('整理本周的项目进展');
-        await window.myTodo.createTask('确认下一个版本的交互细节');
-        const result = await window.myTodo.createTask('完善个人工作台');
+        await window.dook.createTask('整理本周的项目进展');
+        await window.dook.createTask('确认下一个版本的交互细节');
+        const result = await window.dook.createTask('完善个人工作台');
         if (result.ok) {
-          await window.myTodo.convertToMultiDay(result.data.id);
-          await window.myTodo.setTaskProgress(result.data.id, 45);
+          await window.dook.convertToMultiDay(result.data.id);
+          await window.dook.setTaskProgress(result.data.id, 45);
         }
       })()`
       )
@@ -2368,11 +2368,11 @@ async function runSmoke() {
           `(async () => {
           const tasks = [];
           for (const text of ['任务甲', '任务乙', '任务丙', '推进甲', '推进乙']) {
-            const result = await window.myTodo.createTask(text);
+            const result = await window.dook.createTask(text);
             if (!result.ok) throw new Error(result.error);
             tasks.push(result.data);
           }
-          for (const task of tasks.slice(3)) await window.myTodo.convertToMultiDay(task.id);
+          for (const task of tasks.slice(3)) await window.dook.convertToMultiDay(task.id);
           return tasks;
         })()`
         )
@@ -2466,7 +2466,7 @@ async function runSmoke() {
           ),
           '0'
         )
-        await js(main, `window.myTodo.createInspiration('底部圆环验证')`)
+        await js(main, `window.dook.createInspiration('底部圆环验证')`)
         await waitFor(
           () =>
             js(
@@ -2577,7 +2577,7 @@ async function runSmoke() {
         () => js(main, `document.querySelector('[data-testid=task-new]').value === ''`),
         '下一项保存后清空'
       )
-      await js(main, `window.myTodo.deleteTask(${JSON.stringify((await rows(note)).at(-1).id)})`)
+      await js(main, `window.dook.deleteTask(${JSON.stringify((await rows(note)).at(-1).id)})`)
       await count(note, 1)
       await js(
         main,
@@ -2600,7 +2600,7 @@ async function runSmoke() {
         '下一项不覆盖已保存任务'
       )
       for (const task of (await rows(note)).slice(1))
-        await js(main, `window.myTodo.deleteTask(${JSON.stringify(task.id)})`)
+        await js(main, `window.dook.deleteTask(${JSON.stringify(task.id)})`)
       await count(note, 1)
       await js(
         main,
@@ -2620,7 +2620,7 @@ async function runSmoke() {
         () => js(main, `document.querySelector('[data-testid=task-new]').value === ''`),
         '追赶输入保存后清空'
       )
-      await js(main, `window.myTodo.deleteTask(${JSON.stringify((await rows(note))[0].id)})`)
+      await js(main, `window.dook.deleteTask(${JSON.stringify((await rows(note))[0].id)})`)
       await count(note, 1)
       const originalDescription = (await rows(note))[0].description
       await edit(main, ' 检查构建并更新 ', null)
@@ -2719,7 +2719,7 @@ async function runSmoke() {
       const wrappingTask = (
         await js(
           main,
-          `window.myTodo.createTask(${JSON.stringify('检查行内编辑的位置与换行：保留原来的字体和间距，点击前后任务内容和勾选框都保持稳定。Mixed words, 中文与标点。\n第二行同样保持原位。')})`
+          `window.dook.createTask(${JSON.stringify('检查行内编辑的位置与换行：保留原来的字体和间距，点击前后任务内容和勾选框都保持稳定。Mixed words, 中文与标点。\n第二行同样保持原位。')})`
         )
       ).data
       await count(note, 3)
@@ -2741,7 +2741,7 @@ async function runSmoke() {
         )
         assert.deepEqual(await editLayout(window, selector), before, '结束行内编辑保持原布局')
       }
-      await js(main, `window.myTodo.deleteTask(${JSON.stringify(wrappingTask.id)})`)
+      await js(main, `window.dook.deleteTask(${JSON.stringify(wrappingTask.id)})`)
       await count(note, 2)
       await edit(note, ' 持久化的任务描述 ')
       await waitFor(
@@ -2761,11 +2761,11 @@ async function runSmoke() {
       await ready(note)
       assert.deepEqual(note.getPosition(), [80, 90])
       assert.equal(
-        (await js(note, 'window.myTodo.listToday()')).data.tasks.at(-1).description,
+        (await js(note, 'window.dook.listToday()')).data.tasks.at(-1).description,
         '隐藏前保存'
       )
       const hiddenTask = (await rows(main)).at(-1)
-      await js(note, `window.myTodo.deleteTask(${JSON.stringify(hiddenTask.id)})`)
+      await js(note, `window.dook.deleteTask(${JSON.stringify(hiddenTask.id)})`)
       await count(main, 2)
       await click(main, '[data-testid=open-other]')
       assert.equal(BrowserWindow.getAllWindows().length, 2)
@@ -2819,7 +2819,7 @@ async function runSmoke() {
       assert.equal(layout.scrollable, true, '任务列表独立滚动')
       const extra = (await rows(note)).slice(2)
       for (const task of extra) {
-        const result = await js(note, `window.myTodo.deleteTask(${JSON.stringify(task.id)})`)
+        const result = await js(note, `window.dook.deleteTask(${JSON.stringify(task.id)})`)
         assert.deepEqual(result, { ok: true, data: true })
       }
       await count(main, 2)
@@ -2830,9 +2830,9 @@ async function runSmoke() {
         () => js(note, `document.querySelector('[data-testid=task-new]').value === ''`),
         '成功保存后准备下一项'
       )
-      await js(note, `window.myTodo.deleteTask(${JSON.stringify((await rows(main)).at(-1).id)})`)
+      await js(note, `window.dook.deleteTask(${JSON.stringify((await rows(main)).at(-1).id)})`)
       await count(main, 2)
-      const lock = new DatabaseSync(resolve(process.env.MYTODO_SMOKE_DATA, 'mytodo.sqlite'))
+      const lock = new DatabaseSync(resolve(process.env.DOOK_SMOKE_DATA, 'dook.sqlite'))
       let saveFailures = 0
       dialog.showMessageBox = async (_window, options) => {
         if (options.type === 'error') saveFailures++
@@ -2866,7 +2866,7 @@ async function runSmoke() {
       }
       await input(note, '[data-testid=task-new]', '失败后重试保存')
       await count(main, 3)
-      await js(note, `window.myTodo.deleteTask(${JSON.stringify((await rows(main)).at(-1).id)})`)
+      await js(note, `window.dook.deleteTask(${JSON.stringify((await rows(main)).at(-1).id)})`)
       await count(main, 2)
       await dockingSmoke(main, note)
       if (note.isAlwaysOnTop()) await click(note, '[data-testid=note-pin]')
@@ -2891,7 +2891,7 @@ async function runSmoke() {
     }
     await habitsSmoke({ phase, main, note, input, click, js, waitFor, assert })
     await inspirationSmoke({ main, note, phase, js, click, input, waitFor })
-    const diagnostics = await js(main, 'window.myTodo.runDiagnostics()')
+    const diagnostics = await js(main, 'window.dook.runDiagnostics()')
     assert.equal(diagnostics.ok, true)
     assert.ok(diagnostics.data.checks.every((check) => check.ok))
     assert.equal(await js(main, 'typeof window.require'), 'undefined')
@@ -2924,7 +2924,7 @@ async function runSmoke() {
       await js(
         main,
         `(() => {
-        window.myTodo.onWindowState(state => { if (state.exitPending) window.smokeExitLocked = document.body.inert });
+        window.dook.onWindowState(state => { if (state.exitPending) window.smokeExitLocked = document.body.inert });
         document.querySelector('[data-testid=task-new]').dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
       })()`
       )

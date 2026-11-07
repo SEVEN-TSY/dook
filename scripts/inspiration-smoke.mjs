@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 
 /** 在真实双窗口上验收小记；由统一Electron smoke负责应用生命周期。 */
 export async function inspirationSmoke({ main, note, phase, js, click, input, waitFor }) {
-  const ideas = async (window) => (await js(window, 'window.myTodo.listInspirations()')).data
+  const ideas = async (window) => (await js(window, 'window.dook.listInspirations()')).data
   const mode = (window, value) =>
     waitFor(
       () =>
@@ -33,7 +33,7 @@ export async function inspirationSmoke({ main, note, phase, js, click, input, wa
     'false'
   )
   if (phase === 'create') {
-    const before = (await js(note, 'window.myTodo.listToday()')).data.tasks
+    const before = (await js(note, 'window.dook.listToday()')).data.tasks
     await click(note, '[data-testid=note-kind-toggle]')
     await mode(note, 'inspiration')
     await input(note, '[data-testid=task-new]', '小记分类草稿', null)
@@ -42,7 +42,7 @@ export async function inspirationSmoke({ main, note, phase, js, click, input, wa
     await count(main, 1)
     await count(note, 1)
     assert.deepEqual(
-      (await js(note, 'window.myTodo.listToday()')).data.tasks,
+      (await js(note, 'window.dook.listToday()')).data.tasks,
       before,
       '小记保存不产生今天任务'
     )
@@ -82,15 +82,15 @@ export async function inspirationSmoke({ main, note, phase, js, click, input, wa
     }
     const topic = await js(
       main,
-      `(async () => { const idea = (await window.myTodo.listInspirations()).data[0]; return window.myTodo.createInspirationTopic('重启主题', idea.id) })()`
+      `(async () => { const idea = (await window.dook.listInspirations()).data[0]; return window.dook.createInspirationTopic('重启主题', idea.id) })()`
     )
     assert.equal(topic.ok, true)
     await append('先梳理需求')
     await append('再探索实现')
     await append('隐藏前补充', false)
-    await js(note, 'window.myTodo.hideWindow()')
+    await js(note, 'window.dook.hideWindow()')
     await waitFor(() => !note.isVisible(), '等待小记草稿保存后隐藏')
-    await js(main, `window.myTodo.openWindow('note')`)
+    await js(main, `window.dook.openWindow('note')`)
     await waitFor(() => note.isVisible(), '恢复小记窗口')
   } else {
     await count(note, 1)
@@ -100,7 +100,7 @@ export async function inspirationSmoke({ main, note, phase, js, click, input, wa
   const saved = await ideas(note)
   assert.equal(saved.length, 1)
   assert.equal(saved[0].description, '小记整合工具')
-  const topics = (await js(main, 'window.myTodo.listInspirationTopics()')).data
+  const topics = (await js(main, 'window.dook.listInspirationTopics()')).data
   assert.equal(topics.find((topic) => topic.name === '重启主题')?.id, saved[0].topicIds[0])
   assert.deepEqual(
     saved[0].additions.map((item) => item.content),

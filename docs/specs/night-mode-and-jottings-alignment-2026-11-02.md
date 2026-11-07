@@ -1,6 +1,6 @@
 # 夜间模式与小记便签对齐记录
 
-2026-11-02。状态：本轮逐项确认的业务与界面要求已整理为[正式规格](./night-mode-and-jottings.md)，并发布为[GitHub Issue #31](https://github.com/SEVEN-TSY/myTodo/issues/31)。用户在访谈阶段明确“这轮先不碰逻辑”；后续通过implement指令授权实施，已完成本地实现和验证，保留既有业务逻辑。以下保留原访谈记录。
+2026-11-02。状态：本轮逐项确认的业务与界面要求已整理为[正式规格](./night-mode-and-jottings.md)，并发布为[GitHub Issue #31](https://github.com/SEVEN-TSY/dook/issues/31)。用户在访谈阶段明确“这轮先不碰逻辑”；后续通过implement指令授权实施，已完成本地实现和验证，保留既有业务逻辑。以下保留原访谈记录。
 
 ## 用户已确认
 

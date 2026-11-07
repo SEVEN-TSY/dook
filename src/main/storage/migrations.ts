@@ -154,5 +154,10 @@ export const migrations = [
     version: 19,
     name: 'habit_archived_time',
     sql: `ALTER TABLE habits ADD COLUMN archived_at TEXT;`
+  },
+  {
+    version: 20,
+    name: 'dook_schema_metadata',
+    sql: `UPDATE app_metadata SET value = 'dook' WHERE key = 'schema';`
   }
 ] as const

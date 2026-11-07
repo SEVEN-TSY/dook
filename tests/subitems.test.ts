@@ -92,7 +92,7 @@ test('子事项在跨日和重启后保留，全部完成当日显示且次日�
   const { mkdtempSync, rmSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const { join, dirname, resolve } = await import('node:path')
-  const directory = mkdtempSync(join(tmpdir(), 'mytodo-subitems-'))
+  const directory = mkdtempSync(join(tmpdir(), 'dook-subitems-'))
   const path = join(directory, 'app.sqlite')
   let database = new AppDatabase(path)
   let now = new Date(2026, 9, 27, 23, 59)

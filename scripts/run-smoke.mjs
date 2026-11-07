@@ -17,7 +17,7 @@ writeFileSync(
     main: resolve(root, 'scripts/electron-smoke.mjs')
   })
 )
-const env = { ...process.env, MYTODO_SMOKE_DATA: mkdtempSync(resolve(root, '.local/smoke/data-')) }
+const env = { ...process.env, DOOK_SMOKE_DATA: mkdtempSync(resolve(root, '.local/smoke/data-')) }
 delete env.ELECTRON_RUN_AS_NODE
 const phases =
   process.argv[2] === 'task-inline'
@@ -63,7 +63,7 @@ for (const phase of phases) {
   const code = await new Promise((resolveExit, reject) => {
     const child = spawn(electron, [runner], {
       cwd: root,
-      env: { ...env, MYTODO_SMOKE_PHASE: phase },
+      env: { ...env, DOOK_SMOKE_PHASE: phase },
       // Electron是GUI进程；SW_HIDE会吞掉首个窗口的show，无法验收真实可见性。
       windowsHide: false,
       stdio: 'inherit'

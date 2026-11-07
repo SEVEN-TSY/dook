@@ -1,6 +1,6 @@
 # DOOK工程结构说明
 
-应用官方名称为DOOK。为兼容已有安装和数据，保留现有appId、myTodo数据目录、数据库文件名、环境变量和桌面桥接名称；源码仓库仍为SEVEN-TSY/myTodo。
+应用官方名称为DOOK，源码仓库为`SEVEN-TSY/dook`。Windows应用ID为`com.dook.desktop`，NSIS沿用既有安装的GUID以识别升级。
 
 ## 1. 整体结构与各层边界
 
@@ -65,7 +65,9 @@ v18为inspirations增加可空archived_at；归档经AppService核心时钟写�
 
 v19为habits增加可空archived_at，沿用小记的记录及清空规则。习惯归档时间与移除当天任务在同一事务中提交；listArchivedHabits返回archivedAt，界面用图标展示归档与创建时间。
 
-使用`node:sqlite`同步接口，驱动限制在storage层；数据文件开启WAL、外键与busy timeout。迁移在事务中递增执行，失败回滚，已发布迁移不修改。
+v20将数据库的应用元数据更新为`dook`。首次使用新目录时，在单实例锁内用SQLite备份接口导入旧库，同时复制缺失的窗口设置和MCP凭证。数据库文件最后就位，已有`dook.sqlite`时直接使用该库。旧文件作为备份保留。
+
+SQLite驱动限制在storage层，业务读写使用`node:sqlite`同步接口。数据文件开启WAL、外键与busy timeout。迁移在事务中递增执行，失败回滚，已发布迁移不修改。
 
 - v1：`app_metadata`基础设施元数据。
 - v2：`tasks`，保留稳定id、任务描述、所属本地日期、完成状态和自增创建顺序。

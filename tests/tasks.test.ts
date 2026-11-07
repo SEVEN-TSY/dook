@@ -45,7 +45,7 @@ test('今天任务去除空白并新增位于普通任务首位，跨日不延�
 })
 
 test('编辑和完成保留日期与顺序，删除不被旧编辑恢复，重启保留结果', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'mytodo-tasks-'))
+  const directory = mkdtempSync(join(tmpdir(), 'dook-tasks-'))
   const path = join(directory, 'tasks.sqlite')
   let database = new AppDatabase(path)
   let now = new Date(2026, 9, 27, 12)
@@ -90,7 +90,7 @@ test('编辑和完成保留日期与顺序，删除不被旧编辑恢复，重�
 })
 
 test('分类内排序与置顶持久化，完成不改顺序，跨分类或置顶分区拖动不写入', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'mytodo-order-'))
+  const directory = mkdtempSync(join(tmpdir(), 'dook-order-'))
   const path = join(directory, 'tasks.sqlite')
   let database = new AppDatabase(path)
   let now = new Date(2026, 9, 28, 12)

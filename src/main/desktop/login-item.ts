@@ -7,5 +7,6 @@ export function configureLaunchAtLogin(
   platform: NodeJS.Platform = process.platform
 ): void {
   if (platform !== 'win32' || !app.isPackaged) return
+  app.setLoginItemSettings({ name: 'com.mytodo.desktop', openAtLogin: false })
   app.setLoginItemSettings({ openAtLogin: enabled, enabled })
 }

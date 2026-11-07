@@ -16,12 +16,17 @@ import { runDiagnostics } from './desktop/diagnostics'
 import { startMcpEndpoint } from './mcp/server'
 import type { McpEndpoint } from './mcp/server'
 import { loadOrCreateToken } from './mcp/token'
+import { prepareDataDirectory } from './storage/data-directory'
 
 app.setName('DOOK')
-app.setAppUserModelId('com.mytodo.desktop')
+app.setAppUserModelId('com.dook.desktop')
+const appData = app.getPath('appData')
+const dataOverride = process.env.DOOK_DATA_DIR || process.env.MYTODO_DATA_DIR
 const dataDirectory = resolve(
-  process.env.MYTODO_DATA_DIR ||
-    resolve(app.getPath('appData'), app.isPackaged ? 'myTodo' : 'myTodo-development')
+  dataOverride || resolve(appData, app.isPackaged ? 'dook' : 'dook-development')
+)
+const previousDataDirectory = resolve(
+  dataOverride || resolve(appData, app.isPackaged ? 'myTodo' : 'myTodo-development')
 )
 app.setPath('userData', dataDirectory)
 
@@ -31,7 +36,9 @@ if (!app.requestSingleInstanceLock()) {
   void app
     .whenReady()
     .then(async () => {
-      const database = new AppDatabase(resolve(dataDirectory, 'mytodo.sqlite'))
+      const database = new AppDatabase(
+        await prepareDataDirectory(dataDirectory, previousDataDirectory)
+      )
       const service = new AppService(database, new TaskRepository(database.connection), undefined, {
         habits: new HabitRepository(database.connection),
         inspirations: new InspirationRepository(database.connection)
@@ -98,9 +105,9 @@ if (!app.requestSingleInstanceLock()) {
 
       try {
         token = loadOrCreateToken(resolve(dataDirectory, 'mcp-token'))
-        const port = Number(process.env.MYTODO_MCP_PORT ?? 32145)
+        const port = Number(process.env.DOOK_MCP_PORT ?? process.env.MYTODO_MCP_PORT ?? 32145)
         if (!Number.isInteger(port) || port < 0 || port > 65535)
-          throw new Error('MYTODO_MCP_PORT必须为0至65535的整数。')
+          throw new Error('DOOK_MCP_PORT必须为0至65535的整数。')
         endpoint = await startMcpEndpoint({ service, token, port })
         mcp = { state: 'listening', endpoint: endpoint.url, error: null }
       } catch (error) {

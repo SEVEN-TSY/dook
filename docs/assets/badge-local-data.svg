@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="98" height="20" role="img" aria-label="Data: Local only">
+  <title>Data: Local only</title>
+  <rect width="98" height="20" rx="4" fill="#1d745b"/>
+  <path d="M4 0h31v20H4a4 4 0 0 1-4-4V4a4 4 0 0 1 4-4Z" fill="#454b57"/>
+  <g fill="#fff" font-family="Verdana, Geneva, sans-serif" font-size="11" text-anchor="middle">
+    <text x="17.5" y="14">data</text>
+    <text x="66.5" y="14">Local only</text>
+  </g>
+</svg>

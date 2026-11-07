@@ -29,13 +29,13 @@ export async function listInteractionSmoke({ main, note, js, click, input, waitF
   await input(main, '[data-testid=task-new]', '仅回车创建', null)
   await click(main, '.workbench-header h1')
   assert.equal(
-    (await js(main, 'window.myTodo.listToday()')).data.tasks.length,
+    (await js(main, 'window.dook.listToday()')).data.tasks.length,
     0,
     '主界面失焦不创建'
   )
   note.focus()
   await js(main, 'new Promise(resolve => setTimeout(resolve, 100))')
-  assert.equal((await js(main, 'window.myTodo.listToday()')).data.tasks.length, 0, '窗口失焦不创建')
+  assert.equal((await js(main, 'window.dook.listToday()')).data.tasks.length, 0, '窗口失焦不创建')
   main.focus()
   assert.equal(
     await js(main, `document.querySelector('[data-testid=task-new]').checkVisibility()`),
@@ -50,7 +50,7 @@ export async function listInteractionSmoke({ main, note, js, click, input, waitF
   )
   await input(main, '[data-testid=task-new]', '仅回车创建')
   await waitFor(
-    async () => (await js(main, 'window.myTodo.listToday()')).data.tasks.length === 1,
+    async () => (await js(main, 'window.dook.listToday()')).data.tasks.length === 1,
     'Enter创建'
   )
   await click(main, '[data-testid=task-description]')
@@ -108,8 +108,8 @@ export async function listInteractionSmoke({ main, note, js, click, input, waitF
     () => js(main, `!document.querySelector('[data-testid=task-edit]')`),
     'Enter结束编辑'
   )
-  const pinned = (await js(main, `window.myTodo.createTask('置顶任务')`)).data
-  await js(main, `window.myTodo.setTaskPinned('${pinned.id}', true)`)
+  const pinned = (await js(main, `window.dook.createTask('置顶任务')`)).data
+  await js(main, `window.dook.setTaskPinned('${pinned.id}', true)`)
   await click(note, '.note-add-button')
   await input(note, '[data-testid=task-new]', '便签新任务', null)
   assert.equal(
@@ -119,16 +119,16 @@ export async function listInteractionSmoke({ main, note, js, click, input, waitF
   )
   await input(note, '[data-testid=task-new]', '便签新任务')
   await waitFor(
-    async () => (await js(note, 'window.myTodo.listToday()')).data.tasks.length === 3,
+    async () => (await js(note, 'window.dook.listToday()')).data.tasks.length === 3,
     '便签创建'
   )
   assert.deepEqual(
-    (await js(note, 'window.myTodo.listToday()')).data.tasks.map((x) => x.description),
+    (await js(note, 'window.dook.listToday()')).data.tasks.map((x) => x.description),
     ['置顶任务', '便签新任务', '修改后任务'],
     '新增排在置顶之后普通首位'
   )
   const long = '长任务内容'.repeat(30) + '末尾'
-  const alignmentTask = (await js(note, 'window.myTodo.listToday()')).data.tasks.find(
+  const alignmentTask = (await js(note, 'window.dook.listToday()')).data.tasks.find(
     (task) => task.description === '便签新任务'
   )
   const alignmentSelector = `[data-task-id="${alignmentTask.id}"]`
@@ -154,7 +154,7 @@ export async function listInteractionSmoke({ main, note, js, click, input, waitF
     )
   for (const multiDay of [false, true]) {
     if (multiDay) {
-      await js(note, `window.myTodo.convertToMultiDay('${alignmentTask.id}')`)
+      await js(note, `window.dook.convertToMultiDay('${alignmentTask.id}')`)
       await waitFor(
         () => js(note, `Boolean(document.querySelector('${alignmentSelector} .task-progress'))`),
         '持续推进进度就绪'
@@ -232,7 +232,7 @@ export async function listInteractionSmoke({ main, note, js, click, input, waitF
     '列表滚动区域贴右侧窗口边缘'
   )
   await capture(main, 'inspiration-edge-layout.png')
-  const habit = (await js(main, `window.myTodo.createHabit('共用习惯编辑')`)).data
+  const habit = (await js(main, `window.dook.createHabit('共用习惯编辑')`)).data
   await click(main, '.workbench-nav [aria-label="习惯"]')
   await click(main, `[data-habit-id="${habit.id}"] [data-testid=habit-description]`)
   assert.equal(
@@ -264,7 +264,7 @@ export async function listInteractionSmoke({ main, note, js, click, input, waitF
     '习惯Enter提交结束编辑'
   )
   assert.equal(
-    (await js(main, 'window.myTodo.listHabits()')).data.find((item) => item.id === habit.id)
+    (await js(main, 'window.dook.listHabits()')).data.find((item) => item.id === habit.id)
       ?.description,
     '习惯第一行\n习惯第二行'
   )
@@ -273,7 +273,7 @@ export async function listInteractionSmoke({ main, note, js, click, input, waitF
   await js(main, `document.querySelector('[data-testid=habit-edit-input]').blur()`)
   await waitFor(
     async () =>
-      (await js(main, 'window.myTodo.listHabits()')).data.find((item) => item.id === habit.id)
+      (await js(main, 'window.dook.listHabits()')).data.find((item) => item.id === habit.id)
         ?.description === '习惯失焦保存',
     '习惯失焦保存'
   )

@@ -102,4 +102,4 @@ const api: DesktopApi = {
   runDiagnostics: () => ipcRenderer.invoke(IPC_CHANNELS.runDiagnostics)
 }
 
-contextBridge.exposeInMainWorld('myTodo', api)
+contextBridge.exposeInMainWorld('dook', api)

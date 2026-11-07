@@ -4,10 +4,10 @@ import { resolve } from 'node:path'
 import { assertCompactToast } from './toast-assertions.mjs'
 
 export async function toastSmoke({ main, note, js, click, input, waitFor, capture }) {
-  const task = (await js(main, `window.myTodo.createTask('提示验收任务')`)).data
+  const task = (await js(main, `window.dook.createTask('提示验收任务')`)).data
   const row = `[data-task-id="${task.id}"]`
-  const settings = (await js(main, 'window.myTodo.getWindowState()')).data.settings
-  const db = new DatabaseSync(resolve(process.env.MYTODO_SMOKE_DATA, 'mytodo.sqlite'))
+  const settings = (await js(main, 'window.dook.getWindowState()')).data.settings
+  const db = new DatabaseSync(resolve(process.env.DOOK_SMOKE_DATA, 'dook.sqlite'))
   const longError = '保存失败，请稍后重试。' + 'LongErrorWithoutSpaces'.repeat(8)
   const metrics = (window) =>
     js(
@@ -22,7 +22,7 @@ export async function toastSmoke({ main, note, js, click, input, waitFor, captur
     for (const appearance of ['light', 'dark']) {
       await js(
         main,
-        `window.myTodo.updateSettings(${JSON.stringify({ ...settings, appearance, themeColor: '#8542ae' })})`
+        `window.dook.updateSettings(${JSON.stringify({ ...settings, appearance, themeColor: '#8542ae' })})`
       )
       await waitFor(
         async () =>
@@ -98,7 +98,7 @@ export async function toastSmoke({ main, note, js, click, input, waitFor, captur
         )
       }
       await click(main, '.workbench-nav [aria-label="习惯"]')
-      const habit = (await js(main, `window.myTodo.createHabit('提示验收习惯')`)).data
+      const habit = (await js(main, `window.dook.createHabit('提示验收习惯')`)).data
       await click(main, `[data-habit-id="${habit.id}"] [data-testid=habit-schedule]`)
       await click(main, '.habit-schedule-footer button[type=submit]')
       await waitFor(
@@ -119,6 +119,6 @@ export async function toastSmoke({ main, note, js, click, input, waitFor, captur
     }
   } finally {
     db.close()
-    await js(main, `window.myTodo.updateSettings(${JSON.stringify(settings)})`)
+    await js(main, `window.dook.updateSettings(${JSON.stringify(settings)})`)
   }
 }

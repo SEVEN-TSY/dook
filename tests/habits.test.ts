@@ -68,7 +68,7 @@ test('习惯每天仅生成一次，完成删除和多次补齐均不重复生�
 })
 
 test('习惯生成记录重启后保留且只补当天，不补过去日期', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'mytodo-habits-'))
+  const directory = mkdtempSync(join(tmpdir(), 'dook-habits-'))
   const path = join(directory, 'habits.sqlite')
   let database = new AppDatabase(path)
   let now = new Date(2026, 9, 27, 10)
@@ -104,7 +104,7 @@ test('习惯生成记录重启后保留且只补当天，不补过去日期', ()
 })
 
 test('习惯创建失败不留下半条结果，解除数据库写锁后可重试', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'mytodo-habits-lock-'))
+  const directory = mkdtempSync(join(tmpdir(), 'dook-habits-lock-'))
   const path = join(directory, 'habits.sqlite')
   const database = new AppDatabase(path)
   const lock = new DatabaseSync(path)
@@ -157,7 +157,7 @@ test('习惯任务不允许直接编辑描述或转换为多天任务，仍可�
 })
 
 test('暂停一次保留习惯和任务记录，当天重启不重建，次日继续生成', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'mytodo-skip-habit-'))
+  const directory = mkdtempSync(join(tmpdir(), 'dook-skip-habit-'))
   const path = join(directory, 'tasks.sqlite')
   let database = new AppDatabase(path)
   let now = new Date(2026, 9, 28, 12)

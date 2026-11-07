@@ -30,7 +30,7 @@ test('今天任务转换为多天任务后保留标识并在今天任务之后�
 })
 
 test('已有SQLite任务升级后保持内容、日期与顺序，多天进度重启恢复', (t) => {
-  const directory = mkdtempSync(join(tmpdir(), 'mytodo-multiday-'))
+  const directory = mkdtempSync(join(tmpdir(), 'dook-multiday-'))
   t.after(() => {
     assert.equal(resolve(dirname(directory)), resolve(tmpdir()))
     rmSync(directory, { recursive: true, force: true })

@@ -1,4 +1,4 @@
-状态：2026-11-02用户确认需求及验收边界后发布为[GitHub Issue #27](https://github.com/SEVEN-TSY/myTodo/issues/27)，拆分为#28、#29、#30，现已在`codex/issue-27-integration`完成实施、组合验证及代码审查修复。验证和审查结果见[实施验收记录](../reviews/issue-27-review.md)。
+状态：2026-11-02用户确认需求及验收边界后发布为[GitHub Issue #27](https://github.com/SEVEN-TSY/dook/issues/27)，拆分为#28、#29、#30，现已在`codex/issue-27-integration`完成实施、组合验证及代码审查修复。验证和审查结果见[实施验收记录](../reviews/issue-27-review.md)。
 
 ## Problem Statement
 
@@ -120,7 +120,7 @@
 ## Further Notes
 
 - 需求及验收边界来自2026-11-02的两轮对齐，用户已整体确认“准确”，本轮按to-spec直接综合并发布，应用ready-for-agent标签。
-- 这是已确认灵感分组导航能力上的后续细节调整，可结合[Issue #18](https://github.com/SEVEN-TSY/myTodo/issues/18)理解已有行为；本Issue中明确的新规则优先，不重新引入已撤回的单主题要求。
+- 这是已确认灵感分组导航能力上的后续细节调整，可结合[Issue #18](https://github.com/SEVEN-TSY/dook/issues/18)理解已有行为；本Issue中明确的新规则优先，不重新引入已撤回的单主题要求。
 - ADR0001及旧规格中的默认按日期、正文最多三行、保留右侧详情，由本轮默认按主题、正文最多两行及移除详情替代。多主题归集语义继续保留。
 - 原主界面视觉规范中Textarea不增加清除操作的描述，需要在实施时按本轮灵感输入决定同步更新，其他输入不因此自动扩展范围。
 - 相关需求、视觉和工程文档在实施时同步到最终行为。现有灵感领域定义仍允许持续补充，本轮移除的是界面入口，无需新增领域术语或架构ADR。

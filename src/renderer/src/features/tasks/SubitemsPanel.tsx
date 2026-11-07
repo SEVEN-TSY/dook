@@ -251,7 +251,7 @@ export function SubitemsPanel({
               }
               event.stopPropagation()
               event.dataTransfer.effectAllowed = 'move'
-              event.dataTransfer.setData('application/x-mytodo-subitem', `${task.id}:${item.id}`)
+              event.dataTransfer.setData('application/x-dook-subitem', `${task.id}:${item.id}`)
               setDragged(item.id)
             }}
             onDragOver={(event) => {

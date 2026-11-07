@@ -437,7 +437,7 @@ export class AppService {
 
   probe(): CoreProbe {
     return {
-      service: 'mytodo-core',
+      service: 'dook-core',
       checkedAt: new Date().toISOString(),
       storage: this.storage.probe()
     }

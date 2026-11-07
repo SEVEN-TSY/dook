@@ -85,9 +85,12 @@ export function AboutSettings() {
           </div>
           <div>
             <dt>开源许可</dt>
-            <dd>待确定，后续以源码仓库中的许可证声明为准。</dd>
+            <dd>
+              GNU GPLv3（仅第3版）。完整条款见源码仓库的LICENSE或安装目录的resources/LICENSE。
+            </dd>
           </div>
         </dl>
+        <p>DOOK按现状提供，概不担保，可依照GPLv3再分发。</p>
         <p>本应用使用的第三方开源组件，其版权归各自作者所有，并遵循各自的许可证。</p>
       </div>
     </section>

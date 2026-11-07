@@ -20,7 +20,7 @@ export async function deleteConfirmationSmoke({
     () => js(main, 'Boolean(document.querySelector(".workbench-header h1"))'),
     '主界面就绪'
   )
-  const task = (await js(note, `window.myTodo.createTask('应用内删除验证')`)).data
+  const task = (await js(note, `window.dook.createTask('应用内删除验证')`)).data
   await waitFor(
     () => js(main, `Boolean(document.querySelector('[data-task-id="${task.id}"]'))`),
     '任务同步'
@@ -48,7 +48,7 @@ export async function deleteConfirmationSmoke({
   await click(main, '[data-testid=task-delete]')
   await waitFor(
     async () =>
-      !(await js(note, 'window.myTodo.listToday()')).data.tasks.some((x) => x.id === task.id),
+      !(await js(note, 'window.dook.listToday()')).data.tasks.some((x) => x.id === task.id),
     '菜单归档同步'
   )
   assert.equal(
@@ -56,9 +56,9 @@ export async function deleteConfirmationSmoke({
     false,
     '普通任务归档无需确认'
   )
-  await js(note, `window.myTodo.deleteArchivedTask('${task.id}')`)
-  const archived = (await js(note, `window.myTodo.createTask('归档确认验证')`)).data
-  await js(note, `window.myTodo.archiveTask('${archived.id}')`)
+  await js(note, `window.dook.deleteArchivedTask('${task.id}')`)
+  const archived = (await js(note, `window.dook.createTask('归档确认验证')`)).data
+  await js(note, `window.dook.archiveTask('${archived.id}')`)
   await waitFor(
     () =>
       js(
@@ -95,14 +95,14 @@ export async function deleteConfirmationSmoke({
     note.setPosition(area.x, area.y + 60)
     note.emit('moved')
     await waitFor(
-      async () => (await js(note, 'window.myTodo.getWindowState()')).data.edge === 'left',
+      async () => (await js(note, 'window.dook.getWindowState()')).data.edge === 'left',
       '便签贴边'
     )
     await new Promise((resolve) => setTimeout(resolve, 120))
     pointer = { x: area.x + area.width / 2, y: area.y + area.height / 2 }
     await new Promise((resolve) => setTimeout(resolve, 1000))
     assert.equal(
-      (await js(note, 'window.myTodo.getWindowState()')).data.collapsed,
+      (await js(note, 'window.dook.getWindowState()')).data.collapsed,
       false,
       '应用内确认期间便签不自动收起'
     )
@@ -120,13 +120,13 @@ export async function deleteConfirmationSmoke({
     '便签Esc取消后恢复永久删除按钮焦点'
   )
   assert.ok(
-    (await js(main, 'window.myTodo.listArchivedTasks()')).data.some((x) => x.id === archived.id)
+    (await js(main, 'window.dook.listArchivedTasks()')).data.some((x) => x.id === archived.id)
   )
   await click(note, `[aria-label="永久删除：${archived.description}"]`)
   await click(note, '[data-testid=delete-confirm]')
   await waitFor(
     async () =>
-      !(await js(main, 'window.myTodo.listArchivedTasks()')).data.some((x) => x.id === archived.id),
+      !(await js(main, 'window.dook.listArchivedTasks()')).data.some((x) => x.id === archived.id),
     '归档永久删除同步'
   )
   await waitFor(
@@ -134,7 +134,7 @@ export async function deleteConfirmationSmoke({
     '归档删除行已移除'
   )
   await expectFocus(note, '.task-list', '删除归档行后焦点保留在稳定的任务列表')
-  const habit = (await js(note, `window.myTodo.createHabit('习惯删除验证')`)).data
+  const habit = (await js(note, `window.dook.createHabit('习惯删除验证')`)).data
   await click(main, '.workbench-nav [aria-label="习惯"]')
   await click(main, `[data-habit-id="${habit.id}"] [data-testid=habit-archive]`)
   await click(main, '[aria-label="已暂停习惯"]')
@@ -159,7 +159,7 @@ export async function deleteConfirmationSmoke({
     note.setPosition(mainProtectionArea.x, mainProtectionArea.y + 60)
     note.emit('moved')
     await waitFor(
-      async () => (await js(note, 'window.myTodo.getWindowState()')).data.edge === 'left',
+      async () => (await js(note, 'window.dook.getWindowState()')).data.edge === 'left',
       '主界面确认时便签贴边'
     )
     await new Promise((resolve) => setTimeout(resolve, 150))
@@ -169,7 +169,7 @@ export async function deleteConfirmationSmoke({
     }
     await new Promise((resolve) => setTimeout(resolve, 1100))
     assert.equal(
-      (await js(note, 'window.myTodo.getWindowState()')).data.collapsed,
+      (await js(note, 'window.dook.getWindowState()')).data.collapsed,
       false,
       '主界面确认期间便签不自动收起'
     )
@@ -180,19 +180,19 @@ export async function deleteConfirmationSmoke({
     await expectFocus(main, habitDelete, '主界面取消后恢复习惯删除按钮焦点')
     await new Promise((resolve) => setTimeout(resolve, 1100))
     assert.equal(
-      (await js(note, 'window.myTodo.getWindowState()')).data.collapsed,
+      (await js(note, 'window.dook.getWindowState()')).data.collapsed,
       false,
       '主界面确认关闭后保留便签输入保护'
     )
     await focus(note, '.task-list')
     await waitFor(
-      async () => (await js(note, 'window.myTodo.getWindowState()')).data.collapsed,
+      async () => (await js(note, 'window.dook.getWindowState()')).data.collapsed,
       '主界面确认和便签输入均结束后恢复自动收起'
     )
     mainProtectionPointer = { x: mainProtectionArea.x + 20, y: mainProtectionArea.y + 100 }
-    await js(main, `window.myTodo.openWindow('note')`)
+    await js(main, `window.dook.openWindow('note')`)
     await waitFor(
-      async () => !(await js(note, 'window.myTodo.getWindowState()')).data.collapsed,
+      async () => !(await js(note, 'window.dook.getWindowState()')).data.collapsed,
       '继续展开便签'
     )
     await click(main, habitDelete)
@@ -211,10 +211,10 @@ export async function deleteConfirmationSmoke({
       '隐藏主窗口取消确认'
     )
     await waitFor(
-      async () => (await js(note, 'window.myTodo.getWindowState()')).data.collapsed,
+      async () => (await js(note, 'window.dook.getWindowState()')).data.collapsed,
       '隐藏确认所属窗口后释放便签保护'
     )
-    await js(note, `window.myTodo.openWindow('main')`)
+    await js(note, `window.dook.openWindow('main')`)
     await waitFor(() => main.isVisible(), '重新打开主窗口')
     assert.equal(
       await js(main, 'Boolean(document.querySelector("[role=alertdialog]"))'),
@@ -222,13 +222,13 @@ export async function deleteConfirmationSmoke({
       '重开主窗口不遗留旧确认'
     )
     assert.ok(
-      (await js(note, 'window.myTodo.listArchivedHabits()')).data.some((x) => x.id === habit.id),
+      (await js(note, 'window.dook.listArchivedHabits()')).data.some((x) => x.id === habit.id),
       '隐藏窗口取消不删除习惯'
     )
     mainProtectionPointer = { x: mainProtectionArea.x + 20, y: mainProtectionArea.y + 100 }
-    await js(main, `window.myTodo.openWindow('note')`)
+    await js(main, `window.dook.openWindow('note')`)
     await waitFor(
-      async () => !(await js(note, 'window.myTodo.getWindowState()')).data.collapsed,
+      async () => !(await js(note, 'window.dook.getWindowState()')).data.collapsed,
       '隐藏取消后继续展开便签'
     )
   } finally {
@@ -237,7 +237,7 @@ export async function deleteConfirmationSmoke({
     screen.getCursorScreenPoint = mainProtectionCursor
   }
   assert.ok(
-    (await js(note, 'window.myTodo.listArchivedHabits()')).data.some((x) => x.id === habit.id)
+    (await js(note, 'window.dook.listArchivedHabits()')).data.some((x) => x.id === habit.id)
   )
   await click(main, habitDelete)
   main.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' })
@@ -247,7 +247,7 @@ export async function deleteConfirmationSmoke({
   await click(main, '[data-testid=delete-confirm]')
   await waitFor(
     async () =>
-      !(await js(note, 'window.myTodo.listArchivedHabits()')).data.some((x) => x.id === habit.id),
+      !(await js(note, 'window.dook.listArchivedHabits()')).data.some((x) => x.id === habit.id),
     '习惯确认删除'
   )
   await waitFor(
@@ -256,17 +256,17 @@ export async function deleteConfirmationSmoke({
   )
   await expectFocus(main, '.workbench-main', '删除习惯行后焦点保留在稳定的当前页面')
   assert.ok(
-    !(await js(note, 'window.myTodo.listToday()')).data.tasks.some((x) => x.habitId === habit.id),
+    !(await js(note, 'window.dook.listToday()')).data.tasks.some((x) => x.habitId === habit.id),
     '删除习惯清理当天任务'
   )
-  const topic = (await js(note, `window.myTodo.createInspirationTopic('删除关联主题')`)).data
-  const idea = (await js(note, `window.myTodo.createInspiration('保留关联小记', '${topic.id}')`))
+  const topic = (await js(note, `window.dook.createInspirationTopic('删除关联主题')`)).data
+  const idea = (await js(note, `window.dook.createInspiration('保留关联小记', '${topic.id}')`))
     .data
   const archivedIdea = (
-    await js(note, `window.myTodo.createInspiration('保留归档关联', '${topic.id}')`)
+    await js(note, `window.dook.createInspiration('保留归档关联', '${topic.id}')`)
   ).data
-  await js(note, `window.myTodo.appendInspiration('${idea.id}', '保留历史补充')`)
-  await js(note, `window.myTodo.archiveInspiration('${archivedIdea.id}')`)
+  await js(note, `window.dook.appendInspiration('${idea.id}', '保留历史补充')`)
+  await js(note, `window.dook.archiveInspiration('${archivedIdea.id}')`)
   await click(main, '.workbench-nav [aria-label="小记"]')
   await js(
     main,
@@ -283,18 +283,18 @@ export async function deleteConfirmationSmoke({
   )
   await click(main, '[data-testid=delete-cancel]')
   assert.ok(
-    (await js(note, 'window.myTodo.listInspirationTopics()')).data.some((x) => x.id === topic.id)
+    (await js(note, 'window.dook.listInspirationTopics()')).data.some((x) => x.id === topic.id)
   )
   await click(main, '[aria-label="删除删除关联主题"]')
   await click(main, '[data-testid=delete-confirm]')
   await waitFor(
     async () =>
-      !(await js(note, 'window.myTodo.listInspirationTopics()')).data.some(
+      !(await js(note, 'window.dook.listInspirationTopics()')).data.some(
         (x) => x.id === topic.id
       ),
     '主题删除同步'
   )
-  const retained = (await js(note, 'window.myTodo.listInspirations()')).data.find(
+  const retained = (await js(note, 'window.dook.listInspirations()')).data.find(
     (x) => x.id === idea.id
   )
   assert.equal(retained.description, '保留关联小记')
@@ -302,7 +302,7 @@ export async function deleteConfirmationSmoke({
   assert.deepEqual(retained.topicIds, [])
   assert.ok(
     (
-      await js(note, `window.myTodo.listInspirationPage(0, 50, { kind: 'archive' })`)
+      await js(note, `window.dook.listInspirationPage(0, 50, { kind: 'archive' })`)
     ).data.items.some((x) => x.id === archivedIdea.id),
     '删除主题保留归档小记'
   )
@@ -323,7 +323,7 @@ export async function deleteConfirmationSmoke({
   await click(main, '[data-testid=delete-cancel]')
   assert.ok(
     (
-      await js(note, `window.myTodo.listInspirationPage(0, 50, { kind: 'archive' })`)
+      await js(note, `window.dook.listInspirationPage(0, 50, { kind: 'archive' })`)
     ).data.items.some((x) => x.id === archivedIdea.id)
   )
   await click(main, '[aria-label="永久删除小记"]')
@@ -331,12 +331,12 @@ export async function deleteConfirmationSmoke({
   await waitFor(
     async () =>
       !(
-        await js(note, `window.myTodo.listInspirationPage(0, 50, { kind: 'archive' })`)
+        await js(note, `window.dook.listInspirationPage(0, 50, { kind: 'archive' })`)
       ).data.items.some((x) => x.id === archivedIdea.id),
     '归档小记永久删除'
   )
   await click(main, '.workbench-nav [aria-label="任务"]')
-  const editable = (await js(note, `window.myTodo.createTask('返回保存验证')`)).data
+  const editable = (await js(note, `window.dook.createTask('返回保存验证')`)).data
   await waitFor(
     () => js(main, `Boolean(document.querySelector('[data-task-id="${editable.id}"] .task-more'))`),
     '返回保存任务同步主界面'
@@ -348,7 +348,7 @@ export async function deleteConfirmationSmoke({
   await click(main, '[data-testid=task-convert]')
   await click(main, '[aria-label="新增子事项"]')
   await input(main, '.subitems-panel [data-testid=subitem-new]', '返回前草稿', null)
-  const db = new DatabaseSync(resolve(process.env.MYTODO_SMOKE_DATA, 'mytodo.sqlite'))
+  const db = new DatabaseSync(resolve(process.env.DOOK_SMOKE_DATA, 'dook.sqlite'))
   try {
     db.exec(
       "CREATE TRIGGER reject_return_save BEFORE UPDATE ON tasks BEGIN SELECT RAISE(ABORT, '返回保存失败'); END"
@@ -375,24 +375,24 @@ export async function deleteConfirmationSmoke({
   await click(main, '[aria-label^="折叠子事项"]')
   await waitFor(() => js(main, '!document.querySelector(".subitems-panel")'), '成功返回列表')
   assert.equal(
-    (await js(note, 'window.myTodo.listToday()')).data.tasks.find((x) => x.id === editable.id)
+    (await js(note, 'window.dook.listToday()')).data.tasks.find((x) => x.id === editable.id)
       .subitems[0].description,
     '返回前草稿'
   )
-  const skippedHabit = (await js(note, `window.myTodo.createHabit('直接暂停验证')`)).data
-  const skippedTask = (await js(note, 'window.myTodo.listToday()')).data.tasks.find(
+  const skippedHabit = (await js(note, `window.dook.createHabit('直接暂停验证')`)).data
+  const skippedTask = (await js(note, 'window.dook.listToday()')).data.tasks.find(
     (x) => x.habitId === skippedHabit.id
   )
   await click(note, `[data-task-id="${skippedTask.id}"] [data-testid=task-delete]`)
   await waitFor(
     async () =>
-      !(await js(note, 'window.myTodo.listToday()')).data.tasks.some(
+      !(await js(note, 'window.dook.listToday()')).data.tasks.some(
         (x) => x.id === skippedTask.id
       ),
     '暂停一次直接执行'
   )
   assert.equal(await js(note, 'Boolean(document.querySelector("[role=alertdialog]"))'), false)
-  await js(note, `window.myTodo.archiveTask('${editable.id}')`)
+  await js(note, `window.dook.archiveTask('${editable.id}')`)
   await click(main, '.archive-view-switch [aria-label="已归档任务"]')
   const deleteButton = `[aria-label="永久删除：${editable.description}"]`
   await click(main, deleteButton)
@@ -400,7 +400,7 @@ export async function deleteConfirmationSmoke({
   main.setSize(760, 650)
   await capture(main, 'delete-confirmation-main-narrow.png')
   main.setSize(...originalSize)
-  const failureDb = new DatabaseSync(resolve(process.env.MYTODO_SMOKE_DATA, 'mytodo.sqlite'))
+  const failureDb = new DatabaseSync(resolve(process.env.DOOK_SMOKE_DATA, 'dook.sqlite'))
   try {
     failureDb.exec(
       "CREATE TRIGGER reject_confirmed_delete BEFORE DELETE ON tasks BEGIN SELECT RAISE(ABORT, '删除失败验证'); END"
@@ -415,7 +415,7 @@ export async function deleteConfirmationSmoke({
       '删除失败反馈'
     )
     assert.ok(
-      (await js(note, 'window.myTodo.listArchivedTasks()')).data.some((x) => x.id === editable.id),
+      (await js(note, 'window.dook.listArchivedTasks()')).data.some((x) => x.id === editable.id),
       '删除失败保留原界面数据'
     )
     assert.equal(await js(main, 'Boolean(document.querySelector("[role=alertdialog]"))'), false)
@@ -427,7 +427,7 @@ export async function deleteConfirmationSmoke({
   await click(main, '[data-testid=delete-confirm]')
   await waitFor(
     async () =>
-      !(await js(note, 'window.myTodo.listArchivedTasks()')).data.some((x) => x.id === editable.id),
+      !(await js(note, 'window.dook.listArchivedTasks()')).data.some((x) => x.id === editable.id),
     '删除失败后重试'
   )
 }

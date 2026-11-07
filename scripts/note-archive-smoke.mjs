@@ -11,8 +11,8 @@ export async function noteArchiveSmoke({
   state,
   capture
 }) {
-  const tasks = async () => (await js(note, 'window.myTodo.listToday()')).data.tasks
-  const archived = async () => (await js(note, 'window.myTodo.listArchivedTasks()')).data
+  const tasks = async () => (await js(note, 'window.dook.listToday()')).data.tasks
+  const archived = async () => (await js(note, 'window.dook.listArchivedTasks()')).data
   const themePaint = async () => {
     const point = await js(
       main,
@@ -92,7 +92,7 @@ export async function noteArchiveSmoke({
     await waitFor(async () => (await tasks()).some((x) => x.id === saved.id), '重启后恢复任务')
     const multi = (await tasks()).find((x) => x.description === '持续推进编辑后')
     assert.ok(multi, '隐藏的多天任务保留')
-    await js(main, `window.myTodo.openWindow('main', 'settings')`)
+    await js(main, `window.dook.openWindow('main', 'settings')`)
     await click(main, '[data-testid=show-multi-day]')
     await waitFor(async () => (await visibleGroups()).includes('multi-day'), '重新开启持续推进')
     await capture(note, 'note-archive-restart.png')
@@ -126,7 +126,7 @@ export async function noteArchiveSmoke({
   const originalEmptyPaint = await emptyPaint()
   await js(
     note,
-    `(async () => { const current = (await window.myTodo.getWindowState()).data; await window.myTodo.updateSettings({ ...current.settings, themeColor: '#467a63' }) })()`
+    `(async () => { const current = (await window.dook.getWindowState()).data; await window.dook.updateSettings({ ...current.settings, themeColor: '#467a63' }) })()`
   )
   await waitFor(
     async () => (await emptyPaint()).icon !== originalEmptyPaint.icon,
@@ -138,10 +138,10 @@ export async function noteArchiveSmoke({
   await capture(note, 'note-empty-themed.png')
   await js(
     note,
-    `(async () => { const current = (await window.myTodo.getWindowState()).data; await window.myTodo.updateSettings({ ...current.settings, themeColor: '#526fc4' }) })()`
+    `(async () => { const current = (await window.dook.getWindowState()).data; await window.dook.updateSettings({ ...current.settings, themeColor: '#526fc4' }) })()`
   )
   await waitFor(async () => (await emptyPaint()).icon === originalEmptyPaint.icon, '恢复默认主题色')
-  const task = (await js(note, `window.myTodo.createTask('便签归档验证')`)).data
+  const task = (await js(note, `window.dook.createTask('便签归档验证')`)).data
   await waitFor(
     () => js(note, `Boolean(document.querySelector('[data-task-id="${task.id}"]'))`),
     '新增任务同步'
@@ -246,10 +246,10 @@ export async function noteArchiveSmoke({
   await keyboardActivate('[data-testid=delete-confirm]')
   await waitFor(async () => (await archived()).length === 0, '永久删除归档')
 
-  const habit = (await js(note, `window.myTodo.createHabit('习惯双击验证')`)).data
+  const habit = (await js(note, `window.dook.createHabit('习惯双击验证')`)).data
   const habitTask = (await tasks()).find((x) => x.habitId === habit.id)
   const description = `[data-task-id="${habitTask.id}"] [data-testid=task-description]`
-  await js(main, `window.myTodo.openWindow('main', 'task')`)
+  await js(main, `window.dook.openWindow('main', 'task')`)
   const revision = (await state(main)).mainNavigation.revision
   await click(note, description)
   assert.equal((await state(main)).mainNavigation.revision, revision, '单击习惯不打开主界面')
@@ -275,8 +275,8 @@ export async function noteArchiveSmoke({
   await waitFor(async () => !(await tasks()).some((x) => x.id === habitTask.id), '习惯暂停一次')
   assert.equal((await archived()).length, 0, '习惯暂停不进入归档')
 
-  const multi = (await js(note, `window.myTodo.createTask('持续推进验证')`)).data
-  await js(note, `window.myTodo.convertToMultiDay('${multi.id}')`)
+  const multi = (await js(note, `window.dook.createTask('持续推进验证')`)).data
+  await js(note, `window.dook.convertToMultiDay('${multi.id}')`)
   await click(note, '[data-note-group=multi-day]')
   await click(note, `[data-task-id="${multi.id}"] [data-testid=task-delete]`)
   await waitFor(async () => (await archived()).some((x) => x.id === multi.id), '便签归档多天任务')
@@ -285,9 +285,9 @@ export async function noteArchiveSmoke({
     async () => (await tasks()).some((x) => x.id === multi.id && x.kind === 'multi-day'),
     '便签恢复多天任务'
   )
-  const saved = (await js(note, `window.myTodo.createTask('保留归档任务')`)).data
-  await js(note, `window.myTodo.archiveTask('${saved.id}')`)
-  await js(main, `window.myTodo.openWindow('main', 'settings')`)
+  const saved = (await js(note, `window.dook.createTask('保留归档任务')`)).data
+  await js(note, `window.dook.archiveTask('${saved.id}')`)
+  await js(main, `window.dook.openWindow('main', 'settings')`)
   await waitFor(() => js(main, `!document.querySelector('.settings-page').hidden`), '打开设置')
   assert.deepEqual(
     await js(
@@ -340,7 +340,7 @@ export async function noteArchiveSmoke({
     await js(note, `document.querySelector('.note-task-summary').getAttribute('aria-label')`),
     '在主界面打开任务，已完成0项，共0项'
   )
-  await js(note, `window.myTodo.setTaskCompleted('${multi.id}', true)`)
+  await js(note, `window.dook.setTaskCompleted('${multi.id}', true)`)
   await waitFor(
     async () => (await tasks()).find((x) => x.id === multi.id)?.completed,
     '隐藏任务完成'
@@ -350,14 +350,14 @@ export async function noteArchiveSmoke({
     '在主界面打开任务，已完成0项，共0项',
     '隐藏的持续推进不计入完成数和总数'
   )
-  await js(note, `window.myTodo.setTaskCompleted('${multi.id}', false)`)
-  await js(main, `window.myTodo.openWindow('main', 'task')`)
+  await js(note, `window.dook.setTaskCompleted('${multi.id}', false)`)
+  await js(main, `window.dook.openWindow('main', 'task')`)
   await waitFor(
     () => js(main, `!document.querySelector('[data-task-id="${multi.id}"]')`),
     '主界面同步隐藏多天任务'
   )
   await capture(note, 'note-archive.png')
-  await js(main, `window.myTodo.openWindow('main', 'settings')`)
+  await js(main, `window.dook.openWindow('main', 'settings')`)
   await waitFor(() => js(main, `!document.querySelector('.settings-page').hidden`), '设置截图就绪')
   assert.equal(
     await js(
@@ -394,7 +394,7 @@ export async function noteArchiveSmoke({
   assert.equal(
     await js(
       main,
-      `(async () => { const current = (await window.myTodo.getWindowState()).data; return (await window.myTodo.updateSettings({ ...current.settings, themeColor: 'invalid' })).ok })()`
+      `(async () => { const current = (await window.dook.getWindowState()).data; return (await window.dook.updateSettings({ ...current.settings, themeColor: 'invalid' })).ok })()`
     ),
     false,
     '拒绝无效主题颜色'

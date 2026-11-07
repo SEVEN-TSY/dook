@@ -141,7 +141,7 @@ test('从任务添加习惯失败整体回滚，重试后关联正确且拒绝�
 })
 
 test('任务复用关系及删除习惯后的当天任务清理重启保留', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'mytodo-habit-maintenance-'))
+  const directory = mkdtempSync(join(tmpdir(), 'dook-habit-maintenance-'))
   const path = join(directory, 'habits.sqlite')
   let database = new AppDatabase(path)
   let now = new Date(2026, 9, 27, 12)
@@ -219,7 +219,7 @@ test('习惯描述同步只更新当天并保留完成置顶暂停状态，失�
 })
 
 test('习惯归档停止生成，恢复补齐当天且永久删除保留历史，状态重启保留', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'mytodo-habit-archive-'))
+  const directory = mkdtempSync(join(tmpdir(), 'dook-habit-archive-'))
   const path = join(directory, 'habits.sqlite')
   let database = new AppDatabase(path)
   let now = new Date(2026, 10, 1, 12)

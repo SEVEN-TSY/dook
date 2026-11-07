@@ -175,7 +175,7 @@ test('每周只在所选星期生成，归档恢复遵循周期，星期去重�
 })
 
 test('每隔N天周期及起点跨重启保留，仅生成当前到期日，不补过去任务', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'mytodo-schedule-'))
+  const dir = mkdtempSync(join(tmpdir(), 'dook-schedule-'))
   const path = join(dir, 'app.sqlite')
   let db = new AppDatabase(path)
   let now = new Date(2026, 10, 2, 10)

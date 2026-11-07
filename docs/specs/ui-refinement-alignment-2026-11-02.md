@@ -1,6 +1,6 @@
 # 界面细节调整对齐记录
 
-2026-11-02。状态：用户已整体确认需求及验收边界，正式规格已发布为[GitHub Issue #27](https://github.com/SEVEN-TSY/myTodo/issues/27)，现已在`codex/issue-27-integration`完成实施，见[实施验收记录](../reviews/issue-27-review.md)。本记录保留对齐过程；开发及验收以正式规格和实施结果为准。
+2026-11-02。状态：用户已整体确认需求及验收边界，正式规格已发布为[GitHub Issue #27](https://github.com/SEVEN-TSY/dook/issues/27)，现已在`codex/issue-27-integration`完成实施，见[实施验收记录](../reviews/issue-27-review.md)。本记录保留对齐过程；开发及验收以正式规格和实施结果为准。
 
 ## 已明确的要求
 
@@ -86,5 +86,5 @@
 - 保留多主题归集语义，无需单主题迁移。
 - 主界面设计语言中“Textarea不增加清除操作”的旧描述，需要按本轮灵感输入的决定更新；本轮未要求将所有textarea统一改造。
 - 现有补充数据及相关接口保留，领域术语中的灵感仍允许持续补充，不将界面入口移除误写为领域能力删除；本轮无需新增术语或架构ADR。
-- [Issue #27](https://github.com/SEVEN-TSY/myTodo/issues/27)作为本轮开发和验收依据；相关旧文档在实施时同步调整，避免将旧规则继续作为验收标准。
+- [Issue #27](https://github.com/SEVEN-TSY/dook/issues/27)作为本轮开发和验收依据；相关旧文档在实施时同步调整，避免将旧规则继续作为验收标准。
 - 当前工作区已有其他未提交修改，本次仅维护本讨论文档，不覆盖其内容。

@@ -1,4 +1,4 @@
-appId: com.mytodo.desktop
+appId: com.dook.desktop
 productName: DOOK
 directories:
   output: release
@@ -10,13 +10,20 @@ npmRebuild: false
 extraResources:
   - from: resources/app-icon.png
     to: resources/app-icon.png
+  - from: LICENSE
+    to: LICENSE
+  - from: src/renderer/src/components/ui/LICENSE.md
+    to: licenses/shadcn-MIT.md
 win:
   icon: resources/app-icon.ico
   target:
     - target: nsis
       arch: [x64]
-  artifactName: DOOK-${version}-setup.${ext}
+  artifactName: dook-${version}-setup.${ext}
 nsis:
+  # 保留既有安装的升级标识。
+  guid: 4c3cb011-5db6-5d55-ac50-6ff85b94b8d4
+  include: resources/installer.nsh
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true

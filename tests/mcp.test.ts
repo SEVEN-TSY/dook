@@ -31,7 +31,7 @@ test('官方MCP客户端可握手、发现并调用共享核心诊断', async (t
   )
   const result = await client.callTool({ name: 'app_diagnostics', arguments: {} })
   assert.notEqual(result.isError, true)
-  assert.equal((result.structuredContent as { service: string }).service, 'mytodo-core')
+  assert.equal((result.structuredContent as { service: string }).service, 'dook-core')
   assert.match(await probeMcpEndpoint(endpoint.url, token), /握手成功/)
 })
 

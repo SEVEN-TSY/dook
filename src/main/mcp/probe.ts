@@ -3,13 +3,13 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { z } from 'zod'
 
 const probeResult = z.object({
-  service: z.literal('mytodo-core'),
+  service: z.literal('dook-core'),
   storage: z.object({ roundTrip: z.literal(true) })
 })
 
 /** 使用官方SDK走真实HTTP握手及工具调用，供测试页验证MCP链路。 */
 export async function probeMcpEndpoint(endpoint: string, token: string): Promise<string> {
-  const client = new Client({ name: 'mytodo-diagnostics', version: '0.1.0' })
+  const client = new Client({ name: 'dook-diagnostics', version: '0.1.0' })
   const transport = new StreamableHTTPClientTransport(new URL(endpoint), {
     requestInit: { headers: { Authorization: `Bearer ${token}` } }
   })

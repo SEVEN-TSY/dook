@@ -9,9 +9,9 @@ export async function habitArchiveSmoke({
   assert,
   capture
 }) {
-  const habit = (await js(main, `window.myTodo.createHabit('归档习惯验证')`)).data
-  const archived = async () => (await js(main, 'window.myTodo.listArchivedHabits()')).data
-  const tasks = async () => (await js(note, 'window.myTodo.listToday()')).data.tasks
+  const habit = (await js(main, `window.dook.createHabit('归档习惯验证')`)).data
+  const archived = async () => (await js(main, 'window.dook.listArchivedHabits()')).data
+  const tasks = async () => (await js(note, 'window.dook.listToday()')).data.tasks
   await click(main, '.workbench-nav [aria-label="习惯"]')
   const row = `[data-habit-id="${habit.id}"]`
   await waitFor(
@@ -112,7 +112,7 @@ export async function habitArchiveSmoke({
     ),
     '定时周期已保存'
   )
-  let saved = (await js(main, 'window.myTodo.listHabits()')).data[0]
+  let saved = (await js(main, 'window.dook.listHabits()')).data[0]
   assert.deepEqual(saved.schedule, { kind: 'weekly', time: '09:30', weekdays: [1] })
   assert.ok(saved.nextExecutionAt, '保存新周期后重新计算下次执行时间')
   await waitFor(
@@ -135,7 +135,7 @@ export async function habitArchiveSmoke({
     () => js(main, `!document.querySelector('.habit-schedule-popover')`),
     '保存间隔周期'
   )
-  saved = (await js(main, 'window.myTodo.listHabits()')).data[0]
+  saved = (await js(main, 'window.dook.listHabits()')).data[0]
   assert.equal(saved.schedule.intervalDays, 3)
   assert.match(saved.schedule.startsOn, /^\d{4}-\d{2}-\d{2}$/)
   await click(main, `${row} [data-testid=habit-schedule]`)
@@ -146,7 +146,7 @@ export async function habitArchiveSmoke({
   await chooseCycle('daily')
   await click(main, '[aria-label="关闭定时周期"]')
   assert.equal(
-    (await js(main, 'window.myTodo.listHabits()')).data[0].schedule.kind,
+    (await js(main, 'window.dook.listHabits()')).data[0].schedule.kind,
     'interval',
     '关闭不保存未提交更改'
   )
@@ -226,7 +226,7 @@ export async function habitArchiveSmoke({
   await click(main, '[data-testid=delete-confirm]')
   await waitFor(async () => (await archived()).length === 0, '确认永久删除')
   if (scheduleOnly) return
-  const task = (await js(main, `window.myTodo.createTask('子事项详情验证')`)).data
+  const task = (await js(main, `window.dook.createTask('子事项详情验证')`)).data
   await click(main, '.workbench-nav [aria-label="任务"]')
   await js(
     main,
