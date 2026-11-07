@@ -2,7 +2,7 @@
   <img src="docs/assets/dook-wordmark.png" alt="DOOK字标" width="560">
 </p>
 
-# DOOK
+# DOOK-From DO to OK.
 
 DOOK是一款Windows桌面待办与小记应用。用桌面便签快速记录和勾选，用主界面管理任务、习惯和小记。两处共用本地SQLite数据，修改即时同步。
 
