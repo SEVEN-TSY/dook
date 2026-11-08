@@ -33,6 +33,8 @@ app.setPath('userData', dataDirectory)
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
+  if (!readPreferences(dataDirectory).settings.hardwareAcceleration)
+    app.disableHardwareAcceleration()
   void app
     .whenReady()
     .then(async () => {

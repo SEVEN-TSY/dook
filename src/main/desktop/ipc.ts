@@ -85,6 +85,11 @@ export function registerIpc(handlers: Handlers): () => void {
         ? normalizeThemeColor(settings.themeColor)
         : handlers.desktop.state().settings.themeColor
     if (!themeColor) throw new Error('主题色必须为系统色或六位十六进制颜色。')
+    const hardwareAcceleration =
+      'hardwareAcceleration' in settings
+        ? settings.hardwareAcceleration
+        : handlers.desktop.state().settings.hardwareAcceleration
+    if (typeof hardwareAcceleration !== 'boolean') throw new Error('GPU硬件加速设置无效。')
     return handlers.desktop.updateSettings({
       appearance: (() => {
         if (!('appearance' in settings)) return handlers.desktop.state().settings.appearance
@@ -98,6 +103,7 @@ export function registerIpc(handlers: Handlers): () => void {
       })(),
       themeColor,
       launchAtLogin: settings.launchAtLogin,
+      hardwareAcceleration,
       defaultAlwaysOnTop: settings.defaultAlwaysOnTop,
       edgeAutoHide: settings.edgeAutoHide,
       showMultiDay: settings.showMultiDay,

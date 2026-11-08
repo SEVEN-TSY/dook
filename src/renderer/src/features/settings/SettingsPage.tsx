@@ -213,6 +213,20 @@ export function SettingsPage({ state, hidden }: { state: DesktopState | null; hi
             }
           />
         </label>
+        <label className="setting-row">
+          <span>
+            <strong>GPU硬件加速</strong>
+            <small>开启可提升便签流畅度，但会增加常驻内存占用。重启DOOK后生效。</small>
+          </span>
+          <Switch
+            data-testid="hardware-acceleration"
+            checked={state?.settings.hardwareAcceleration ?? false}
+            disabled={!state || busy}
+            onCheckedChange={(checked) =>
+              state && void update({ ...state.settings, hardwareAcceleration: checked })
+            }
+          />
+        </label>
       </section>
       <section className="settings-group settings-note" aria-label="便签偏好">
         <h2 className="settings-intro">

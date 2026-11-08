@@ -150,6 +150,7 @@ export interface WindowSettings {
   appearance: AppearanceMode
   themeColor: string
   launchAtLogin: boolean
+  hardwareAcceleration: boolean
   defaultAlwaysOnTop: boolean
   edgeAutoHide: boolean
   showMultiDay: boolean

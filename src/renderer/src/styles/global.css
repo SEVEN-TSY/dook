@@ -1188,13 +1188,12 @@ h1 {
   flex-shrink: 0;
   height: 28px;
   border-radius: 6px;
-  background: var(--app-surface);
 }
 /* 行尾操作区的背景不应遮住行间分割线。 */
 .note .task-row.list-row-divider::after {
   z-index: 2;
 }
-.note .task-row:hover .note-task-actions {
+.note .task-row:hover .note-task-secondary {
   background: linear-gradient(var(--app-hover), var(--app-hover)), var(--app-surface);
 }
 .note .task-row .note-task-actions {
@@ -1214,7 +1213,7 @@ h1 {
   width: max-content;
   height: 100%;
   border-radius: 6px 0 0 6px;
-  background: inherit;
+  background: var(--app-surface);
   overflow: hidden;
   visibility: hidden;
   opacity: 0;
@@ -1738,12 +1737,23 @@ h1 {
   border-radius: 6px;
   animation: task-locate-breathe 900ms ease-in-out 2;
 }
+.note .task-row.task-located {
+  --task-locate-base: var(--app-surface);
+}
+.note .task-row.task-located .note-task-actions:is(:hover, :focus-within),
+.note .task-row.task-located .note-task-secondary {
+  background: inherit;
+}
 @keyframes task-locate-breathe {
   0%,
   100% {
-    background-color: transparent;
+    background-color: var(--task-locate-base, transparent);
   }
   50% {
-    background-color: color-mix(in srgb, var(--app-accent) 18%, transparent);
+    background-color: color-mix(
+      in srgb,
+      var(--app-accent) 18%,
+      var(--task-locate-base, transparent)
+    );
   }
 }

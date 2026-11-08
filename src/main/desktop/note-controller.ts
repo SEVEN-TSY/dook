@@ -4,7 +4,7 @@ import type { DesktopState, DockEdge, WindowSettings } from '../../shared/contra
 import { readPreferences, writePreferences } from './preferences'
 import { isOuterEdge, nearbyEdge, snapBounds, visibleBounds } from './note-geometry'
 
-const TRAY_REVEAL_GRACE_MS = 2500
+const AUTO_COLLAPSE_DELAY_MS = 4500
 
 export class NoteController {
   private readonly preferences
@@ -272,7 +272,7 @@ export class NoteController {
     this.collapsed = false
     this.awaitingEntry = false
     this.insideSince = this.outsideSince = 0
-    this.trayKeepOpenUntil = fromTray ? Date.now() + TRAY_REVEAL_GRACE_MS : 0
+    this.trayKeepOpenUntil = fromTray ? Date.now() + AUTO_COLLAPSE_DELAY_MS : 0
     if (wasCollapsed && this.edge) {
       this.startNoteMotion('opening', source)
     }
@@ -329,7 +329,7 @@ export class NoteController {
       this.resetReveal()
       this.apply()
     } else {
-      if (this.trayKeepOpenUntil) this.trayKeepOpenUntil = Date.now() + TRAY_REVEAL_GRACE_MS
+      if (this.trayKeepOpenUntil) this.trayKeepOpenUntil = Date.now() + AUTO_COLLAPSE_DELAY_MS
       this.notify()
     }
   }
@@ -551,7 +551,7 @@ export class NoteController {
         return
       }
       this.outsideSince ||= now
-      if (now >= this.trayKeepOpenUntil && now - this.outsideSince >= 600) {
+      if (now >= this.trayKeepOpenUntil && now - this.outsideSince >= AUTO_COLLAPSE_DELAY_MS) {
         this.collapseNote()
       }
     }

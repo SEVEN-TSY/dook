@@ -309,7 +309,13 @@ async function dockingSizeSmoke(note) {
       pointer = { x: expanded.x + 40, y: expanded.y + 40 }
       await pause(100)
       pointer = { x: area.x + area.width / 2, y: area.y + area.height - 10 }
+      const leftAt = performance.now()
       await waitFor(async () => (await state(note)).noteMotion === 'closing', '便签沿贴边方向收回')
+      const outsideTime = performance.now() - leftAt
+      assert.ok(
+        outsideTime >= 4500 && outsideTime <= 5100,
+        `鼠标离开约4.5秒开始收回，实测${outsideTime}毫秒`
+      )
       const closingRevision = (await state(note)).noteMotionRevision
       await js(note, `window.dook.finishNoteMotion(${closingRevision - 1})`)
       assert.equal((await state(note)).noteMotion, 'closing', '过期动画回调不能结束当前过渡')
@@ -604,7 +610,7 @@ async function dockingSmoke(main, note) {
     await waitFor(async () => !(await state(note)).collapsed, '点击展开便签')
     await click(note, '[data-testid=task-description]')
     pointer = { x: area.x + area.width - 40, y: area.y + area.height - 50 }
-    await pause(750)
+    await pause(5000)
     assert.equal((await state(note)).collapsed, false, '行内编辑保护')
     note.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' })
     note.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' })
@@ -831,6 +837,34 @@ async function runSmoke() {
       )
       assert.equal(converted.kind, 'multi-day')
       assert.equal(converted.description, task.description)
+      await waitFor(
+        () =>
+          js(note, `Boolean(document.querySelector('[data-task-id="${task.id}"].task-located'))`),
+        '转换后任务开始呼吸高亮'
+      )
+      const backgrounds = await js(
+        note,
+        `(() => {
+          const row = document.querySelector('[data-task-id="${task.id}"]');
+          const animation = row.getAnimations().find(item => item.animationName === 'task-locate-breathe');
+          const actions = row.querySelector('.note-task-actions');
+          const secondary = actions.querySelector('.note-task-secondary');
+          const archive = actions.querySelector('[data-testid=task-delete]');
+          return [0, 225, 450].map(time => {
+            animation.currentTime = time;
+            const collapsed = getComputedStyle(actions).backgroundColor;
+            archive.focus();
+            const expanded = getComputedStyle(secondary).backgroundColor;
+            archive.blur();
+            return [getComputedStyle(row).backgroundColor, collapsed, expanded];
+          });
+        })()`
+      )
+      assert.notEqual(backgrounds[0][0], backgrounds[2][0], '任务背景随呼吸动画变色')
+      for (const [row, collapsed, expanded] of backgrounds) {
+        assert.equal(collapsed, 'rgba(0, 0, 0, 0)', '呼吸高亮期间收起的行尾操作区无底色')
+        assert.equal(expanded, row, '呼吸高亮期间展开操作区与任务行同色')
+      }
       assert.equal(
         await js(note, `Boolean(document.querySelector(${JSON.stringify(selector)}))`),
         false,
@@ -894,7 +928,7 @@ async function runSmoke() {
         const openedAt = performance.now()
         await waitFor(async () => (await state(note)).noteMotion === 'closing', '托盘唤出后收回')
         const dwell = performance.now() - openedAt
-        assert.ok(dwell >= 2400 && dwell <= 3100, `托盘唤出后约2.5秒开始收回，实测${dwell}毫秒`)
+        assert.ok(dwell >= 4400 && dwell <= 5100, `托盘唤出后约4.5秒开始收回，实测${dwell}毫秒`)
         await waitFor(async () => (await state(note)).collapsed, '无需先进入便签即可自动收回')
         trayClick()
         await waitFor(
@@ -906,7 +940,7 @@ async function runSmoke() {
           () => js(note, `document.activeElement?.dataset.testid === 'task-new'`),
           '空输入框聚焦'
         )
-        await new Promise((resolve) => setTimeout(resolve, 2800))
+        await new Promise((resolve) => setTimeout(resolve, 5000))
         assert.equal((await state(note)).collapsed, false, '空输入框聚焦时鼠标移出也不自动收回')
         await js(note, `document.querySelector('[data-testid=task-new]').blur()`)
         await waitFor(async () => (await state(note)).collapsed, '输入框失焦后恢复自动收回')

@@ -15,6 +15,7 @@ export function readPreferences(directory: string): DesktopPreferences {
       appearance: 'system',
       themeColor: 'system',
       launchAtLogin: true,
+      hardwareAcceleration: false,
       defaultAlwaysOnTop: true,
       edgeAutoHide: true,
       showMultiDay: true,
@@ -30,6 +31,8 @@ export function readPreferences(directory: string): DesktopPreferences {
       normalizeThemeColor(saved.settings?.themeColor) ?? defaults.settings.themeColor
     if (typeof saved.settings?.launchAtLogin === 'boolean')
       defaults.settings.launchAtLogin = saved.settings.launchAtLogin
+    if (typeof saved.settings?.hardwareAcceleration === 'boolean')
+      defaults.settings.hardwareAcceleration = saved.settings.hardwareAcceleration
     if (typeof saved.settings?.defaultAlwaysOnTop === 'boolean')
       defaults.settings.defaultAlwaysOnTop = saved.settings.defaultAlwaysOnTop
     if (typeof saved.settings?.edgeAutoHide === 'boolean')

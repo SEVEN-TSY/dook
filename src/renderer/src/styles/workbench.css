@@ -374,6 +374,11 @@
   background: var(--app-hover);
   color: var(--app-accent);
 }
+.workbench .habit-list .note-archive-delete {
+  display: grid;
+  place-items: center;
+  width: 28px;
+}
 .workbench .task-row {
   position: relative;
   min-height: 58px;
@@ -895,7 +900,8 @@
   box-shadow: inset 0 0 0 1px var(--app-accent-border);
 }
 .workbench .inspiration-row-actions,
-.workbench .main-list-actions {
+.workbench .main-list-actions,
+.workbench .habit-list .note-archive-actions {
   display: flex;
   align-self: center;
   align-items: center;
