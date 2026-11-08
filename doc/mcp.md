@@ -10,9 +10,9 @@ Electron主进程内嵌官方TypeScript SDK的Streamable HTTP服务，默认地�
 
 ## 凭证与客户端
 
-开发版的数据目录默认为`%APPDATA%/dook-development/`，安装版默认为`%APPDATA%/dook/`。可通过环境变量`DOOK_DATA_DIR`覆盖。目录内的`dook.sqlite`保存业务数据，`desktop-settings.json`保存窗口位置和偏好。
+开发版的数据目录默认为`%APPDATA%/dook-development/`。Windows单用户安装向导可选择数据目录，默认是安装目录下的`data`。为所有用户安装时，各账户使用自己的`%APPDATA%/dook/`。可通过环境变量`DOOK_DATA_DIR`覆盖。目录内的`dook.sqlite`保存业务数据，`desktop-settings.json`保存窗口位置和偏好。
 
-升级前请退出旧版。首次启动新版会从对应的旧数据目录导入数据库、窗口偏好和MCP凭证，保留原文件。若使用自定义目录，数据库在同一目录内迁移。新版优先读取`DOOK_`环境变量，也兼容旧版的变量名。
+升级前请退出旧版。首次切换到安装向导选定的目录时，DOOK会从之前的AppData目录复制数据库、窗口偏好和MCP凭证。通过环境变量指定目录时，迁移在该目录内进行。新版优先读取`DOOK_`环境变量，也兼容旧版的变量名。
 
 首次启动会在数据目录创建`mcp-token`文件，后续启动复用此凭证。
 

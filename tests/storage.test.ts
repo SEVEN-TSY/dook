@@ -5,7 +5,10 @@ import { dirname, join, resolve } from 'node:path'
 import test from 'node:test'
 import { DatabaseSync } from 'node:sqlite'
 import { AppDatabase } from '../src/main/storage/database'
-import { prepareDataDirectory } from '../src/main/storage/data-directory'
+import {
+  prepareDataDirectory,
+  readInstalledDataDirectory
+} from '../src/main/storage/data-directory'
 import { migrations } from '../src/main/storage/migrations'
 import { loadOrCreateToken } from '../src/main/mcp/token'
 
@@ -112,5 +115,42 @@ test('DOOK首次启动导入旧数据库的WAL、窗口设置和MCP凭证，重�
     assert.equal(previousMetadata.get('schema')?.value, 'mytodo')
   } finally {
     newDatabase.close()
+  }
+})
+
+test('安装向导选定的目录导入已有DOOK数据，优先于更旧的myTodo备份', async (t) => {
+  const directory = mkdtempSync(join(tmpdir(), 'dook-selected-data-'))
+  const selected = join(directory, '用户数据')
+  const former = join(directory, 'dook')
+  const legacy = join(directory, 'myTodo')
+  const formerDb = new AppDatabase(join(former, 'dook.sqlite'))
+  const legacyDb = new AppDatabase(join(legacy, 'mytodo.sqlite'))
+  t.after(() => {
+    formerDb.close()
+    legacyDb.close()
+    assert.equal(resolve(dirname(directory)), resolve(tmpdir()))
+    rmSync(directory, { recursive: true, force: true })
+  })
+  formerDb.connection.exec("INSERT INTO app_metadata VALUES ('source', 'dook')")
+  legacyDb.connection.exec("INSERT INTO app_metadata VALUES ('source', 'myTodo')")
+  const preferences = '{"settings":{"appearance":"dark","hardwareAcceleration":true}}'
+  writeFileSync(join(former, 'desktop-settings.json'), preferences)
+  assert.equal(readInstalledDataDirectory(directory), undefined)
+  writeFileSync(join(directory, 'dook-data-location.txt'), selected, 'utf16le')
+  assert.equal(readInstalledDataDirectory(directory), selected)
+
+  const path = await prepareDataDirectory(selected, legacy, former)
+  assert.equal(path, join(selected, 'dook.sqlite'))
+  assert.equal(readFileSync(join(selected, 'desktop-settings.json'), 'utf8'), preferences)
+  const database = new AppDatabase(path)
+  try {
+    const source = "SELECT value FROM app_metadata WHERE key = 'source'"
+    assert.equal(database.connection.prepare(source).get()?.value, 'dook')
+    database.connection.exec("UPDATE app_metadata SET value = 'selected' WHERE key = 'source'")
+    assert.equal(await prepareDataDirectory(selected, legacy, former), path)
+    assert.equal(database.connection.prepare(source).get()?.value, 'selected')
+    assert.equal(formerDb.connection.prepare(source).get()?.value, 'dook')
+  } finally {
+    database.close()
   }
 })

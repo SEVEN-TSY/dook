@@ -1,5 +1,5 @@
 import { app, dialog } from 'electron'
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import type { McpStatus } from '../shared/contracts'
 import { TASKS_CHANGED } from '../shared/channels'
 import { TaskRepository } from './storage/repositories/tasks'
@@ -16,15 +16,26 @@ import { runDiagnostics } from './desktop/diagnostics'
 import { startMcpEndpoint } from './mcp/server'
 import type { McpEndpoint } from './mcp/server'
 import { loadOrCreateToken } from './mcp/token'
-import { prepareDataDirectory } from './storage/data-directory'
+import {
+  findMigrationFile,
+  prepareDataDirectory,
+  readInstalledDataDirectory
+} from './storage/data-directory'
 
 app.setName('DOOK')
 app.setAppUserModelId('com.dook.desktop')
 const appData = app.getPath('appData')
 const dataOverride = process.env.DOOK_DATA_DIR || process.env.MYTODO_DATA_DIR
-const dataDirectory = resolve(
-  dataOverride || resolve(appData, app.isPackaged ? 'dook' : 'dook-development')
-)
+const defaultDataDirectory = resolve(appData, app.isPackaged ? 'dook' : 'dook-development')
+const installedDataDirectory =
+  !dataOverride && app.isPackaged && process.platform === 'win32'
+    ? readInstalledDataDirectory(dirname(process.execPath))
+    : undefined
+const dataDirectory = resolve(dataOverride || installedDataDirectory || defaultDataDirectory)
+const formerDataDirectory =
+  installedDataDirectory && dataDirectory !== defaultDataDirectory
+    ? defaultDataDirectory
+    : undefined
 const previousDataDirectory = resolve(
   dataOverride || resolve(appData, app.isPackaged ? 'myTodo' : 'myTodo-development')
 )
@@ -33,13 +44,22 @@ app.setPath('userData', dataDirectory)
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
-  if (!readPreferences(dataDirectory).settings.hardwareAcceleration)
+  const migrationSettings =
+    !findMigrationFile('dook.sqlite', [dataDirectory]) &&
+    findMigrationFile(
+      'desktop-settings.json',
+      [dataDirectory, formerDataDirectory, previousDataDirectory].filter(
+        (directory): directory is string => Boolean(directory)
+      )
+    )
+  const preferencesDirectory = migrationSettings ? dirname(migrationSettings) : dataDirectory
+  if (!readPreferences(preferencesDirectory).settings.hardwareAcceleration)
     app.disableHardwareAcceleration()
   void app
     .whenReady()
     .then(async () => {
       const database = new AppDatabase(
-        await prepareDataDirectory(dataDirectory, previousDataDirectory)
+        await prepareDataDirectory(dataDirectory, previousDataDirectory, formerDataDirectory)
       )
       const service = new AppService(database, new TaskRepository(database.connection), undefined, {
         habits: new HabitRepository(database.connection),

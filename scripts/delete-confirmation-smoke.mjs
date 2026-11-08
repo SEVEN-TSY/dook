@@ -100,7 +100,7 @@ export async function deleteConfirmationSmoke({
     )
     await new Promise((resolve) => setTimeout(resolve, 120))
     pointer = { x: area.x + area.width / 2, y: area.y + area.height / 2 }
-    await new Promise((resolve) => setTimeout(resolve, 5000))
+    await new Promise((resolve) => setTimeout(resolve, 4000))
     assert.equal(
       (await js(note, 'window.dook.getWindowState()')).data.collapsed,
       false,
@@ -167,7 +167,7 @@ export async function deleteConfirmationSmoke({
       x: mainProtectionArea.x + mainProtectionArea.width / 2,
       y: mainProtectionArea.y + mainProtectionArea.height / 2
     }
-    await new Promise((resolve) => setTimeout(resolve, 5000))
+    await new Promise((resolve) => setTimeout(resolve, 4000))
     assert.equal(
       (await js(note, 'window.dook.getWindowState()')).data.collapsed,
       false,
@@ -178,7 +178,7 @@ export async function deleteConfirmationSmoke({
     // 保持便签输入焦点，单独关闭主界面确认，验证两窗口保护互不覆盖。
     await js(main, `document.querySelector('[data-testid=delete-cancel]').click()`)
     await expectFocus(main, habitDelete, '主界面取消后恢复习惯删除按钮焦点')
-    await new Promise((resolve) => setTimeout(resolve, 5000))
+    await new Promise((resolve) => setTimeout(resolve, 4000))
     assert.equal(
       (await js(note, 'window.dook.getWindowState()')).data.collapsed,
       false,

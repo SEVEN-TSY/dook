@@ -4,7 +4,7 @@ import type { DesktopState, DockEdge, WindowSettings } from '../../shared/contra
 import { readPreferences, writePreferences } from './preferences'
 import { isOuterEdge, nearbyEdge, snapBounds, visibleBounds } from './note-geometry'
 
-const AUTO_COLLAPSE_DELAY_MS = 4500
+const AUTO_COLLAPSE_DELAY_MS = 3500
 
 export class NoteController {
   private readonly preferences

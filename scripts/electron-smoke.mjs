@@ -313,8 +313,8 @@ async function dockingSizeSmoke(note) {
       await waitFor(async () => (await state(note)).noteMotion === 'closing', '便签沿贴边方向收回')
       const outsideTime = performance.now() - leftAt
       assert.ok(
-        outsideTime >= 4500 && outsideTime <= 5100,
-        `鼠标离开约4.5秒开始收回，实测${outsideTime}毫秒`
+        outsideTime >= 3500 && outsideTime <= 4100,
+        `鼠标离开约3.5秒开始收回，实测${outsideTime}毫秒`
       )
       const closingRevision = (await state(note)).noteMotionRevision
       await js(note, `window.dook.finishNoteMotion(${closingRevision - 1})`)
@@ -610,7 +610,7 @@ async function dockingSmoke(main, note) {
     await waitFor(async () => !(await state(note)).collapsed, '点击展开便签')
     await click(note, '[data-testid=task-description]')
     pointer = { x: area.x + area.width - 40, y: area.y + area.height - 50 }
-    await pause(5000)
+    await pause(4000)
     assert.equal((await state(note)).collapsed, false, '行内编辑保护')
     note.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' })
     note.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' })
@@ -928,7 +928,7 @@ async function runSmoke() {
         const openedAt = performance.now()
         await waitFor(async () => (await state(note)).noteMotion === 'closing', '托盘唤出后收回')
         const dwell = performance.now() - openedAt
-        assert.ok(dwell >= 4400 && dwell <= 5100, `托盘唤出后约4.5秒开始收回，实测${dwell}毫秒`)
+        assert.ok(dwell >= 3400 && dwell <= 4100, `托盘唤出后约3.5秒开始收回，实测${dwell}毫秒`)
         await waitFor(async () => (await state(note)).collapsed, '无需先进入便签即可自动收回')
         trayClick()
         await waitFor(
@@ -940,7 +940,7 @@ async function runSmoke() {
           () => js(note, `document.activeElement?.dataset.testid === 'task-new'`),
           '空输入框聚焦'
         )
-        await new Promise((resolve) => setTimeout(resolve, 5000))
+        await new Promise((resolve) => setTimeout(resolve, 4000))
         assert.equal((await state(note)).collapsed, false, '空输入框聚焦时鼠标移出也不自动收回')
         await js(note, `document.querySelector('[data-testid=task-new]').blur()`)
         await waitFor(async () => (await state(note)).collapsed, '输入框失焦后恢复自动收回')

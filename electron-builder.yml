@@ -27,4 +27,5 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
+  removeDefaultUninstallWelcomePage: true
   deleteAppDataOnUninstall: false
