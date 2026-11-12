@@ -36,6 +36,7 @@ export class NoteController {
   private outsideSince = 0
   private trayKeepOpenUntil = 0
   private blurCollapseAt = 0
+  private blurCollapseException?: { target: BrowserWindow; expiresAt: number }
   private applying = false
   private nativeMoving = false
   private edgeDragMoved = false
@@ -188,6 +189,11 @@ export class NoteController {
       this.blurCollapseAt = Date.now() + BLUR_COLLAPSE_DELAY_MS
   }
 
+  skipBlurCollapseFor(target: BrowserWindow) {
+    if (this.edge && !this.collapsed && !this.window.isDestroyed() && this.window.isFocused())
+      this.blurCollapseException = { target, expiresAt: Date.now() + BLUR_COLLAPSE_DELAY_MS }
+  }
+
   private readonly moved = () => {
     if (!this.nativeMoving) {
       this.commitBounds()
@@ -274,6 +280,7 @@ export class NoteController {
 
   show({ focus = true, fromTray = false } = {}) {
     this.blurCollapseAt = 0
+    this.blurCollapseException = undefined
     this.cancelOpeningPreparation()
     const wasCollapsed = this.collapsed
     const source = this.edgeCapsuleVisible ? 'capsule' : 'strip'
@@ -305,6 +312,7 @@ export class NoteController {
     this.apply()
     this.window.hide()
     this.blurCollapseAt = 0
+    this.blurCollapseException = undefined
   }
 
   togglePin() {
@@ -509,6 +517,17 @@ export class NoteController {
 
   private trackPointer() {
     if (this.disposed || this.window.isDestroyed()) return
+    const now = Date.now()
+    const exception = this.blurCollapseException
+    if (exception) {
+      // 主界面获得焦点和便签失焦的事件可能先后到达。
+      if (this.blurCollapseAt && !exception.target.isDestroyed() && exception.target.isFocused()) {
+        this.blurCollapseAt = 0
+        this.blurCollapseException = undefined
+      } else if (now >= (this.blurCollapseAt || exception.expiresAt)) {
+        this.blurCollapseException = undefined
+      }
+    }
     if (
       !this.edge ||
       !this.window.isVisible() ||
@@ -520,7 +539,7 @@ export class NoteController {
     if (this.awaitingCapsulePaint || this.openingPreparation) return
     const protectedFromCollapse = this.interaction || this.protections > 0 || this.menuOpen
     if (this.blurCollapseAt && !protectedFromCollapse) {
-      if (Date.now() >= this.blurCollapseAt) this.collapseNote()
+      if (now >= this.blurCollapseAt) this.collapseNote()
       return
     }
     const point = screen.getCursorScreenPoint()
@@ -548,7 +567,6 @@ export class NoteController {
       point.x < hitBounds.x + hitBounds.width &&
       point.y >= hitBounds.y &&
       point.y < hitBounds.y + hitBounds.height
-    const now = Date.now()
     if (inside) {
       this.awaitingEntry = false
       this.outsideSince = 0

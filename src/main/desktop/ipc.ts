@@ -1,12 +1,6 @@
 import { ipcMain } from 'electron'
 import type { BrowserWindow, IpcMainInvokeEvent } from 'electron'
-import type {
-  ApiResult,
-  BootstrapInfo,
-  DiagnosticReport,
-  MainPage,
-  WindowKind
-} from '../../shared/contracts'
+import type { ApiResult, BootstrapInfo, DiagnosticReport, MainPage } from '../../shared/contracts'
 import { IPC_CHANNELS } from '../../shared/channels'
 import { normalizeThemeColor } from '../../shared/theme-color'
 import type { AppService } from '../core/app-service'
@@ -20,7 +14,6 @@ interface Handlers {
   windows: () => BrowserWindow[]
   service: AppService
   changed: () => void
-  openWindow: (kind: WindowKind, page?: MainPage) => Promise<void>
   getBootstrap: () => BootstrapInfo
   runDiagnostics: () => Promise<DiagnosticReport>
 }
@@ -337,7 +330,7 @@ export function registerIpc(handlers: Handlers): () => void {
     if (typeof progress !== 'number') throw new Error('进度必须为数字。')
     return mutate(() => handlers.service.setTaskProgress(text(id), progress))
   })
-  register(IPC_CHANNELS.openWindow, (_, kind, page) => {
+  register(IPC_CHANNELS.openWindow, (window, kind, page) => {
     if (kind !== 'main' && kind !== 'note') throw new Error('窗口类型无效。')
     if (
       page !== undefined &&
@@ -346,7 +339,7 @@ export function registerIpc(handlers: Handlers): () => void {
         !['task', 'habit', 'inspiration', 'settings'].includes(page))
     )
       throw new Error('主界面页面无效。')
-    return handlers.openWindow(kind, page as MainPage | undefined)
+    return handlers.desktop.openWindow(kind, page as MainPage | undefined, { source: window })
   })
   return () => Object.values(IPC_CHANNELS).forEach((channel) => ipcMain.removeHandler(channel))
 }

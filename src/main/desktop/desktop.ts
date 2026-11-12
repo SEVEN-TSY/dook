@@ -79,7 +79,7 @@ export class Desktop {
   async openWindow(
     kind: WindowKind,
     page?: MainPage,
-    options?: { fromTray?: boolean }
+    options?: { fromTray?: boolean; source?: BrowserWindow }
   ): Promise<void> {
     if (this.exiting || this.preparingQuit) return
     if (kind === 'main' && page)
@@ -128,6 +128,8 @@ export class Desktop {
         })
       } else this.note?.show(options)
     } else {
+      if (options?.source && options.source === this.windows.get('note'))
+        this.note?.skipBlurCollapseFor(window)
       if (window.isMinimized()) window.restore()
       window.show()
       window.focus()

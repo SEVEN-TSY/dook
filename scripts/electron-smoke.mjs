@@ -945,9 +945,21 @@ async function runSmoke() {
         await js(note, `document.querySelector('[data-testid=task-new]').blur()`)
         await waitFor(async () => (await state(note)).collapsed, '输入框失焦后恢复自动收回')
 
-        await js(note, "window.dook.openWindow('main')")
-        const main = findWindow('main')
-        assert.ok(main, '主界面已打开')
+        trayClick()
+        await waitFor(async () => {
+          const desktop = await state(note)
+          return !desktop.collapsed && !desktop.noteMotion && note.isFocused()
+        }, '从托盘展开便签')
+        await click(note, '[data-testid=note-settings]')
+        const main = await waitFor(() => {
+          const window = findWindow('main')
+          return window?.isFocused() && window
+        }, '从便签打开并聚焦主界面')
+        await new Promise((resolve) => setTimeout(resolve, 700))
+        const afterOpeningMain = await state(note)
+        assert.equal(afterOpeningMain.noteMotion, undefined, '从便签打开主界面时不启动收起动画')
+        assert.equal(afterOpeningMain.collapsed, false, '从便签打开主界面时跳过失焦收起')
+
         trayClick()
         await waitFor(async () => {
           const desktop = await state(note)
@@ -956,7 +968,10 @@ async function runSmoke() {
         const switchedAt = performance.now()
         main.focus()
         await waitFor(() => main.isFocused() && !note.isFocused(), '焦点从便签切到主界面')
-        await waitFor(async () => (await state(note)).noteMotion === 'closing', '失焦后开始收起动画')
+        await waitFor(
+          async () => (await state(note)).noteMotion === 'closing',
+          '失焦后开始收起动画'
+        )
         assert.ok(performance.now() - switchedAt >= 250, '窗口失焦后短暂等待再收起')
         await waitFor(async () => (await state(note)).collapsed, '便签窗口失焦后沿边收回')
         assert.ok(performance.now() - switchedAt < 2000, '窗口失焦跳过3.5秒等待')
