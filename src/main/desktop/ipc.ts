@@ -11,11 +11,9 @@ import { IPC_CHANNELS } from '../../shared/channels'
 import { normalizeThemeColor } from '../../shared/theme-color'
 import type { AppService } from '../core/app-service'
 import type { Desktop } from './desktop'
-import type { DeepSeekConnection } from '../deepseek/connection'
 import { checkForUpdates, openLatestRelease } from './updates'
 
 interface Handlers {
-  deepSeek: DeepSeekConnection
   desktop: Desktop
   windows: () => BrowserWindow[]
   service: AppService
@@ -62,10 +60,6 @@ export function registerIpc(handlers: Handlers): () => void {
     return result
   }
   register(IPC_CHANNELS.getBootstrap, handlers.getBootstrap)
-  register(IPC_CHANNELS.deepSeekStatus, () => handlers.deepSeek.isConfigured())
-  register(IPC_CHANNELS.saveDeepSeekKey, (_, key) => handlers.deepSeek.save(text(key)))
-  register(IPC_CHANNELS.clearDeepSeekKey, () => handlers.deepSeek.clear())
-  register(IPC_CHANNELS.testDeepSeekConnection, () => handlers.deepSeek.test())
   register(IPC_CHANNELS.checkForUpdates, () =>
     checkForUpdates(handlers.getBootstrap().runtime.appVersion)
   )

@@ -1,4 +1,4 @@
-import { app, dialog, safeStorage } from 'electron'
+import { app, dialog } from 'electron'
 import { dirname, resolve } from 'node:path'
 import type { McpStatus } from '../shared/contracts'
 import { TASKS_CHANGED } from '../shared/channels'
@@ -12,7 +12,6 @@ import { Desktop } from './desktop/desktop'
 import { configureLaunchAtLogin } from './desktop/login-item'
 import { readPreferences } from './desktop/preferences'
 import { registerIpc } from './desktop/ipc'
-import { DeepSeekConnection } from './deepseek/connection'
 import { runDiagnostics } from './desktop/diagnostics'
 import { startMcpEndpoint } from './mcp/server'
 import type { McpEndpoint } from './mcp/server'
@@ -142,14 +141,6 @@ if (!app.requestSingleInstanceLock()) {
       }
 
       disposeIpc = registerIpc({
-        deepSeek: new DeepSeekConnection(resolve(dataDirectory, 'deepseek-key'), {
-          available: async () =>
-            (await safeStorage.isAsyncEncryptionAvailable()) &&
-            (process.platform !== 'linux' ||
-              safeStorage.getSelectedStorageBackend() !== 'basic_text'),
-          encrypt: (key) => safeStorage.encryptStringAsync(key),
-          decrypt: async (bytes) => (await safeStorage.decryptStringAsync(bytes)).result
-        }),
         desktop,
         windows: () => [...windows.values()],
         service,

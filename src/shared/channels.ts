@@ -1,9 +1,5 @@
 export const IPC_CHANNELS = {
   getWindowState: 'desktop:state',
-  deepSeekStatus: 'deepseek:status',
-  saveDeepSeekKey: 'deepseek:save-key',
-  clearDeepSeekKey: 'deepseek:clear-key',
-  testDeepSeekConnection: 'deepseek:test',
   updateSettings: 'desktop:settings',
   toggleNotePin: 'desktop:toggle-pin',
   hideWindow: 'desktop:hide',
