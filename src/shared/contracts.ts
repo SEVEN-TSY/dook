@@ -54,6 +54,10 @@ export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string }
 
 /** 显式白名单API；渲染进程不能调用任意IPC、SQL或Node.js接口。 */
 export interface DesktopApi {
+  deepSeekStatus: () => Promise<ApiResult<boolean>>
+  saveDeepSeekKey: (key: string) => Promise<ApiResult<void>>
+  clearDeepSeekKey: () => Promise<ApiResult<void>>
+  testDeepSeekConnection: () => Promise<ApiResult<void>>
   checkForUpdates: () => Promise<ApiResult<UpdateCheckResult>>
   openLatestRelease: () => Promise<ApiResult<void>>
   getWindowState: () => Promise<ApiResult<DesktopState>>
