@@ -944,6 +944,22 @@ async function runSmoke() {
         assert.equal((await state(note)).collapsed, false, '空输入框聚焦时鼠标移出也不自动收回')
         await js(note, `document.querySelector('[data-testid=task-new]').blur()`)
         await waitFor(async () => (await state(note)).collapsed, '输入框失焦后恢复自动收回')
+
+        await js(note, "window.dook.openWindow('main')")
+        const main = findWindow('main')
+        assert.ok(main, '主界面已打开')
+        trayClick()
+        await waitFor(async () => {
+          const desktop = await state(note)
+          return !desktop.collapsed && !desktop.noteMotion && note.isFocused()
+        }, '切换焦点前从托盘展开便签')
+        const switchedAt = performance.now()
+        main.focus()
+        await waitFor(() => main.isFocused() && !note.isFocused(), '焦点从便签切到主界面')
+        await waitFor(async () => (await state(note)).noteMotion === 'closing', '失焦后开始收起动画')
+        assert.ok(performance.now() - switchedAt >= 250, '窗口失焦后短暂等待再收起')
+        await waitFor(async () => (await state(note)).collapsed, '便签窗口失焦后沿边收回')
+        assert.ok(performance.now() - switchedAt < 2000, '窗口失焦跳过3.5秒等待')
       } finally {
         screen.getCursorScreenPoint = cursor
       }

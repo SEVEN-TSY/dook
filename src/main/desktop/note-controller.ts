@@ -5,6 +5,7 @@ import { readPreferences, writePreferences } from './preferences'
 import { isOuterEdge, nearbyEdge, snapBounds, visibleBounds } from './note-geometry'
 
 const AUTO_COLLAPSE_DELAY_MS = 3500
+const BLUR_COLLAPSE_DELAY_MS = 250
 
 export class NoteController {
   private readonly preferences
@@ -34,6 +35,7 @@ export class NoteController {
   private insideSince = 0
   private outsideSince = 0
   private trayKeepOpenUntil = 0
+  private blurCollapseAt = 0
   private applying = false
   private nativeMoving = false
   private edgeDragMoved = false
@@ -67,9 +69,7 @@ export class NoteController {
     window.on('will-move', this.willMove)
     window.on('moved', this.moved)
     window.on('resized', this.resized)
-    window.on('blur', () => {
-      this.setDragging(false)
-    })
+    window.on('blur', this.blurred)
     screen.on('display-added', this.recover)
     screen.on('display-removed', this.recover)
     screen.on('display-metrics-changed', this.recover)
@@ -182,6 +182,12 @@ export class NoteController {
     if (!this.nativeMoving) this.commitBounds()
   }
 
+  private readonly blurred = () => {
+    this.setDragging(false)
+    if (this.edge && !this.collapsed && this.window.isVisible())
+      this.blurCollapseAt = Date.now() + BLUR_COLLAPSE_DELAY_MS
+  }
+
   private readonly moved = () => {
     if (!this.nativeMoving) {
       this.commitBounds()
@@ -212,6 +218,7 @@ export class NoteController {
     this.edge = this.preferences.settings.edgeAutoHide
       ? nearbyEdge(bounds, display, screen.getAllDisplays())
       : null
+    if (!this.edge) this.blurCollapseAt = 0
     if (this.edge) this.expanded = snapBounds(bounds, display, this.edge)
     this.awaitingEntry = true
     this.insideSince = this.outsideSince = 0
@@ -229,7 +236,10 @@ export class NoteController {
     this.expanded = visibleBounds(this.expanded, display)
     if (this.edge && !isOuterEdge(display, this.edge, this.expanded, screen.getAllDisplays()))
       this.edge = null
-    if (!this.edge) this.collapsed = false
+    if (!this.edge) {
+      this.collapsed = false
+      this.blurCollapseAt = 0
+    }
     if (this.edge) this.expanded = snapBounds(this.expanded, display, this.edge)
     // 调整隐藏窗口的坐标但不调用show，避免显示布局变化意外唤出窗口。
     this.apply()
@@ -263,6 +273,7 @@ export class NoteController {
   }
 
   show({ focus = true, fromTray = false } = {}) {
+    this.blurCollapseAt = 0
     this.cancelOpeningPreparation()
     const wasCollapsed = this.collapsed
     const source = this.edgeCapsuleVisible ? 'capsule' : 'strip'
@@ -293,6 +304,7 @@ export class NoteController {
     this.collapsed = false
     this.apply()
     this.window.hide()
+    this.blurCollapseAt = 0
   }
 
   togglePin() {
@@ -325,6 +337,7 @@ export class NoteController {
     const closing = this.noteMotion === 'closing'
     this.cancelMotion()
     if (closing) {
+      this.blurCollapseAt = 0
       this.collapsed = true
       this.resetReveal()
       this.apply()
@@ -418,6 +431,7 @@ export class NoteController {
       this.setDragging(false)
       this.resetReveal()
       this.edge = null
+      this.blurCollapseAt = 0
       this.collapsed = false
       this.persist()
     }
@@ -504,6 +518,11 @@ export class NoteController {
     )
       return
     if (this.awaitingCapsulePaint || this.openingPreparation) return
+    const protectedFromCollapse = this.interaction || this.protections > 0 || this.menuOpen
+    if (this.blurCollapseAt && !protectedFromCollapse) {
+      if (Date.now() >= this.blurCollapseAt) this.collapseNote()
+      return
+    }
     const point = screen.getCursorScreenPoint()
     const bounds = this.window.getBounds()
     const hitBounds =
@@ -540,13 +559,7 @@ export class NoteController {
     } else {
       this.insideSince = 0
       if (this.collapsed) this.revealCapsule(false)
-      if (
-        this.awaitingEntry ||
-        this.interaction ||
-        this.protections ||
-        this.menuOpen ||
-        this.collapsed
-      ) {
+      if (this.awaitingEntry || protectedFromCollapse || this.collapsed) {
         this.outsideSince = 0
         return
       }
@@ -571,6 +584,7 @@ export class NoteController {
     this.window.removeListener('will-move', this.willMove)
     this.window.removeListener('moved', this.moved)
     this.window.removeListener('resized', this.resized)
+    this.window.removeListener('blur', this.blurred)
     this.persist()
   }
 }
