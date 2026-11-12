@@ -55,6 +55,11 @@ export const IPC_CHANNELS = {
   openWindow: 'app:open-window',
   getBootstrap: 'app:get-bootstrap',
   checkForUpdates: 'app:check-for-updates',
+  getAiSettings: 'ai:get-settings',
+  saveAiConfiguration: 'ai:save-configuration',
+  selectAiConfiguration: 'ai:select-configuration',
+  removeAiConfiguration: 'ai:remove-configuration',
+  testAiConfiguration: 'ai:test-configuration',
   openLatestRelease: 'app:open-latest-release',
   runDiagnostics: 'app:run-diagnostics'
 } as const

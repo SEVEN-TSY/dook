@@ -1,4 +1,6 @@
 /** 只放跨进程可序列化的数据契约，不依赖Electron或Node.js。 */
+import type { AiSettings } from './ai-settings'
+
 export interface RuntimeInfo {
   appVersion: string
   electron: string
@@ -54,6 +56,11 @@ export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string }
 
 /** 显式白名单API；渲染进程不能调用任意IPC、SQL或Node.js接口。 */
 export interface DesktopApi {
+  getAiSettings: () => Promise<ApiResult<AiSettings>>
+  saveAiConfiguration: (id: string, key: string) => Promise<ApiResult<AiSettings>>
+  selectAiConfiguration: (id: string) => Promise<ApiResult<AiSettings>>
+  removeAiConfiguration: (id: string) => Promise<ApiResult<AiSettings>>
+  testAiConfiguration: (id: string) => Promise<ApiResult<void>>
   checkForUpdates: () => Promise<ApiResult<UpdateCheckResult>>
   openLatestRelease: () => Promise<ApiResult<void>>
   getWindowState: () => Promise<ApiResult<DesktopState>>

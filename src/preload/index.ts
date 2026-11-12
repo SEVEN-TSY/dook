@@ -4,6 +4,11 @@ import { IPC_CHANNELS, TASKS_CHANGED, WINDOW_STATE, SAVE_REQUEST } from '../shar
 import type { DesktopState } from '../shared/contracts'
 
 const api: DesktopApi = {
+  getAiSettings: () => ipcRenderer.invoke(IPC_CHANNELS.getAiSettings),
+  saveAiConfiguration: (id, key) => ipcRenderer.invoke(IPC_CHANNELS.saveAiConfiguration, id, key),
+  selectAiConfiguration: (id) => ipcRenderer.invoke(IPC_CHANNELS.selectAiConfiguration, id),
+  removeAiConfiguration: (id) => ipcRenderer.invoke(IPC_CHANNELS.removeAiConfiguration, id),
+  testAiConfiguration: (id) => ipcRenderer.invoke(IPC_CHANNELS.testAiConfiguration, id),
   checkForUpdates: () => ipcRenderer.invoke(IPC_CHANNELS.checkForUpdates),
   openLatestRelease: () => ipcRenderer.invoke(IPC_CHANNELS.openLatestRelease),
   getWindowState: () => ipcRenderer.invoke(IPC_CHANNELS.getWindowState),

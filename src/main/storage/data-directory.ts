@@ -42,8 +42,14 @@ export async function prepareDataDirectory(
     (formerDirectory && findMigrationFile('dook.sqlite', [formerDirectory])) ||
     findMigrationFile('mytodo.sqlite', [previousDirectory])
   const sources = formerDirectory ? [formerDirectory, previousDirectory] : [previousDirectory]
-  const settings = ['desktop-settings.json', 'note-position.json', 'mcp-token'].flatMap((file) => {
+  const settings = [
+    'desktop-settings.json',
+    'note-position.json',
+    'mcp-token',
+    'deepseek-key'
+  ].flatMap((file) => {
     if (statSync(join(directory, file), { throwIfNoEntry: false })) return []
+    if (file === 'deepseek-key' && findMigrationFile('ai-settings.json', [directory])) return []
     const source = findMigrationFile(file, sources)
     return source ? [{ file, source }] : []
   })

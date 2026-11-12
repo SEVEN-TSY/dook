@@ -10,10 +10,12 @@ import type {
 import { IPC_CHANNELS } from '../../shared/channels'
 import { normalizeThemeColor } from '../../shared/theme-color'
 import type { AppService } from '../core/app-service'
+import type { AiConnection } from '../ai/connection'
 import type { Desktop } from './desktop'
 import { checkForUpdates, openLatestRelease } from './updates'
 
 interface Handlers {
+  ai: AiConnection
   desktop: Desktop
   windows: () => BrowserWindow[]
   service: AppService
@@ -64,6 +66,11 @@ export function registerIpc(handlers: Handlers): () => void {
     checkForUpdates(handlers.getBootstrap().runtime.appVersion)
   )
   register(IPC_CHANNELS.openLatestRelease, openLatestRelease)
+  register(IPC_CHANNELS.getAiSettings, () => handlers.ai.getSettings())
+  register(IPC_CHANNELS.saveAiConfiguration, (_, id, key) => handlers.ai.save(text(id), text(key)))
+  register(IPC_CHANNELS.selectAiConfiguration, (_, id) => handlers.ai.select(text(id)))
+  register(IPC_CHANNELS.removeAiConfiguration, (_, id) => handlers.ai.remove(text(id)))
+  register(IPC_CHANNELS.testAiConfiguration, (_, id) => handlers.ai.test(text(id)))
   register(IPC_CHANNELS.getWindowState, () => handlers.desktop.state())
   register(IPC_CHANNELS.updateSettings, (_, settings) => {
     if (

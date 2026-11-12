@@ -1,4 +1,4 @@
-import { app, dialog } from 'electron'
+import { app, dialog, safeStorage } from 'electron'
 import { dirname, resolve } from 'node:path'
 import type { McpStatus } from '../shared/contracts'
 import { TASKS_CHANGED } from '../shared/channels'
@@ -8,6 +8,7 @@ import { InspirationRepository } from './storage/repositories/inspirations'
 import { localDate } from './core/tasks'
 import { AppDatabase } from './storage/database'
 import { AppService } from './core/app-service'
+import { AiConnection } from './ai/connection'
 import { Desktop } from './desktop/desktop'
 import { configureLaunchAtLogin } from './desktop/login-item'
 import { readPreferences } from './desktop/preferences'
@@ -140,7 +141,15 @@ if (!app.requestSingleInstanceLock()) {
         }
       }
 
+      const ai = new AiConnection(dataDirectory, {
+        available: async () =>
+          (await safeStorage.isAsyncEncryptionAvailable()) &&
+          (process.platform !== 'linux' || safeStorage.getSelectedStorageBackend() !== 'basic_text'),
+        encrypt: (key) => safeStorage.encryptStringAsync(key),
+        decrypt: async (bytes) => (await safeStorage.decryptStringAsync(bytes)).result
+      })
       disposeIpc = registerIpc({
+        ai,
         desktop,
         windows: () => [...windows.values()],
         service,

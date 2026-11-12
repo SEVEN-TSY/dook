@@ -8,6 +8,7 @@ import type { DesktopState, WindowSettings } from '../../../../shared/contracts'
 import { FALLBACK_ACCENT_COLOR } from '../../../../shared/theme-color'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
 import { AboutSettings } from './AboutSettings'
+import { AiSettings } from './AiSettings'
 
 export function SettingsPage({ state, hidden }: { state: DesktopState | null; hidden: boolean }) {
   const [error, setError] = useState('')
@@ -264,6 +265,7 @@ export function SettingsPage({ state, hidden }: { state: DesktopState | null; hi
           />
         </label>
       </section>
+      {!hidden && <AiSettings />}
       <AboutSettings />
       {error && (
         <p role="alert" className="task-error">
