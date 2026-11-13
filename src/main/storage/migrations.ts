@@ -159,5 +159,30 @@ export const migrations = [
     version: 20,
     name: 'dook_schema_metadata',
     sql: `UPDATE app_metadata SET value = 'dook' WHERE key = 'schema';`
+  },
+  {
+    version: 21,
+    name: 'ai_call_logs',
+    sql: `
+      CREATE TABLE ai_call_logs (
+        id INTEGER PRIMARY KEY,
+        configuration_id TEXT NOT NULL,
+        model TEXT NOT NULL,
+        event TEXT NOT NULL,
+        called_at TEXT NOT NULL,
+        duration_ms INTEGER NOT NULL,
+        outcome TEXT NOT NULL,
+        http_status INTEGER,
+        prompt_tokens INTEGER,
+        completion_tokens INTEGER,
+        total_tokens INTEGER,
+        prompt_cache_hit_tokens INTEGER,
+        prompt_cache_miss_tokens INTEGER,
+        reasoning_tokens INTEGER
+      ) STRICT;
+      CREATE INDEX ai_call_logs_configuration_time ON ai_call_logs(configuration_id, called_at DESC);
+      CREATE INDEX ai_call_logs_time ON ai_call_logs(called_at);
+      CREATE INDEX ai_call_logs_event_time ON ai_call_logs(event, called_at);
+    `
   }
 ] as const

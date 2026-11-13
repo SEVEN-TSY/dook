@@ -1,12 +1,13 @@
 import { app, dialog, safeStorage } from 'electron'
 import { dirname, resolve } from 'node:path'
 import type { McpStatus } from '../shared/contracts'
-import { TASKS_CHANGED } from '../shared/channels'
+import { AI_CALL_LOGGED, TASKS_CHANGED } from '../shared/channels'
 import { TaskRepository } from './storage/repositories/tasks'
 import { HabitRepository } from './storage/repositories/habits'
 import { InspirationRepository } from './storage/repositories/inspirations'
 import { localDate } from './core/tasks'
 import { AppDatabase } from './storage/database'
+import { AiCallLog } from './storage/ai-call-log'
 import { AppService } from './core/app-service'
 import { AiConnection } from './ai/connection'
 import { Desktop } from './desktop/desktop'
@@ -141,13 +142,24 @@ if (!app.requestSingleInstanceLock()) {
         }
       }
 
-      const ai = new AiConnection(dataDirectory, {
-        available: async () =>
-          (await safeStorage.isAsyncEncryptionAvailable()) &&
-          (process.platform !== 'linux' || safeStorage.getSelectedStorageBackend() !== 'basic_text'),
-        encrypt: (key) => safeStorage.encryptStringAsync(key),
-        decrypt: async (bytes) => (await safeStorage.decryptStringAsync(bytes)).result
-      })
+      const ai = new AiConnection(
+        dataDirectory,
+        {
+          available: async () =>
+            (await safeStorage.isAsyncEncryptionAvailable()) &&
+            (process.platform !== 'linux' ||
+              safeStorage.getSelectedStorageBackend() !== 'basic_text'),
+          encrypt: (key) => safeStorage.encryptStringAsync(key),
+          decrypt: async (bytes) => (await safeStorage.decryptStringAsync(bytes)).result
+        },
+        new AiCallLog(database.connection, dataDirectory),
+        undefined,
+        () => {
+          for (const window of windows.values()) {
+            if (!window.webContents.isDestroyed()) window.webContents.send(AI_CALL_LOGGED)
+          }
+        }
+      )
       disposeIpc = registerIpc({
         ai,
         desktop,

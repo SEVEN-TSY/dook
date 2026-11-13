@@ -1,14 +1,25 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { DesktopApi } from '../shared/contracts'
-import { IPC_CHANNELS, TASKS_CHANGED, WINDOW_STATE, SAVE_REQUEST } from '../shared/channels'
+import {
+  AI_CALL_LOGGED,
+  IPC_CHANNELS,
+  TASKS_CHANGED,
+  WINDOW_STATE,
+  SAVE_REQUEST
+} from '../shared/channels'
 import type { DesktopState } from '../shared/contracts'
 
 const api: DesktopApi = {
   getAiSettings: () => ipcRenderer.invoke(IPC_CHANNELS.getAiSettings),
-  saveAiConfiguration: (id, key) => ipcRenderer.invoke(IPC_CHANNELS.saveAiConfiguration, id, key),
+  saveAiConfiguration: (input) => ipcRenderer.invoke(IPC_CHANNELS.saveAiConfiguration, input),
   selectAiConfiguration: (id) => ipcRenderer.invoke(IPC_CHANNELS.selectAiConfiguration, id),
   removeAiConfiguration: (id) => ipcRenderer.invoke(IPC_CHANNELS.removeAiConfiguration, id),
   testAiConfiguration: (id) => ipcRenderer.invoke(IPC_CHANNELS.testAiConfiguration, id),
+  onAiCallLogged: (listener) => {
+    const callback = () => listener()
+    ipcRenderer.on(AI_CALL_LOGGED, callback)
+    return () => ipcRenderer.removeListener(AI_CALL_LOGGED, callback)
+  },
   checkForUpdates: () => ipcRenderer.invoke(IPC_CHANNELS.checkForUpdates),
   openLatestRelease: () => ipcRenderer.invoke(IPC_CHANNELS.openLatestRelease),
   getWindowState: () => ipcRenderer.invoke(IPC_CHANNELS.getWindowState),

@@ -10,6 +10,10 @@ test('创建时间按本地自然日显示，跨年日期完整，旧记录不�
   const now = new Date(2026, 10, 2, 12)
   assert.equal(formatCreatedTime(new Date(2026, 10, 2, 0, 5).toISOString(), now), '00:05')
   assert.equal(
+    formatCreatedTime(new Date(2026, 10, 2, 0, 5, 7).toISOString(), now, 'second'),
+    '00:05:07'
+  )
+  assert.equal(
     formatCreatedTime(new Date(2026, 10, 1, 23, 59).toISOString(), now),
     '2026年11月01日 23:59'
   )

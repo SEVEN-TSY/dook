@@ -1,9 +1,7 @@
 .ai-setting-controls,
 .ai-model-label,
-.ai-dialog-heading,
 .ai-form-actions,
-.ai-table-toolbar,
-.ai-table-actions {
+.ai-table-toolbar {
   display: flex;
   align-items: center;
 }
@@ -14,9 +12,20 @@
   gap: 8px;
 }
 
+.ai-model-label > :is(img, svg) {
+  flex: none;
+}
+
 .ai-model-label img {
   object-fit: contain;
-  flex: none;
+}
+
+.ai-model-name,
+.ai-configuration-name > span:first-child {
+  max-width: min(26vw, 28ch);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ai-select:focus-visible {
@@ -26,6 +35,20 @@
 .ai-default-select {
   width: auto;
   min-width: 168px;
+}
+
+.ai-setting-controls [aria-controls='ai-model-management'][aria-expanded='true'] {
+  background: var(--app-accent-soft);
+  color: var(--app-accent-ink);
+}
+
+.workbench .settings-ai:has(.ai-management[hidden]) .setting-row {
+  border-bottom: 0;
+}
+
+.ai-management {
+  padding: 12px 0 14px;
+  font-size: 13px;
 }
 
 .ai-dialog-overlay {
@@ -41,7 +64,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: min(580px, calc(100vw - 24px));
+  width: min(400px, calc(100vw - 24px));
   max-height: calc(100vh - 24px);
   overflow: auto;
   padding: 20px;
@@ -59,14 +82,9 @@
   font-weight: 600;
 }
 
-.ai-dialog-heading {
-  justify-content: space-between;
-  gap: 12px;
-}
-
 .ai-dialog-description,
+.ai-management-note,
 .ai-config-table th,
-.ai-config-table small,
 .ai-table-empty {
   color: var(--app-muted);
 }
@@ -76,8 +94,14 @@
 }
 
 .ai-table-toolbar {
-  justify-content: flex-end;
-  margin: 12px 0 4px;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.ai-management-note {
+  margin: 0;
+  font-size: 12px;
 }
 
 .ai-table-scroll {
@@ -102,10 +126,40 @@
   font-weight: 500;
 }
 
-.ai-config-table small {
-  display: block;
-  padding-left: 24px;
-  font-size: 11px;
+.ai-config-table .ai-token-column {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-config-table .ai-operation-column {
+  width: 1%;
+  text-align: center;
+}
+
+.ai-config-table .ai-operation-column {
+  padding-inline: 4px 0;
+}
+
+.ai-configuration-menu [role='menuitem'] {
+  display: flex;
+  align-items: center;
+  line-height: 20px;
+}
+
+.ai-configuration-menu [role='menuitem']:is(:hover, [data-highlighted]) {
+  background: var(--app-accent-soft);
+  color: var(--app-accent-ink);
+}
+
+.ai-configuration-menu [role='menuitem'].ai-remove-action:is(:hover, [data-highlighted]) {
+  background: var(--app-error-surface);
+  color: var(--app-error);
+}
+
+.ai-configuration-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .ai-config-table tbody tr:hover {
@@ -117,32 +171,49 @@
   text-align: center;
 }
 
-.ai-active-model {
+.ai-default-badge,
+.ai-reasoning-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 18px;
+  padding-inline: 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.ai-default-badge {
+  background: var(--app-accent-soft);
   color: var(--app-accent-ink);
 }
 
-.ai-test-result {
-  color: var(--app-success);
+.ai-reasoning-badge {
+  flex: none;
+  background: light-dark(#eef0f3, #303236);
+  color: var(--app-muted);
+}
+
+.ai-reasoning-badge[data-reasoning='low'] {
+  background: light-dark(#eaf2ff, #233449);
+  color: light-dark(#28558e, #aecdf8);
+}
+
+.ai-reasoning-badge[data-reasoning='high'] {
+  background: light-dark(#f0ebfc, #382c4e);
+  color: light-dark(#5f428a, #d7bff7);
+}
+
+.ai-reasoning-badge[data-reasoning='max'] {
+  background: light-dark(#fff2db, #43321c);
+  color: light-dark(#824b13, #f5ca8b);
 }
 
 .ai-setting-controls button:focus-visible,
+.ai-management button:focus-visible,
 .ai-dialog button:focus-visible {
   outline: 1px solid var(--app-accent);
   outline-offset: 2px;
-}
-
-.ai-dialog .task-error,
-.ai-test-result {
-  margin: 8px 0 0;
-}
-
-.ai-form-overlay {
-  z-index: 42;
-}
-
-.ai-configuration-form {
-  z-index: 43;
-  width: min(400px, calc(100vw - 24px));
 }
 
 .ai-form-fields {
@@ -154,10 +225,6 @@
 .ai-form-field {
   display: grid;
   gap: 5px;
-}
-
-.ai-form-field .task-error {
-  margin: 0;
 }
 
 .ai-form-actions {

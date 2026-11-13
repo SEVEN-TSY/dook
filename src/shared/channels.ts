@@ -65,5 +65,6 @@ export const IPC_CHANNELS = {
 } as const
 
 export const TASKS_CHANGED = 'tasks:changed'
+export const AI_CALL_LOGGED = 'ai:call-logged'
 export const WINDOW_STATE = 'desktop:changed'
 export const SAVE_REQUEST = 'desktop:save-request'

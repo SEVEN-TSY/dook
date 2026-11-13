@@ -1,13 +1,16 @@
 import { Cpu } from 'lucide-react'
-import type { AiPreset } from '../../../../shared/ai-settings'
+import type { AiPreset, AiReasoning } from '../../../../shared/ai-settings'
+import { AI_REASONING_LABELS } from '../../../../shared/ai-settings'
 import deepSeekIcon from './deepseek.svg'
 
 export function AiModelLabel({
   preset,
-  unconfigured = false
+  name = preset.name,
+  reasoning
 }: {
   preset: AiPreset
-  unconfigured?: boolean
+  name?: string
+  reasoning?: AiReasoning
 }) {
   return (
     <span className="ai-model-label">
@@ -16,10 +19,19 @@ export function AiModelLabel({
       ) : (
         <Cpu size={16} aria-hidden="true" />
       )}
-      <span>
-        {preset.name}
-        {unconfigured && ' · 未配置'}
+      <span className="ai-model-name" title={name}>
+        {name}
       </span>
+      {reasoning && (
+        <span
+          className="ai-reasoning-badge"
+          data-reasoning={reasoning}
+          title={`推理强度：${AI_REASONING_LABELS[reasoning]}`}
+        >
+          <span className="sr-only">推理强度：</span>
+          {AI_REASONING_LABELS[reasoning]}
+        </span>
+      )}
     </span>
   )
 }

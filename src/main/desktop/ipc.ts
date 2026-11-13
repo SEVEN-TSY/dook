@@ -1,5 +1,7 @@
 import { ipcMain } from 'electron'
 import type { BrowserWindow, IpcMainInvokeEvent } from 'electron'
+import { z } from 'zod'
+import { AI_REASONING_LEVELS } from '../../shared/ai-settings'
 import type { ApiResult, BootstrapInfo, DiagnosticReport, MainPage } from '../../shared/contracts'
 import { IPC_CHANNELS } from '../../shared/channels'
 import { normalizeThemeColor } from '../../shared/theme-color'
@@ -7,6 +9,15 @@ import type { AppService } from '../core/app-service'
 import type { AiConnection } from '../ai/connection'
 import type { Desktop } from './desktop'
 import { checkForUpdates, openLatestRelease } from './updates'
+
+const aiConfigurationFields = {
+  name: z.string().optional(),
+  reasoning: z.enum(AI_REASONING_LEVELS).optional()
+}
+const aiConfigurationInput = z.union([
+  z.strictObject({ ...aiConfigurationFields, presetId: z.string(), key: z.string() }),
+  z.strictObject({ ...aiConfigurationFields, id: z.string(), key: z.string().optional() })
+])
 
 interface Handlers {
   ai: AiConnection
@@ -60,7 +71,11 @@ export function registerIpc(handlers: Handlers): () => void {
   )
   register(IPC_CHANNELS.openLatestRelease, openLatestRelease)
   register(IPC_CHANNELS.getAiSettings, () => handlers.ai.getSettings())
-  register(IPC_CHANNELS.saveAiConfiguration, (_, id, key) => handlers.ai.save(text(id), text(key)))
+  register(IPC_CHANNELS.saveAiConfiguration, (_, input) => {
+    const parsed = aiConfigurationInput.safeParse(input)
+    if (!parsed.success) throw new Error('AI配置参数无效。')
+    return handlers.ai.save(parsed.data)
+  })
   register(IPC_CHANNELS.selectAiConfiguration, (_, id) => handlers.ai.select(text(id)))
   register(IPC_CHANNELS.removeAiConfiguration, (_, id) => handlers.ai.remove(text(id)))
   register(IPC_CHANNELS.testAiConfiguration, (_, id) => handlers.ai.test(text(id)))

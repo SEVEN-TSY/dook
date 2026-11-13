@@ -47,6 +47,7 @@ test('SQLite迁移可重复启动，诊断不留下业务数据', (t) => {
     assert.deepEqual(
       tables.map((row) => row.name),
       [
+        'ai_call_logs',
         'app_metadata',
         'habit_generations',
         'habits',
@@ -88,7 +89,8 @@ test('DOOK首次启动导入旧数据库的WAL、窗口设置和MCP凭证，重�
     rmSync(directory, { recursive: true, force: true })
   })
   oldDatabase.connection.exec(`
-    DELETE FROM schema_migrations WHERE version = 20;
+    DROP TABLE ai_call_logs;
+    DELETE FROM schema_migrations WHERE version >= 20;
     UPDATE app_metadata SET value = 'mytodo' WHERE key = 'schema';
     PRAGMA wal_checkpoint(TRUNCATE);
     INSERT INTO app_metadata VALUES ('wal-only', 'preserved');
