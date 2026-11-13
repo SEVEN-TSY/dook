@@ -1,7 +1,5 @@
 import { ipcMain } from 'electron'
 import type { BrowserWindow, IpcMainInvokeEvent } from 'electron'
-import { z } from 'zod'
-import { AI_REASONING_LEVELS } from '../../shared/ai-settings'
 import type { ApiResult, BootstrapInfo, DiagnosticReport, MainPage } from '../../shared/contracts'
 import { IPC_CHANNELS } from '../../shared/channels'
 import { normalizeThemeColor } from '../../shared/theme-color'
@@ -10,17 +8,8 @@ import type { AiConnection } from '../ai/connection'
 import type { Desktop } from './desktop'
 import { checkForUpdates, openLatestRelease } from './updates'
 
-const aiConfigurationFields = {
-  name: z.string().optional(),
-  reasoning: z.enum(AI_REASONING_LEVELS).optional()
-}
-const aiConfigurationInput = z.union([
-  z.strictObject({ ...aiConfigurationFields, presetId: z.string(), key: z.string() }),
-  z.strictObject({ ...aiConfigurationFields, id: z.string(), key: z.string().optional() })
-])
-
 interface Handlers {
-  ai: AiConnection
+  ai: () => Promise<AiConnection>
   desktop: Desktop
   windows: () => BrowserWindow[]
   service: AppService
@@ -70,15 +59,20 @@ export function registerIpc(handlers: Handlers): () => void {
     checkForUpdates(handlers.getBootstrap().runtime.appVersion)
   )
   register(IPC_CHANNELS.openLatestRelease, openLatestRelease)
-  register(IPC_CHANNELS.getAiSettings, () => handlers.ai.getSettings())
-  register(IPC_CHANNELS.saveAiConfiguration, (_, input) => {
-    const parsed = aiConfigurationInput.safeParse(input)
-    if (!parsed.success) throw new Error('AI配置参数无效。')
-    return handlers.ai.save(parsed.data)
+  register(IPC_CHANNELS.getAiSettings, async () => (await handlers.ai()).getSettings())
+  register(IPC_CHANNELS.saveAiConfiguration, async (_, input) => {
+    const { parseAiConfigurationInput } = await import('../ai/input')
+    return (await handlers.ai()).save(parseAiConfigurationInput(input))
   })
-  register(IPC_CHANNELS.selectAiConfiguration, (_, id) => handlers.ai.select(text(id)))
-  register(IPC_CHANNELS.removeAiConfiguration, (_, id) => handlers.ai.remove(text(id)))
-  register(IPC_CHANNELS.testAiConfiguration, (_, id) => handlers.ai.test(text(id)))
+  register(IPC_CHANNELS.selectAiConfiguration, async (_, id) =>
+    (await handlers.ai()).select(text(id))
+  )
+  register(IPC_CHANNELS.removeAiConfiguration, async (_, id) =>
+    (await handlers.ai()).remove(text(id))
+  )
+  register(IPC_CHANNELS.testAiConfiguration, async (_, id) =>
+    (await handlers.ai()).test(text(id))
+  )
   register(IPC_CHANNELS.getWindowState, () => handlers.desktop.state())
   register(IPC_CHANNELS.updateSettings, (_, settings) => {
     if (

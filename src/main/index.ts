@@ -7,15 +7,12 @@ import { HabitRepository } from './storage/repositories/habits'
 import { InspirationRepository } from './storage/repositories/inspirations'
 import { localDate } from './core/tasks'
 import { AppDatabase } from './storage/database'
-import { AiCallLog } from './storage/ai-call-log'
 import { AppService } from './core/app-service'
-import { AiConnection } from './ai/connection'
+import type { AiConnection } from './ai/connection'
 import { Desktop } from './desktop/desktop'
 import { configureLaunchAtLogin } from './desktop/login-item'
 import { readPreferences } from './desktop/preferences'
 import { registerIpc } from './desktop/ipc'
-import { runDiagnostics } from './desktop/diagnostics'
-import { startMcpEndpoint } from './mcp/server'
 import type { McpEndpoint } from './mcp/server'
 import { loadOrCreateToken } from './mcp/token'
 import {
@@ -99,6 +96,7 @@ if (!app.requestSingleInstanceLock()) {
       let endpoint: McpEndpoint | undefined
       let token = ''
       let mcp: McpStatus = { state: 'unavailable', endpoint: null, error: null }
+      let ai: Promise<AiConnection> | undefined
       let disposeIpc = () => {}
       let quitting = false
       let quitAllowed = false
@@ -127,41 +125,53 @@ if (!app.requestSingleInstanceLock()) {
         })
       })
 
-      try {
-        token = loadOrCreateToken(resolve(dataDirectory, 'mcp-token'))
-        const port = Number(process.env.DOOK_MCP_PORT ?? process.env.MYTODO_MCP_PORT ?? 32145)
-        if (!Number.isInteger(port) || port < 0 || port > 65535)
-          throw new Error('DOOK_MCP_PORT必须为0至65535的整数。')
-        endpoint = await startMcpEndpoint({ service, token, port })
-        mcp = { state: 'listening', endpoint: endpoint.url, error: null }
-      } catch (error) {
-        mcp = {
-          state: 'unavailable',
-          endpoint: null,
-          error: error instanceof Error ? error.message : 'MCP启动失败。'
+      token = loadOrCreateToken(resolve(dataDirectory, 'mcp-token'))
+      // 窗口可见后再启动MCP：SDK与监听都不进入首帧关键路径。
+      const startMcp = async () => {
+        try {
+          const port = Number(process.env.DOOK_MCP_PORT ?? process.env.MYTODO_MCP_PORT ?? 32145)
+          if (!Number.isInteger(port) || port < 0 || port > 65535)
+            throw new Error('DOOK_MCP_PORT必须为0至65535的整数。')
+          const { startMcpEndpoint } = await import('./mcp/server')
+          endpoint = await startMcpEndpoint({ service, token, port })
+          mcp = { state: 'listening', endpoint: endpoint.url, error: null }
+        } catch (error) {
+          mcp = {
+            state: 'unavailable',
+            endpoint: null,
+            error: error instanceof Error ? error.message : 'MCP启动失败。'
+          }
         }
       }
 
-      const ai = new AiConnection(
-        dataDirectory,
-        {
-          available: async () =>
-            (await safeStorage.isAsyncEncryptionAvailable()) &&
-            (process.platform !== 'linux' ||
-              safeStorage.getSelectedStorageBackend() !== 'basic_text'),
-          encrypt: (key) => safeStorage.encryptStringAsync(key),
-          decrypt: async (bytes) => (await safeStorage.decryptStringAsync(bytes)).result
-        },
-        new AiCallLog(database.connection, dataDirectory),
-        undefined,
-        () => {
-          for (const window of windows.values()) {
-            if (!window.webContents.isDestroyed()) window.webContents.send(AI_CALL_LOGGED)
-          }
-        }
-      )
+      // AI配置只在设置页真正使用时加载，含zod与调用日志。
+      const aiConnection = () =>
+        (ai ??= (async () => {
+          const [{ AiConnection }, { AiCallLog }] = await Promise.all([
+            import('./ai/connection'),
+            import('./storage/ai-call-log')
+          ])
+          return new AiConnection(
+            dataDirectory,
+            {
+              available: async () =>
+                (await safeStorage.isAsyncEncryptionAvailable()) &&
+                (process.platform !== 'linux' ||
+                  safeStorage.getSelectedStorageBackend() !== 'basic_text'),
+              encrypt: (key) => safeStorage.encryptStringAsync(key),
+              decrypt: async (bytes) => (await safeStorage.decryptStringAsync(bytes)).result
+            },
+            new AiCallLog(database.connection, dataDirectory),
+            undefined,
+            () => {
+              for (const window of windows.values()) {
+                if (!window.webContents.isDestroyed()) window.webContents.send(AI_CALL_LOGGED)
+              }
+            }
+          )
+        })())
       disposeIpc = registerIpc({
-        ai,
+        ai: aiConnection,
         desktop,
         windows: () => [...windows.values()],
         service,
@@ -178,13 +188,15 @@ if (!app.requestSingleInstanceLock()) {
           },
           mcp
         }),
-        runDiagnostics: () => runDiagnostics(service, mcp, token)
+        runDiagnostics: async () =>
+          (await import('./desktop/diagnostics')).runDiagnostics(service, mcp, token)
       })
       app.on('second-instance', () => {
         void desktop.openWindow('note')
       })
       await desktop.openWindow('note')
       desktop.startTray()
+      void startMcp()
     })
     .catch((error) => {
       dialog.showErrorBox('DOOK启动失败', error instanceof Error ? error.message : String(error))

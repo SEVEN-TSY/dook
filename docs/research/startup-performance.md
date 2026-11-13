@@ -121,3 +121,13 @@
 - MCP 延迟启动使首个外部连接可能失败一次，需要在 `doc/mcp.md` 和工具调用错误提示里说明重试。
 - 懒加载 AI/诊断后，首次打开设置页多 ~100 ms，属可接受的一次性成本。
 - 渲染层拆包若把共用组件拆进多个 chunk，可能增加总传输量；以实测首帧为准，不做纯体积优化。
+
+## 8. 实施记录（2026-11-13，P0 已落地）
+
+- `mcp/server.ts` 改为在 `startMcpEndpoint` 内动态导入 SDK；`index.ts` 把 MCP 启动移到 `openWindow('note')` + `startTray()` 之后（`void startMcp()`）。
+- `ipc.ts` 去掉 zod 静态导入：AI 参数校验移到按需加载的 `ai/input.ts`；`ai` 参数改为 `() => Promise<AiConnection>` 工厂，`AiConnection`/`AiCallLog` 动态导入。
+- `runDiagnostics` 改为 IPC 内动态导入，诊断与 `mcp/probe` 不再进入启动图。
+- 主进程 bundle 121.3 KB → 104.2 KB，启动图只剩 electron 与 node 内置模块；`out/main/chunks/` 下生成 `server`、`connection`、`ai-call-log`、`input`、`diagnostics` 五个按需 chunk。
+- 复测（同一脚本、同一数据目录）窗口可见：**579 / 587 / 606 / 638 ms**（改造前 819 / 913 ms），约 −260 ms。
+- 验证：`npm run typecheck`、`npm run build`、`npm test`（77 通过）；以固定端口启动后 `initialize` 与 `tools/list` 均返回 200。
+- 注意：`D:\dook` 里的安装版仍是旧代码，需重新 `npm run dist:win` 打包安装后才能获得该收益。

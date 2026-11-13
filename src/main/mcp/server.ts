@@ -1,9 +1,10 @@
 import { timingSafeEqual } from 'node:crypto'
 import { createServer } from 'node:http'
 import type { Server } from 'node:http'
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import type { AppService } from '../core/app-service'
+
+/** 动态导入的类型别名；不产生运行时引用，SDK只在startMcpEndpoint内加载。 */
+type McpServerClass = typeof import('@modelcontextprotocol/sdk/server/mcp.js').McpServer
 
 export interface McpEndpoint {
   url: string
@@ -22,7 +23,7 @@ function authorized(header: string | undefined, token: string): boolean {
   return actual.length === expected.length && timingSafeEqual(actual, expected)
 }
 
-function createProtocolServer(service: AppService): McpServer {
+function createProtocolServer(service: AppService, McpServer: McpServerClass) {
   const server = new McpServer({ name: 'dook', version: '0.1.0' })
   server.registerTool(
     'app_diagnostics',
@@ -60,6 +61,10 @@ function createProtocolServer(service: AppService): McpServer {
 
 /** 内嵌在Electron主进程；不启动独立的常驻后端。 */
 export async function startMcpEndpoint({ service, token, port }: McpOptions): Promise<McpEndpoint> {
+  const [{ McpServer }, { StreamableHTTPServerTransport }] = await Promise.all([
+    import('@modelcontextprotocol/sdk/server/mcp.js'),
+    import('@modelcontextprotocol/sdk/server/streamableHttp.js')
+  ])
   let activePort = port
   const httpServer: Server = createServer(async (req, res) => {
     const origin = `http://127.0.0.1:${activePort}`
@@ -86,7 +91,7 @@ export async function startMcpEndpoint({ service, token, port }: McpOptions): Pr
     }
 
     // 无会话、JSON响应：每次请求单独创建协议对象，共享同一业务服务。
-    const server = createProtocolServer(service)
+    const server = createProtocolServer(service, McpServer)
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true
