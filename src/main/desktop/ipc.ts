@@ -7,7 +7,6 @@ import type { AppService } from '../core/app-service'
 import type { AiConnection } from '../ai/connection'
 import type { AiScenePrompts } from '../ai/scene-prompts'
 import type { Desktop } from './desktop'
-import { checkForUpdates, openLatestRelease } from './updates'
 
 interface Handlers {
   ai: () => Promise<AiConnection>
@@ -57,10 +56,14 @@ export function registerIpc(handlers: Handlers): () => void {
     return result
   }
   register(IPC_CHANNELS.getBootstrap, handlers.getBootstrap)
-  register(IPC_CHANNELS.checkForUpdates, () =>
-    checkForUpdates(handlers.getBootstrap().runtime.appVersion)
-  )
-  register(IPC_CHANNELS.openLatestRelease, openLatestRelease)
+  register(IPC_CHANNELS.checkForUpdates, async () => {
+    const { checkForUpdates } = await import('./updates')
+    return checkForUpdates(handlers.getBootstrap().runtime.appVersion)
+  })
+  register(IPC_CHANNELS.openLatestRelease, async () => {
+    const { openLatestRelease } = await import('./updates')
+    return openLatestRelease()
+  })
   register(IPC_CHANNELS.getAiSettings, async () => (await handlers.ai()).getSettings())
   register(IPC_CHANNELS.saveAiConfiguration, async (_, input) => {
     const { parseAiConfigurationInput } = await import('../ai/input')
@@ -72,9 +75,7 @@ export function registerIpc(handlers: Handlers): () => void {
   register(IPC_CHANNELS.removeAiConfiguration, async (_, id) =>
     (await handlers.ai()).remove(text(id))
   )
-  register(IPC_CHANNELS.testAiConfiguration, async (_, id) =>
-    (await handlers.ai()).test(text(id))
-  )
+  register(IPC_CHANNELS.testAiConfiguration, async (_, id) => (await handlers.ai()).test(text(id)))
   register(IPC_CHANNELS.getAiScenePrompts, async () => (await handlers.aiPrompts()).getSettings())
   register(IPC_CHANNELS.setAiPromptMode, async (_, mode) =>
     (await handlers.aiPrompts()).setMode(text(mode))

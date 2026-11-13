@@ -34,9 +34,12 @@ export class AppDatabase {
     const current = this.connection
       .prepare('SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations')
       .get()!
-    if (Number(current.version) > migrations.at(-1)!.version) {
+    const latest = migrations.at(-1)!.version
+    if (Number(current.version) > latest) {
       throw new Error('数据库版本高于当前应用，请使用更新的应用版本。')
     }
+    // 已是最新版本时不开启写事务，减少每次启动的SQLite锁与提交开销。
+    if (Number(current.version) === latest) return
     this.connection.exec('BEGIN IMMEDIATE')
     try {
       for (const migration of migrations) {

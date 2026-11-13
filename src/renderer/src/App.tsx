@@ -1,5 +1,5 @@
 import { TasksPage } from './features/tasks/TasksPage'
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import type { DesktopState } from '../../shared/contracts'
 import { FALLBACK_ACCENT_COLOR } from '../../shared/theme-color'
@@ -8,7 +8,10 @@ import { useTasks } from './features/tasks/useTasks'
 import { NoteTransition } from './features/tasks/NoteTransition'
 import { taskSummary } from './features/tasks/taskSummary'
 import { DeleteConfirmationProvider } from './components/DeleteConfirmation'
-import { Toaster } from './components/ui/sonner'
+
+const Toaster = lazy(() =>
+  import('./components/ui/sonner').then((module) => ({ default: module.Toaster }))
+)
 
 export function App() {
   const tasks = useTasks()
@@ -19,6 +22,12 @@ export function App() {
   const edgePress = useRef<{ x: number; y: number; moved: boolean } | null>(null)
   const summary = total ? `总进度${progress}%，已完成${completed}/${total}项任务` : '暂无任务'
   const [error, setError] = useState('')
+  const [toasterReady, setToasterReady] = useState(false)
+  useEffect(() => {
+    // 首帧绘制后再挂载提示宿主，Sonner在窗口可见后才下载。
+    const timer = window.setTimeout(() => setToasterReady(true), 0)
+    return () => window.clearTimeout(timer)
+  }, [])
   const themeColor =
     desktop?.settings.themeColor === 'system'
       ? desktop.systemAccentColor
@@ -96,12 +105,16 @@ export function App() {
       <DeleteConfirmationProvider>
         <TasksPage kind={kind} desktop={desktop} hidden={collapsed} tasks={tasks} />
       </DeleteConfirmationProvider>
-      <Toaster
-        theme={desktop?.colorScheme ?? 'system'}
-        offset={kind === 'note' ? 48 : 16}
-        mobileOffset={kind === 'note' ? 48 : 16}
-        style={collapsed ? { display: 'none' } : undefined}
-      />
+      {toasterReady && (
+        <Suspense fallback={null}>
+          <Toaster
+            theme={desktop?.colorScheme ?? 'system'}
+            offset={kind === 'note' ? 48 : 16}
+            mobileOffset={kind === 'note' ? 48 : 16}
+            style={collapsed ? { display: 'none' } : undefined}
+          />
+        </Suspense>
+      )}
       {kind === 'note' && desktop?.noteMotion && <NoteTransition desktop={desktop} />}
       {collapsed && !edgeOpening && !desktop?.edgeOpening && (
         <button

@@ -1,6 +1,6 @@
-import { toast } from 'sonner'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Task, TodayTasks } from '../../../../shared/contracts'
+import { toastSuccess } from '../../components/notify'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
 
 export function useTasks() {
@@ -55,7 +55,7 @@ export function useTasks() {
     setError('')
     try {
       await action()
-      toast.success('操作成功')
+      toastSuccess('操作成功')
       await refresh()
       return true
     } catch (error) {
@@ -89,7 +89,7 @@ export function useTasks() {
       try {
         unwrap(await getDesktopApi().setTaskProgress(id, value))
         setError('')
-        toast.success('进度已更新')
+        toastSuccess('进度已更新')
         await refresh()
         return true
       } catch (error) {

@@ -15,7 +15,6 @@ import { configureLaunchAtLogin } from './desktop/login-item'
 import { readPreferences } from './desktop/preferences'
 import { registerIpc } from './desktop/ipc'
 import type { McpEndpoint } from './mcp/server'
-import { loadOrCreateToken } from './mcp/token'
 import {
   findMigrationFile,
   prepareDataDirectory,
@@ -53,22 +52,24 @@ if (!app.requestSingleInstanceLock()) {
       )
     )
   const preferencesDirectory = migrationSettings ? dirname(migrationSettings) : dataDirectory
-  if (!readPreferences(preferencesDirectory).settings.hardwareAcceleration)
-    app.disableHardwareAcceleration()
+  const startupPreferences = readPreferences(preferencesDirectory)
+  if (!startupPreferences.settings.hardwareAcceleration) app.disableHardwareAcceleration()
+  // 迁移前后目录一致时复用同一次读取；目录不同时等迁移完成后再读新目录。
+  const dataPreferences = preferencesDirectory === dataDirectory ? startupPreferences : undefined
   void app
     .whenReady()
     .then(async () => {
       const database = new AppDatabase(
         await prepareDataDirectory(dataDirectory, previousDataDirectory, formerDataDirectory)
       )
+      const preferences = dataPreferences ?? readPreferences(dataDirectory)
       const service = new AppService(database, new TaskRepository(database.connection), undefined, {
         habits: new HabitRepository(database.connection),
         inspirations: new InspirationRepository(database.connection)
       })
       service.ensureDailyTasks()
       const setLaunchAtLogin = (enabled: boolean) => configureLaunchAtLogin(app, enabled)
-      setLaunchAtLogin(readPreferences(dataDirectory).settings.launchAtLogin)
-      const desktop = new Desktop(dataDirectory, () => app.quit(), setLaunchAtLogin)
+      const desktop = new Desktop(dataDirectory, () => app.quit(), setLaunchAtLogin, preferences)
       const windows = desktop.windows
       const changed = () => {
         for (const window of windows.values()) {
@@ -95,13 +96,18 @@ if (!app.requestSingleInstanceLock()) {
       app.on('browser-window-focus', () => changed())
       app.on('will-quit', () => clearInterval(dateTimer))
       let endpoint: McpEndpoint | undefined
-      let token = ''
+      let tokenPromise: Promise<string> | undefined
       let mcp: McpStatus = { state: 'unavailable', endpoint: null, error: null }
       let ai: Promise<AiConnection> | undefined
       let aiPrompts: Promise<AiScenePrompts> | undefined
       let disposeIpc = () => {}
       let quitting = false
       let quitAllowed = false
+      // MCP凭证只在端点或诊断真正需要时读取，首帧不再做加密随机数与文件写入。
+      const mcpToken = () =>
+        (tokenPromise ??= import('./mcp/token').then(({ loadOrCreateToken }) =>
+          loadOrCreateToken(resolve(dataDirectory, 'mcp-token'))
+        ))
       app.on('before-quit', (event) => {
         if (quitAllowed) return
         event.preventDefault()
@@ -127,14 +133,16 @@ if (!app.requestSingleInstanceLock()) {
         })
       })
 
-      token = loadOrCreateToken(resolve(dataDirectory, 'mcp-token'))
       // 窗口可见后再启动MCP：SDK与监听都不进入首帧关键路径。
       const startMcp = async () => {
         try {
           const port = Number(process.env.DOOK_MCP_PORT ?? process.env.MYTODO_MCP_PORT ?? 32145)
           if (!Number.isInteger(port) || port < 0 || port > 65535)
             throw new Error('DOOK_MCP_PORT必须为0至65535的整数。')
-          const { startMcpEndpoint } = await import('./mcp/server')
+          const [{ startMcpEndpoint }, token] = await Promise.all([
+            import('./mcp/server'),
+            mcpToken()
+          ])
           endpoint = await startMcpEndpoint({ service, token, port })
           mcp = { state: 'listening', endpoint: endpoint.url, error: null }
         } catch (error) {
@@ -194,14 +202,22 @@ if (!app.requestSingleInstanceLock()) {
           },
           mcp
         }),
-        runDiagnostics: async () =>
-          (await import('./desktop/diagnostics')).runDiagnostics(service, mcp, token)
+        runDiagnostics: async () => {
+          const { runDiagnostics } = await import('./desktop/diagnostics')
+          return runDiagnostics(service, mcp, await mcpToken())
+        }
       })
       app.on('second-instance', () => {
         void desktop.openWindow('note')
       })
       await desktop.openWindow('note')
       desktop.startTray()
+      // 登录项在窗口可见后同步，避免注册表写入拖慢首帧。
+      try {
+        setLaunchAtLogin(preferences.settings.launchAtLogin)
+      } catch (error) {
+        console.error('更新开机自启设置失败：', error)
+      }
       void startMcp()
     })
     .catch((error) => {

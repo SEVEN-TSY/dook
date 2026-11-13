@@ -1,6 +1,6 @@
-import { toast } from 'sonner'
 import { useRef, useState } from 'react'
 import type { Task } from '../../../../shared/contracts'
+import { toastSuccess } from '../../components/notify'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
 import { useSerialSave } from '../shared/useSerialSave'
 
@@ -65,7 +65,7 @@ export function useTaskInput(
       const task = unwrap(
         await (current.id ? api.updateTask(current.id, text) : api.createTask(text, current.date))
       )
-      toast.success(current.id ? '任务已保存' : '任务已添加')
+      toastSuccess(current.id ? '任务已保存' : '任务已添加')
       current.id = task.id
       current.saved = task.description
       report('')

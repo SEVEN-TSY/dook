@@ -1,7 +1,5 @@
-import { AlertDialog } from 'radix-ui'
-import { createContext, useCallback, useContext, useRef, useState } from 'react'
+import { lazy, Suspense, createContext, useCallback, useContext, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Button } from './ui/button'
 
 interface DeletePrompt {
   confirmLabel?: string
@@ -17,6 +15,11 @@ const Context = createContext<{
   confirm: (prompt: DeletePrompt, returnFocus?: HTMLElement | null) => Promise<boolean>
 } | null>(null)
 
+const loadDialog = () => import('./DeleteConfirmationDialog')
+const DeleteConfirmationDialog = lazy(() =>
+  loadDialog().then((module) => ({ default: module.DeleteConfirmationDialog }))
+)
+
 export function DeleteConfirmationProvider({ children }: { children: ReactNode }) {
   const [prompt, setPrompt] = useState<DeletePrompt | null>(null)
   const pending = useRef<((confirmed: boolean) => void) | null>(null)
@@ -31,6 +34,20 @@ export function DeleteConfirmationProvider({ children }: { children: ReactNode }
     setPrompt(null)
   }, [])
   const cancel = useCallback(() => finish(false), [finish])
+  const closeAutoFocus = useCallback((event: Event) => {
+    event.preventDefault()
+    const trigger = confirmed.current ? focusAfterConfirm.current?.() : returnFocus.current
+    const target =
+      trigger?.isConnected &&
+      trigger !== document.body &&
+      trigger.checkVisibility() &&
+      !trigger.matches(':disabled')
+        ? trigger
+        : document.querySelector<HTMLElement>('[data-delete-focus-fallback]')
+    // 操作组先获得焦点，恢复由:focus-within展示的行内删除入口。
+    target?.closest<HTMLElement>('[data-delete-focus-group]')?.focus({ preventScroll: true })
+    target?.focus({ preventScroll: true })
+  }, [])
   return (
     <Context.Provider
       value={{
@@ -44,6 +61,7 @@ export function DeleteConfirmationProvider({ children }: { children: ReactNode }
           confirmed.current = false
           focusAfterConfirm.current = next.focusAfterConfirm
           setPrompt(next)
+          void loadDialog()
           return new Promise<boolean>((resolve) => {
             pending.current = resolve
           })
@@ -51,56 +69,23 @@ export function DeleteConfirmationProvider({ children }: { children: ReactNode }
       }}
     >
       {children}
-      <AlertDialog.Root
-        open={prompt !== null}
-        onOpenChange={(open) => {
-          if (!open) finish(false)
-        }}
-      >
-        <AlertDialog.Portal>
-          <AlertDialog.Overlay className="delete-confirmation-overlay" />
-          <AlertDialog.Content
-            className="delete-confirmation"
-            onEscapeKeyDown={() => finish(false)}
-            onCloseAutoFocus={(event) => {
-              event.preventDefault()
-              const trigger = confirmed.current
-                ? focusAfterConfirm.current?.()
-                : returnFocus.current
-              const target =
-                trigger?.isConnected &&
-                trigger !== document.body &&
-                trigger.checkVisibility() &&
-                !trigger.matches(':disabled')
-                  ? trigger
-                  : document.querySelector<HTMLElement>('[data-delete-focus-fallback]')
-              // 操作组先获得焦点，恢复由:focus-within展示的行内删除入口。
-              target
-                ?.closest<HTMLElement>('[data-delete-focus-group]')
-                ?.focus({ preventScroll: true })
-              target?.focus({ preventScroll: true })
+      {prompt !== null && (
+        <Suspense fallback={null}>
+          <DeleteConfirmationDialog
+            title={prompt.title}
+            description={prompt.description}
+            detail={prompt.detail}
+            confirmLabel={prompt.confirmLabel}
+            onOpenChange={(open) => {
+              if (!open) finish(false)
             }}
-          >
-            <AlertDialog.Title>{prompt?.title}</AlertDialog.Title>
-            <AlertDialog.Description asChild>
-              <div className="delete-confirmation-description">
-                <p>{prompt?.description}</p>
-                <p>{prompt?.detail}</p>
-              </div>
-            </AlertDialog.Description>
-            <div className="delete-confirmation-actions">
-              <AlertDialog.Cancel asChild>
-                <Button variant="outline" data-testid="delete-cancel" onClick={() => finish(false)}>
-                  取消
-                </Button>
-              </AlertDialog.Cancel>
-              <Button data-testid="delete-confirm" onClick={() => finish(true)}>
-                {prompt?.confirmLabel ?? '删除'}
-              </Button>
-            </div>
-          </AlertDialog.Content>
-        </AlertDialog.Portal>
-      </AlertDialog.Root>
+            onEscapeKeyDown={() => finish(false)}
+            onCloseAutoFocus={closeAutoFocus}
+            onCancel={() => finish(false)}
+            onConfirm={() => finish(true)}
+          />
+        </Suspense>
+      )}
     </Context.Provider>
   )
 }

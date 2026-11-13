@@ -3,33 +3,19 @@ import { CreatedTime } from '../shared/CreatedTime'
 import { BrandMark } from '../../components/BrandMark'
 import { Toast } from '../../components/Toast'
 import {
-  ArrowUpLeft,
-  ArrowDownLeft,
   ChevronsDown,
   Plus,
   Archive,
   CalendarPlus,
-  MoreHorizontal,
   Pin,
-  PinOff,
-  Repeat,
-  SkipForward,
   Trash2,
   TrendingUp,
   Zap
 } from 'lucide-react'
 import { useDeleteConfirmation } from '../../components/DeleteConfirmation'
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator
-} from '../../components/ui/dropdown-menu'
 import { AppIcon, TaskActionIcon } from '../../components/AppIcon'
 import { SummaryRing } from '../../components/SummaryRing'
 import { TaskCheck } from '../../components/TaskCheck'
-import { Button } from '../../components/ui/button'
 import { ListDescription } from '../shared/ListDescription'
 import { ClearableInput } from '../../components/ui/clearable-input'
 import { useSummaryMotion } from '../shared/useSummaryMotion'
@@ -46,14 +32,12 @@ import type {
 import { NotePages } from './NotePages'
 import { NoteEmpty } from './NoteEmpty'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
-import { SubitemsPanel } from './SubitemsPanel'
 import { useTasks } from './useTasks'
 import { useTaskInput } from './useTaskInput'
-import { HabitsPanel } from '../habits/HabitsPanel'
-import { InspirationPanel } from '../inspirations/InspirationPanel'
+import { TaskMenu } from './task-menu-loader'
+import { HabitsPanel, InspirationPanel, SettingsPage, SubitemsPanel } from '../main-features'
 import type { InspirationPanelHandle } from '../inspirations/InspirationPanel'
 import { useInspirationInput } from '../inspirations/useInspirationInput'
-import { SettingsPage } from '../settings/SettingsPage'
 import { taskSummary as summarizeTasks } from './taskSummary'
 
 const INSPIRATION_GOAL = 5
@@ -142,14 +126,6 @@ export function TasksPage({
   )
   const expansionRequest = useRef(0)
   const [menuTask, setMenuTask] = useState<string | null>(null)
-  const hoverMenu = useRef(false)
-  const menuClose = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  useEffect(() => () => clearTimeout(menuClose.current), [])
-  const keepMenu = () => clearTimeout(menuClose.current)
-  const leaveMenu = () => {
-    clearTimeout(menuClose.current)
-    menuClose.current = setTimeout(() => setMenuTask(null), 180)
-  }
   const selectTask = async (id: string | null, conversion = false) => {
     const request = ++expansionRequest.current
     if (!(await flush.current()) || request !== expansionRequest.current) return
@@ -877,162 +853,26 @@ export function TasksPage({
                                 <TaskActionIcon name="schedule" />
                               </span>
                             )}
-                            <DropdownMenu
-                              modal={false}
+                            <TaskMenu
+                              task={task}
+                              tasks={tasks}
+                              busy={busy}
                               open={menuTask === task.id}
+                              showMultiDay={showMultiDay}
+                              flush={flush.current}
                               onOpenChange={(open) => {
-                                keepMenu()
-                                hoverMenu.current = false
-                                setMenuTask(open ? task.id : null)
+                                if (open) setMenuTask(task.id)
+                                else
+                                  setMenuTask((current) => (current === task.id ? null : current))
                               }}
-                            >
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  className="task-more"
-                                  onPointerEnter={(event) => {
-                                    if (event.pointerType === 'mouse') {
-                                      keepMenu()
-                                      if (menuTask !== task.id) {
-                                        hoverMenu.current = true
-                                        setMenuTask(task.id)
-                                      }
-                                    }
-                                  }}
-                                  onPointerLeave={leaveMenu}
-                                  onPointerDown={() => {
-                                    hoverMenu.current = false
-                                  }}
-                                  onKeyDown={() => {
-                                    hoverMenu.current = false
-                                  }}
-                                  disabled={busy}
-                                  aria-label={`更多操作：${task.description}`}
-                                  title="更多操作"
-                                >
-                                  <MoreHorizontal />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent
-                                align="end"
-                                className="[&_[role=menuitem]:is(:hover,[data-highlighted]):not([data-disabled])>svg]:text-primary"
-                                onOpenAutoFocus={(event) => {
-                                  if (hoverMenu.current) event.preventDefault()
-                                }}
-                                onKeyDown={() => {
-                                  hoverMenu.current = false
-                                }}
-                                onPointerDown={() => {
-                                  hoverMenu.current = false
-                                }}
-                                onPointerEnter={keepMenu}
-                                onPointerLeave={leaveMenu}
-                                onCloseAutoFocus={(event) => {
-                                  if (hoverMenu.current) event.preventDefault()
-                                }}
-                                onFocusOutside={(event) => {
-                                  if (hoverMenu.current) event.preventDefault()
-                                }}
-                              >
-                                {showMultiDay && task.kind === 'multi-day' && (
-                                  <DropdownMenuItem
-                                    onSelect={() => {
-                                      void (async () => {
-                                        if (await flush.current()) {
-                                          const hasSubitems = Boolean(task.subitems?.length)
-                                          const trigger = document.querySelector<HTMLElement>(
-                                            `[data-task-id="${task.id}"] .task-more`
-                                          )
-                                          if (
-                                            hasSubitems &&
-                                            !(await deletion.confirm(
-                                              {
-                                                title: '转回这就去做',
-                                                description: '转回当天任务会丢失所有子事项。',
-                                                detail: `“${task.description}”的全部${task.subitems?.length}个子事项将被删除，无法恢复。是否继续？`,
-                                                confirmLabel: '确认转回'
-                                              },
-                                              trigger
-                                            ))
-                                          )
-                                            return
-                                          if (await convertToday(task.id, hasSubitems)) {
-                                            setSelectedTask(null)
-                                            setLocatedTask(locateTaskOnConvert ? task.id : null)
-                                          }
-                                        }
-                                      })()
-                                    }}
-                                  >
-                                    <ArrowUpLeft aria-hidden="true" />
-                                    转回这就去做
-                                  </DropdownMenuItem>
-                                )}
-                                {task.kind === 'today' && !task.habitId && (
-                                  <>
-                                    {!task.completed && showMultiDay && (
-                                      <DropdownMenuItem
-                                        data-testid="task-convert"
-                                        onSelect={() => {
-                                          void (async () => {
-                                            await selectTask(task.id, true)
-                                          })()
-                                        }}
-                                      >
-                                        <ArrowDownLeft aria-hidden="true" />
-                                        转为持续推进
-                                      </DropdownMenuItem>
-                                    )}
-                                    <DropdownMenuItem
-                                      data-testid="task-to-habit"
-                                      onSelect={() => {
-                                        void (async () => {
-                                          if (await flush.current()) await addHabit(task.id)
-                                        })()
-                                      }}
-                                    >
-                                      <Repeat aria-hidden="true" />
-                                      添加为习惯
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                  </>
-                                )}
-                                <DropdownMenuItem
-                                  onSelect={() => {
-                                    void (async () => {
-                                      if (await flush.current()) await pin(task)
-                                    })()
-                                  }}
-                                >
-                                  {task.pinned ? (
-                                    <PinOff aria-hidden="true" />
-                                  ) : (
-                                    <Pin aria-hidden="true" />
-                                  )}
-                                  {task.pinned ? '取消置顶' : '置顶任务'}
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  data-testid="task-delete"
-                                  onSelect={() => {
-                                    void (async () => {
-                                      if (await flush.current()) {
-                                        if (task.habitId) await skipHabit(task.id)
-                                        else await archive(task.id)
-                                      }
-                                    })()
-                                  }}
-                                >
-                                  {task.habitId ? (
-                                    <SkipForward aria-hidden="true" />
-                                  ) : (
-                                    <Archive aria-hidden="true" />
-                                  )}
-                                  {task.habitId ? '暂停一次' : '归档任务'}
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                              onConvert={(next) => {
+                                void selectTask(next.id, true)
+                              }}
+                              onConvertedToToday={(next) => {
+                                setSelectedTask(null)
+                                setLocatedTask(locateTaskOnConvert ? next.id : null)
+                              }}
+                            />
                           </div>
                           {selectedTask === task.id && (
                             <SubitemsPanel

@@ -2,6 +2,7 @@ import { screen } from 'electron'
 import type { BrowserWindow, Rectangle } from 'electron'
 import type { DesktopState, DockEdge, WindowSettings } from '../../shared/contracts'
 import { readPreferences, writePreferences } from './preferences'
+import type { DesktopPreferences } from './preferences'
 import { isOuterEdge, nearbyEdge, snapBounds, visibleBounds } from './note-geometry'
 
 const AUTO_COLLAPSE_DELAY_MS = 3500
@@ -53,9 +54,10 @@ export class NoteController {
   constructor(
     private readonly window: BrowserWindow,
     private readonly directory: string,
-    private readonly changed: () => void
+    private readonly changed: () => void,
+    preferences: DesktopPreferences = readPreferences(directory)
   ) {
-    this.preferences = readPreferences(directory)
+    this.preferences = preferences
     this.freePinned = this.preferences.settings.defaultAlwaysOnTop
     this.edge = this.preferences.settings.edgeAutoHide ? this.preferences.edge : null
     const area = screen.getPrimaryDisplay().workArea

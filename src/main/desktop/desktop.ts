@@ -7,6 +7,7 @@ import { createWindow, loadWindow, mainWindowTitleBar } from './window'
 import { NoteController } from './note-controller'
 import { SaveBarrier } from './save-barrier'
 import { readPreferences } from './preferences'
+import type { DesktopPreferences } from './preferences'
 import { appIcon } from './brand'
 
 /** 窗口与托盘的唯一所有者；任务规则仍交给共享应用服务。 */
@@ -19,6 +20,7 @@ export class Desktop {
   private readonly interactions = new Set<BrowserWindow>()
   private tray?: Tray
   private note?: NoteController
+  private readonly preferences: DesktopPreferences
   private exiting = false
   private preparingQuit = false
   private mainNavigation: DesktopState['mainNavigation']
@@ -27,9 +29,11 @@ export class Desktop {
   constructor(
     private readonly directory: string,
     private readonly quit: () => void,
-    private readonly setLaunchAtLogin: (enabled: boolean) => void = () => {}
+    private readonly setLaunchAtLogin: (enabled: boolean) => void = () => {},
+    preferences: DesktopPreferences = readPreferences(directory)
   ) {
-    nativeTheme.themeSource = readPreferences(directory).settings.appearance
+    this.preferences = preferences
+    nativeTheme.themeSource = preferences.settings.appearance
     nativeTheme.on('updated', this.onAppearanceChanged)
     if (process.platform === 'win32') {
       this.onAccentColorChanged(null, systemPreferences.getAccentColor())
@@ -89,7 +93,12 @@ export class Desktop {
       window = createWindow(kind)
       this.windows.set(kind, window)
       if (kind === 'note') {
-        this.note = new NoteController(window, this.directory, () => this.broadcast())
+        this.note = new NoteController(
+          window,
+          this.directory,
+          () => this.broadcast(),
+          this.preferences
+        )
         this.note.setInteraction(this.interactions.size > 0)
       }
       const current = window

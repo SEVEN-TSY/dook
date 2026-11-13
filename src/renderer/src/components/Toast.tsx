@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef } from 'react'
-import { toast } from 'sonner'
+import { dismissToast, toastError, toastSuccess } from './notify'
 
 /** Bridge existing message state to the shared Sonner host. */
 export function Toast({
@@ -20,11 +20,11 @@ export function Toast({
     const finish = () => {
       if (active) dismiss.current()
     }
-    const notify = error ? toast.error : toast.success
+    const notify = error ? toastError : toastSuccess
     notify(message, { id, onDismiss: finish, onAutoClose: finish })
     return () => {
       active = false
-      toast.dismiss(id)
+      dismissToast(id)
     }
   }, [message, error, id])
   return null
