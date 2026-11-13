@@ -8,6 +8,7 @@ interface DeletePrompt {
   title: string
   description: string
   detail: string
+  focusAfterConfirm?: () => HTMLElement | null
 }
 
 const Context = createContext<{
@@ -20,6 +21,7 @@ export function DeleteConfirmationProvider({ children }: { children: ReactNode }
   const [prompt, setPrompt] = useState<DeletePrompt | null>(null)
   const pending = useRef<((confirmed: boolean) => void) | null>(null)
   const returnFocus = useRef<HTMLElement | null>(null)
+  const focusAfterConfirm = useRef<DeletePrompt['focusAfterConfirm']>(undefined)
   const confirmed = useRef(false)
   const finish = useCallback((result: boolean) => {
     if (!pending.current) return
@@ -40,6 +42,7 @@ export function DeleteConfirmationProvider({ children }: { children: ReactNode }
             trigger ??
             (document.activeElement instanceof HTMLElement ? document.activeElement : null)
           confirmed.current = false
+          focusAfterConfirm.current = next.focusAfterConfirm
           setPrompt(next)
           return new Promise<boolean>((resolve) => {
             pending.current = resolve
@@ -61,9 +64,10 @@ export function DeleteConfirmationProvider({ children }: { children: ReactNode }
             onEscapeKeyDown={() => finish(false)}
             onCloseAutoFocus={(event) => {
               event.preventDefault()
-              const trigger = returnFocus.current
+              const trigger = confirmed.current
+                ? focusAfterConfirm.current?.()
+                : returnFocus.current
               const target =
-                !confirmed.current &&
                 trigger?.isConnected &&
                 trigger !== document.body &&
                 trigger.checkVisibility() &&

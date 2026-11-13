@@ -4,6 +4,7 @@ import { toastSmoke } from './toast-smoke.mjs'
 import { habitArchiveSmoke } from './habit-archive-smoke.mjs'
 import { noteJottingsSmoke } from './note-jottings-smoke.mjs'
 import { appearanceSmoke } from './appearance-smoke.mjs'
+import { aiScenePromptsSmoke } from './ai-scene-prompts-smoke.mjs'
 import { listInteractionSmoke } from './list-interaction-smoke.mjs'
 import { inspirationPageSmoke } from './inspiration-page-smoke.mjs'
 import { subitemsSmoke } from './subitems-smoke.mjs'
@@ -1094,6 +1095,12 @@ async function runSmoke() {
           writeFileSync(resolve(output, name), (await window.webContents.capturePage()).toPNG())
       })
       console.log(`Electron note jottings smoke passed: ${phase}`)
+      menuClick('退出')
+      return
+    }
+    if (phase.startsWith('ai-scene-prompts-')) {
+      await aiScenePromptsSmoke({ main, note, phase, js, click, input, waitFor })
+      console.log(`Electron AI scene prompts smoke passed: ${phase}`)
       menuClick('退出')
       return
     }

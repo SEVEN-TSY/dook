@@ -5,11 +5,13 @@ import { IPC_CHANNELS } from '../../shared/channels'
 import { normalizeThemeColor } from '../../shared/theme-color'
 import type { AppService } from '../core/app-service'
 import type { AiConnection } from '../ai/connection'
+import type { AiScenePrompts } from '../ai/scene-prompts'
 import type { Desktop } from './desktop'
 import { checkForUpdates, openLatestRelease } from './updates'
 
 interface Handlers {
   ai: () => Promise<AiConnection>
+  aiPrompts: () => Promise<AiScenePrompts>
   desktop: Desktop
   windows: () => BrowserWindow[]
   service: AppService
@@ -72,6 +74,16 @@ export function registerIpc(handlers: Handlers): () => void {
   )
   register(IPC_CHANNELS.testAiConfiguration, async (_, id) =>
     (await handlers.ai()).test(text(id))
+  )
+  register(IPC_CHANNELS.getAiScenePrompts, async () => (await handlers.aiPrompts()).getSettings())
+  register(IPC_CHANNELS.setAiPromptMode, async (_, mode) =>
+    (await handlers.aiPrompts()).setMode(text(mode))
+  )
+  register(IPC_CHANNELS.saveAiScenePrompt, async (_, id, prompt) =>
+    (await handlers.aiPrompts()).save(text(id), text(prompt))
+  )
+  register(IPC_CHANNELS.resetAiScenePrompts, async (_, id) =>
+    (await handlers.aiPrompts()).reset(id === undefined ? undefined : text(id))
   )
   register(IPC_CHANNELS.getWindowState, () => handlers.desktop.state())
   register(IPC_CHANNELS.updateSettings, (_, settings) => {

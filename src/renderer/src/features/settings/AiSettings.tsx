@@ -16,6 +16,7 @@ import { getDesktopApi, unwrap } from '../../platform/desktop'
 import { AiConfigurationActions } from './AiConfigurationActions'
 import { AiConfigurationForm } from './AiConfigurationForm'
 import { AiModelLabel } from './AiModelLabel'
+import { AiScenePromptSettings } from './AiScenePromptSettings'
 import './ai-settings.css'
 
 export function AiSettings() {
@@ -266,6 +267,7 @@ export function AiSettings() {
           </p>
         )}
       </div>
+      <AiScenePromptSettings />
       {managementOpen && form && formInitial && (
         <AiConfigurationForm
           presets={formPresets}

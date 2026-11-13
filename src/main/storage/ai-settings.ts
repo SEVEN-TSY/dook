@@ -1,9 +1,10 @@
-import { readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { readdirSync, readFileSync, renameSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod'
 import { AI_REASONING_LEVELS } from '../../shared/ai-settings'
 import type { AiConfiguration, AiReasoning } from '../../shared/ai-settings'
 import { aiDefaults } from '../ai/defaults'
+import { writeAtomic } from './atomic-file'
 
 const configurationId = z.string().regex(/^[a-z0-9-]+$/)
 const metadataSchema = z.object({
@@ -52,17 +53,6 @@ function cleanUp(path: string) {
     rmSync(path, { force: true })
   } catch {
     // Cleanup of an unreferenced file can be retried on the next load.
-  }
-}
-
-function writeAtomic(path: string, data: Buffer | string) {
-  const temporary = `${path}.tmp`
-  try {
-    writeFileSync(temporary, data, { mode: 0o600 })
-    renameSync(temporary, path)
-  } catch (error) {
-    cleanUp(temporary)
-    throw error
   }
 }
 

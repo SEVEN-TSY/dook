@@ -60,6 +60,10 @@ export const IPC_CHANNELS = {
   selectAiConfiguration: 'ai:select-configuration',
   removeAiConfiguration: 'ai:remove-configuration',
   testAiConfiguration: 'ai:test-configuration',
+  getAiScenePrompts: 'ai:prompts:get',
+  setAiPromptMode: 'ai:prompts:set-mode',
+  saveAiScenePrompt: 'ai:prompts:save',
+  resetAiScenePrompts: 'ai:prompts:reset',
   openLatestRelease: 'app:open-latest-release',
   runDiagnostics: 'app:run-diagnostics'
 } as const

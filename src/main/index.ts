@@ -9,6 +9,7 @@ import { localDate } from './core/tasks'
 import { AppDatabase } from './storage/database'
 import { AppService } from './core/app-service'
 import type { AiConnection } from './ai/connection'
+import type { AiScenePrompts } from './ai/scene-prompts'
 import { Desktop } from './desktop/desktop'
 import { configureLaunchAtLogin } from './desktop/login-item'
 import { readPreferences } from './desktop/preferences'
@@ -97,6 +98,7 @@ if (!app.requestSingleInstanceLock()) {
       let token = ''
       let mcp: McpStatus = { state: 'unavailable', endpoint: null, error: null }
       let ai: Promise<AiConnection> | undefined
+      let aiPrompts: Promise<AiScenePrompts> | undefined
       let disposeIpc = () => {}
       let quitting = false
       let quitAllowed = false
@@ -172,6 +174,10 @@ if (!app.requestSingleInstanceLock()) {
         })())
       disposeIpc = registerIpc({
         ai: aiConnection,
+        aiPrompts: () =>
+          (aiPrompts ??= import('./ai/scene-prompts').then(
+            ({ AiScenePrompts }) => new AiScenePrompts(dataDirectory)
+          )),
         desktop,
         windows: () => [...windows.values()],
         service,

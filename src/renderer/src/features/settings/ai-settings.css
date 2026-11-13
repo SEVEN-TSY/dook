@@ -42,7 +42,7 @@
   color: var(--app-accent-ink);
 }
 
-.workbench .settings-ai:has(.ai-management[hidden]) .setting-row {
+.workbench .settings-ai:has(#ai-scene-prompt-table[hidden]) .ai-prompt-setting {
   border-bottom: 0;
 }
 
@@ -230,4 +230,51 @@
 .ai-form-actions {
   justify-content: flex-end;
   margin-top: 4px;
+}
+
+.ai-prompt-mode[data-state='on'] {
+  background: var(--app-accent-soft);
+  color: var(--app-accent-ink);
+}
+
+.ai-prompt-toolbar {
+  justify-content: flex-end;
+}
+
+.ai-prompt-row-actions,
+.ai-prompt-field-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-prompt-field-heading {
+  justify-content: space-between;
+}
+
+.ai-dialog.ai-prompt-dialog {
+  width: min(620px, calc(100vw - 24px));
+}
+
+.ai-prompt-text {
+  min-height: 120px;
+  height: clamp(140px, 42vh, 360px);
+  width: 100%;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font: inherit;
+  line-height: 1.6;
+}
+
+.ai-prompt-text:focus-visible {
+  outline: 1px solid var(--app-accent);
+}
+
+.ai-prompt-error {
+  margin: 0;
+  color: var(--app-error);
 }

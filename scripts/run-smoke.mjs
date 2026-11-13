@@ -19,9 +19,10 @@ writeFileSync(
 )
 const env = { ...process.env, DOOK_SMOKE_DATA: mkdtempSync(resolve(root, '.local/smoke/data-')) }
 delete env.ELECTRON_RUN_AS_NODE
+const requestedPhase = process.argv[2]
 const phases =
-  process.argv[2] === 'task-inline'
-    ? ['task-inline-create', 'task-inline-restart']
+  ['task-inline', 'ai-scene-prompts'].includes(requestedPhase)
+    ? [`${requestedPhase}-create`, `${requestedPhase}-restart`]
     : [
           'toast',
           'window-controls',

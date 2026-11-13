@@ -15,6 +15,10 @@ const api: DesktopApi = {
   selectAiConfiguration: (id) => ipcRenderer.invoke(IPC_CHANNELS.selectAiConfiguration, id),
   removeAiConfiguration: (id) => ipcRenderer.invoke(IPC_CHANNELS.removeAiConfiguration, id),
   testAiConfiguration: (id) => ipcRenderer.invoke(IPC_CHANNELS.testAiConfiguration, id),
+  getAiScenePrompts: () => ipcRenderer.invoke(IPC_CHANNELS.getAiScenePrompts),
+  setAiPromptMode: (mode) => ipcRenderer.invoke(IPC_CHANNELS.setAiPromptMode, mode),
+  saveAiScenePrompt: (id, prompt) => ipcRenderer.invoke(IPC_CHANNELS.saveAiScenePrompt, id, prompt),
+  resetAiScenePrompts: (id) => ipcRenderer.invoke(IPC_CHANNELS.resetAiScenePrompts, id),
   onAiCallLogged: (listener) => {
     const callback = () => listener()
     ipcRenderer.on(AI_CALL_LOGGED, callback)

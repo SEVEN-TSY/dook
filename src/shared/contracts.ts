@@ -1,5 +1,6 @@
 /** 只放跨进程可序列化的数据契约，不依赖Electron或Node.js。 */
 import type { AiConfigurationInput, AiSettings } from './ai-settings'
+import type { AiPromptMode, AiScenePromptSettings } from './ai-scene-prompts'
 
 export interface RuntimeInfo {
   appVersion: string
@@ -60,6 +61,10 @@ export interface DesktopApi {
   selectAiConfiguration: (id: string) => Promise<ApiResult<AiSettings>>
   removeAiConfiguration: (id: string) => Promise<ApiResult<AiSettings>>
   testAiConfiguration: (id: string) => Promise<ApiResult<void>>
+  getAiScenePrompts: () => Promise<ApiResult<AiScenePromptSettings>>
+  setAiPromptMode: (mode: AiPromptMode) => Promise<ApiResult<AiScenePromptSettings>>
+  saveAiScenePrompt: (id: string, prompt: string) => Promise<ApiResult<AiScenePromptSettings>>
+  resetAiScenePrompts: (id?: string) => Promise<ApiResult<AiScenePromptSettings>>
   onAiCallLogged: (listener: () => void) => () => void
   checkForUpdates: () => Promise<ApiResult<UpdateCheckResult>>
   openLatestRelease: () => Promise<ApiResult<void>>
