@@ -83,7 +83,7 @@ export function registerIpc(handlers: Handlers): () => void {
     (await handlers.aiPrompts()).save(text(id), text(prompt))
   )
   register(IPC_CHANNELS.resetAiScenePrompts, async (_, id) =>
-    (await handlers.aiPrompts()).reset(id === undefined ? undefined : text(id))
+    (await handlers.aiPrompts()).reset(text(id))
   )
   register(IPC_CHANNELS.getWindowState, () => handlers.desktop.state())
   register(IPC_CHANNELS.updateSettings, (_, settings) => {

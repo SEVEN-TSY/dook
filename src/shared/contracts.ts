@@ -64,7 +64,7 @@ export interface DesktopApi {
   getAiScenePrompts: () => Promise<ApiResult<AiScenePromptSettings>>
   setAiPromptMode: (mode: AiPromptMode) => Promise<ApiResult<AiScenePromptSettings>>
   saveAiScenePrompt: (id: string, prompt: string) => Promise<ApiResult<AiScenePromptSettings>>
-  resetAiScenePrompts: (id?: string) => Promise<ApiResult<AiScenePromptSettings>>
+  resetAiScenePrompts: (id: string) => Promise<ApiResult<AiScenePromptSettings>>
   onAiCallLogged: (listener: () => void) => () => void
   checkForUpdates: () => Promise<ApiResult<UpdateCheckResult>>
   openLatestRelease: () => Promise<ApiResult<void>>

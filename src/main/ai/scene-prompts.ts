@@ -1,9 +1,12 @@
 import { AI_PROMPT_MODES } from '../../shared/ai-scene-prompts'
-import type { AiScenePrompt, AiScenePromptSettings } from '../../shared/ai-scene-prompts'
+import type {
+  AiPromptMode,
+  AiScenePrompt,
+  AiScenePromptSettings
+} from '../../shared/ai-scene-prompts'
 import { AiScenePromptStore } from '../storage/ai-scene-prompts'
-import type { StoredAiScenePrompts } from '../storage/ai-scene-prompts'
 
-const aiScenePrompts: ReadonlyArray<Omit<AiScenePrompt, 'customPrompt'>> = [
+const aiScenePrompts: ReadonlyArray<Omit<AiScenePrompt, 'customPrompt' | 'customPromptPath'>> = [
   {
     id: 'daily_report',
     name: '日报',
@@ -35,6 +38,19 @@ const aiScenePrompts: ReadonlyArray<Omit<AiScenePrompt, 'customPrompt'>> = [
     name: '月报',
     defaultPrompt: `围绕本月阶段成果组织内容，优先列出已交付的里程碑、可核实的影响和可量化的结果。
 概括主要工作在月初至月末的变化，合并重复记录，分开表述已交付成果与仍在推进的工作。只使用材料中给出的指标、风险和后续计划。`
+  },
+  {
+    id: 'inspiration_collection',
+    name: '小记归集',
+    defaultPrompt:
+      '按主题整理选定的小记。给每组起一个具体名称，归纳共同观点和有用细节，保留原文中的分歧。无法归类的内容单独列出。'
+  },
+  {
+    id: 'reminder',
+    name: '每日提示',
+    defaultPrompt: `根据昨天的任务完成情况，为今天给出简短、可执行的规划建议。
+优先从昨天未完成或仍在推进的事项中挑出今天值得继续做的任务，每项建议给出具体的下一步。用昨天已完成的事项判断后续工作，只在记录明确有后续时提及。
+保留任务名称和已记录的进度。根据明确的截止时间、优先级或依赖关系排序，缺少依据时省略对应说明。没有足够的昨日记录时，简短说明情况。`
   }
 ]
 
@@ -42,16 +58,6 @@ function requireScene(id: string) {
   const scene = aiScenePrompts.find((scene) => scene.id === id)
   if (!scene) throw new Error('未知的AI场景。')
   return scene
-}
-
-function toSettings({ mode, overrides }: StoredAiScenePrompts): AiScenePromptSettings {
-  return {
-    mode,
-    scenes: aiScenePrompts.map((scene) => ({
-      ...scene,
-      customPrompt: overrides[scene.id] ?? null
-    }))
-  }
 }
 
 export class AiScenePrompts {
@@ -62,39 +68,56 @@ export class AiScenePrompts {
   }
 
   getSettings(): AiScenePromptSettings {
-    return toSettings(this.store.load())
+    return this.readSettings(this.store.loadMode())
   }
 
   getEffectivePrompt(id: string): string {
     const scene = requireScene(id)
-    const { mode, overrides } = this.store.load()
-    return (mode === 'custom' ? overrides[id] : undefined) ?? scene.defaultPrompt
+    const mode = this.store.loadMode()
+    return (mode === 'custom' ? this.store.loadPrompt(id) : null) ?? scene.defaultPrompt
   }
 
   setMode(mode: string): AiScenePromptSettings {
     const selected = AI_PROMPT_MODES.find((candidate) => candidate === mode)
     if (!selected) throw new Error('提示词模式无效。')
-    return this.commit({ ...this.store.load(), mode: selected })
+    const settings = this.getSettings()
+    this.store.writeMode(selected)
+    return { ...settings, mode: selected }
   }
 
   save(id: string, prompt: string): AiScenePromptSettings {
     requireScene(id)
     if (!prompt.trim()) throw new Error('提示词不能为空，请使用“恢复默认”。')
-    const settings = this.store.load()
-    settings.overrides[id] = prompt
-    return this.commit(settings)
+    const settings = this.getSettings()
+    this.store.writePrompt(id, prompt)
+    return {
+      ...settings,
+      scenes: settings.scenes.map((scene) =>
+        scene.id === id
+          ? { ...scene, customPrompt: prompt, customPromptPath: this.store.promptPath(id) }
+          : scene
+      )
+    }
   }
 
-  reset(id?: string): AiScenePromptSettings {
-    if (id !== undefined) requireScene(id)
-    const settings = this.store.load()
-    if (id === undefined) settings.overrides = {}
-    else delete settings.overrides[id]
-    return this.commit(settings)
+  reset(id: string): AiScenePromptSettings {
+    requireScene(id)
+    const mode = this.store.loadMode()
+    this.store.reset(id)
+    return this.readSettings(mode)
   }
 
-  private commit(settings: StoredAiScenePrompts): AiScenePromptSettings {
-    this.store.write(settings)
-    return toSettings(settings)
+  private readSettings(mode: AiPromptMode): AiScenePromptSettings {
+    return {
+      mode,
+      scenes: aiScenePrompts.map((scene) => {
+        const customPrompt = this.store.loadPrompt(scene.id)
+        return {
+          ...scene,
+          customPrompt,
+          customPromptPath: customPrompt === null ? null : this.store.promptPath(scene.id)
+        }
+      })
+    }
   }
 }

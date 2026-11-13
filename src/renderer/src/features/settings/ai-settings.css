@@ -42,12 +42,16 @@
   color: var(--app-accent-ink);
 }
 
-.workbench .settings-ai:has(#ai-scene-prompt-table[hidden]) .ai-prompt-setting {
+.workbench .settings-group.settings-ai > .setting-row {
   border-bottom: 0;
 }
 
+.workbench .settings-ai > .setting-row.ai-prompt-setting {
+  border-top: 1px solid var(--app-border);
+}
+
 .ai-management {
-  padding: 12px 0 14px;
+  padding: 0 0 18px;
   font-size: 13px;
 }
 
@@ -96,7 +100,7 @@
 .ai-table-toolbar {
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 4px;
+  margin-bottom: 10px;
 }
 
 .ai-management-note {
@@ -110,20 +114,37 @@
 
 .ai-config-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0 4px;
 }
 
 .ai-config-table th,
 .ai-config-table td {
-  border-bottom: 1px solid var(--app-border);
-  padding: 7px 8px;
+  padding: 8px 12px;
   text-align: left;
   white-space: nowrap;
 }
 
 .ai-config-table th {
+  background: color-mix(in srgb, var(--app-border) 32%, transparent);
   font-size: 12px;
   font-weight: 500;
+}
+
+.ai-config-table tr > :first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.ai-config-table tr > :last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+.ai-config-table tr > :only-child {
+  border-radius: 6px;
+}
+
+.ai-config-table tbody tr:not(:has(.ai-table-empty)):is(:hover, :focus-within) > td {
+  background: var(--app-hover);
 }
 
 .ai-config-table .ai-token-column {
@@ -134,10 +155,6 @@
 .ai-config-table .ai-operation-column {
   width: 1%;
   text-align: center;
-}
-
-.ai-config-table .ai-operation-column {
-  padding-inline: 4px 0;
 }
 
 .ai-configuration-menu [role='menuitem'] {
@@ -160,10 +177,6 @@
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.ai-config-table tbody tr:hover {
-  background: var(--app-hover);
 }
 
 .ai-config-table .ai-table-empty {
@@ -211,6 +224,7 @@
 
 .ai-setting-controls button:focus-visible,
 .ai-management button:focus-visible,
+.ai-prompt-card button:focus-visible,
 .ai-dialog button:focus-visible {
   outline: 1px solid var(--app-accent);
   outline-offset: 2px;
@@ -232,24 +246,142 @@
   margin-top: 4px;
 }
 
-.ai-prompt-mode[data-state='on'] {
+.settings-ai {
+  container-type: inline-size;
+}
+
+.ai-prompt-cards {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: clamp(4px, 1.2cqi, 10px);
+  margin: 0;
+  padding: 0 0 16px;
+  list-style: none;
+}
+
+.ai-prompt-card {
+  position: relative;
+  border: 1px solid color-mix(in srgb, var(--app-border) 65%, transparent);
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.ai-prompt-card-view {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 78px;
+  padding: 16px 10px 22px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: var(--app-text);
+  font: inherit;
+  text-align: left;
+}
+
+.ai-prompt-card:hover,
+.ai-prompt-card:has(:focus-visible) {
+  border-color: var(--app-accent-border);
   background: var(--app-accent-soft);
+}
+
+.ai-prompt-card-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 18px;
+}
+
+.ai-prompt-card-label strong {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ai-prompt-card-label svg {
+  flex: none;
+  color: var(--app-muted);
+}
+
+.ai-prompt-card-status {
+  position: absolute;
+  top: 6px;
+  right: 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--app-muted);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.ai-prompt-card-status::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+}
+
+.ai-prompt-card-status[data-custom='true'] {
   color: var(--app-accent-ink);
 }
 
-.ai-prompt-toolbar {
-  justify-content: flex-end;
+.ai-prompt-card-status[data-custom='true']::before {
+  background: var(--app-accent);
+  opacity: 1;
 }
 
-.ai-prompt-row-actions,
-.ai-prompt-field-heading {
+.ai-prompt-card-actions {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: flex;
+  gap: 2px;
+}
+
+.ai-prompt-card-actions button {
+  color: var(--app-muted);
+}
+
+.ai-prompt-card-actions button:is(:hover, :focus-visible) {
+  color: var(--app-accent-ink);
+  background: var(--app-accent-hover);
+}
+
+@container (max-width: 650px) {
+  .ai-prompt-card-view {
+    padding-inline: 5px;
+  }
+
+  .ai-prompt-card-label {
+    gap: 4px;
+    font-size: 12px;
+  }
+
+  .ai-prompt-card-label svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .ai-prompt-card-actions {
+    right: 4px;
+    bottom: 3px;
+  }
+
+  .ai-prompt-card-status {
+    right: 6px;
+  }
+}
+
+.ai-prompt-dialog-heading {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.ai-prompt-field-heading {
   justify-content: space-between;
+  gap: 8px;
 }
 
 .ai-dialog.ai-prompt-dialog {
@@ -277,4 +409,15 @@
 .ai-prompt-error {
   margin: 0;
   color: var(--app-error);
+}
+
+.ai-prompt-file-location {
+  min-width: 0;
+  margin-right: auto;
+  overflow: hidden;
+  color: var(--app-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: text;
 }

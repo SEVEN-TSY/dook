@@ -6,6 +6,7 @@ export interface AiScenePrompt {
   name: string
   defaultPrompt: string
   customPrompt: string | null
+  customPromptPath: string | null
 }
 
 export interface AiScenePromptSettings {

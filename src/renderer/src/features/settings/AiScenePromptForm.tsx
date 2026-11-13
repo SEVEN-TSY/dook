@@ -8,11 +8,13 @@ import { getDesktopApi, unwrap } from '../../platform/desktop'
 
 export function AiScenePromptForm({
   scene,
+  readOnly,
   onClose,
   onSaved,
   returnFocus
 }: {
   scene: AiScenePrompt
+  readOnly: boolean
   onClose: () => void
   onSaved: (settings: AiScenePromptSettings) => void
   returnFocus: () => void
@@ -23,7 +25,8 @@ export function AiScenePromptForm({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const field = useRef<HTMLTextAreaElement>(null)
-  const fieldId = useId()
+  const closeButton = useRef<HTMLButtonElement>(null)
+  const descriptionId = useId()
   const messageId = useId()
   const blank = !draft.trim()
   const canSave = !blank && draft !== original
@@ -31,7 +34,7 @@ export function AiScenePromptForm({
 
   async function submit(event: FormEvent) {
     event.preventDefault()
-    if (saving || viewDefault || !canSave) return
+    if (readOnly || saving || viewDefault || !canSave) return
     setSaving(true)
     setError('')
     try {
@@ -50,9 +53,11 @@ export function AiScenePromptForm({
         <Dialog.Overlay className="ai-dialog-overlay" />
         <Dialog.Content
           className="ai-dialog ai-prompt-dialog"
+          aria-describedby={readOnly ? undefined : descriptionId}
           onOpenAutoFocus={(event) => {
             event.preventDefault()
-            field.current?.focus()
+            const target = readOnly ? closeButton : field
+            target.current?.focus()
           }}
           onCloseAutoFocus={(event) => {
             event.preventDefault()
@@ -63,30 +68,35 @@ export function AiScenePromptForm({
             if (saving) event.preventDefault()
           }}
         >
-          <Dialog.Title>{scene.name}提示词</Dialog.Title>
-          <Dialog.Description className="ai-dialog-description">
-            调整写作风格、详略和侧重点。
-          </Dialog.Description>
+          <header className="ai-prompt-dialog-heading">
+            <Dialog.Title>
+              {scene.name}提示词{(readOnly || viewDefault) && '（只读）'}
+            </Dialog.Title>
+            {!readOnly && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={saving}
+                onClick={() => setViewDefault(!viewDefault)}
+              >
+                {viewDefault ? '返回编辑' : '查看默认'}
+              </Button>
+            )}
+          </header>
+          {!readOnly && (
+            <Dialog.Description id={descriptionId} className="ai-dialog-description">
+              调整写作风格、详略和侧重点。
+            </Dialog.Description>
+          )}
           <form className="ai-form-fields" onSubmit={submit}>
             <div className="ai-form-field">
-              <div className="ai-prompt-field-heading">
-                <label htmlFor={fieldId}>{viewDefault ? '默认提示词（只读）' : '编辑提示词'}</label>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={saving}
-                  onClick={() => setViewDefault(!viewDefault)}
-                >
-                  {viewDefault ? '返回编辑' : '查看默认提示词'}
-                </Button>
-              </div>
               <textarea
                 ref={field}
-                id={fieldId}
+                aria-label={viewDefault ? '默认提示词' : `${scene.name}提示词`}
                 className="ai-prompt-text"
                 value={viewDefault ? scene.defaultPrompt : draft}
-                readOnly={viewDefault || saving}
+                readOnly={readOnly || viewDefault || saving}
                 aria-invalid={!viewDefault && blank}
                 aria-describedby={message ? messageId : undefined}
                 onChange={(event) => {
@@ -101,14 +111,21 @@ export function AiScenePromptForm({
               )}
             </div>
             <div className="ai-form-actions">
+              {!readOnly && scene.customPromptPath && (
+                <small className="ai-prompt-file-location" title={scene.customPromptPath}>
+                  {scene.customPromptPath}
+                </small>
+              )}
               <Dialog.Close asChild>
-                <Button type="button" variant="outline" disabled={saving}>
-                  取消
+                <Button ref={closeButton} type="button" variant="outline" disabled={saving}>
+                  {readOnly ? '关闭' : '取消'}
                 </Button>
               </Dialog.Close>
-              <Button type="submit" disabled={!canSave || viewDefault || saving}>
-                {saving ? '正在保存…' : '保存'}
-              </Button>
+              {!readOnly && (
+                <Button type="submit" disabled={!canSave || viewDefault || saving}>
+                  {saving ? '正在保存…' : '保存'}
+                </Button>
+              )}
             </div>
           </form>
         </Dialog.Content>

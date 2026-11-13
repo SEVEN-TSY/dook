@@ -1,4 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
+import {
+  CalendarDays,
+  CalendarRange,
+  CalendarCheck,
+  ListTodo,
+  NotebookText,
+  FileText,
+  Pencil,
+  RotateCcw
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { AI_PROMPT_MODES } from '../../../../shared/ai-scene-prompts'
 import type {
@@ -11,16 +21,24 @@ import { Button } from '../../components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
 import { AiScenePromptForm } from './AiScenePromptForm'
+import { settingToggleItemClass } from './setting-toggle-style'
 
 const modeLabels: Record<AiPromptMode, string> = { default: '默认', custom: '自定义' }
+const sceneIcons = new Map([
+  ['daily_report', CalendarCheck],
+  ['weekly_report', CalendarRange],
+  ['monthly_report', CalendarDays],
+  ['inspiration_collection', NotebookText],
+  ['reminder', ListTodo]
+])
 
 export function AiScenePromptSettings() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loadFailed, setLoadFailed] = useState(false)
   const [loadVersion, setLoadVersion] = useState(0)
   const [busy, setBusy] = useState(false)
-  const [editing, setEditing] = useState<AiScenePrompt | null>(null)
-  const editTrigger = useRef<HTMLButtonElement>(null)
+  const [dialog, setDialog] = useState<{ scene: AiScenePrompt; readOnly: boolean } | null>(null)
+  const dialogTrigger = useRef<HTMLButtonElement>(null)
   const customMode = useRef<HTMLButtonElement>(null)
   const confirmation = useDeleteConfirmation()
 
@@ -53,13 +71,11 @@ export function AiScenePromptSettings() {
     }
   }
 
-  async function restore(trigger: HTMLButtonElement, scene?: AiScenePrompt) {
+  async function restore(trigger: HTMLButtonElement, scene: AiScenePrompt) {
     const confirmed = await confirmation.confirm(
       {
-        title: scene ? '恢复默认提示词' : '全部恢复默认',
-        description: scene
-          ? `将${scene.name}的提示词恢复为默认？`
-          : '将所有场景的提示词恢复为默认？',
+        title: '恢复默认提示词',
+        description: `将${scene.name}的提示词恢复为默认？`,
         detail: '保存的自定义内容将被清除。',
         confirmLabel: '恢复默认',
         focusAfterConfirm: () => customMode.current
@@ -67,10 +83,18 @@ export function AiScenePromptSettings() {
       trigger
     )
     if (confirmed)
-      await update(async () => unwrap(await getDesktopApi().resetAiScenePrompts(scene?.id)))
+      await update(async () => unwrap(await getDesktopApi().resetAiScenePrompts(scene.id)))
   }
 
-  const expanded = settings?.mode === 'custom'
+  const canEdit = settings?.mode === 'custom'
+
+  function openPrompt(trigger: HTMLButtonElement, scene: AiScenePrompt) {
+    dialogTrigger.current = trigger
+    setDialog({
+      scene: canEdit ? scene : { ...scene, customPrompt: null },
+      readOnly: !canEdit
+    })
+  }
 
   return (
     <>
@@ -80,8 +104,8 @@ export function AiScenePromptSettings() {
           {settings ? (
             <ToggleGroup
               type="single"
-              size="sm"
               variant="outline"
+              spacing={0}
               aria-labelledby="ai-prompt-mode-label"
               value={settings.mode}
               onValueChange={(value) => {
@@ -97,8 +121,7 @@ export function AiScenePromptSettings() {
                   value={mode}
                   aria-label={`${modeLabels[mode]}提示词`}
                   aria-disabled={busy}
-                  aria-controls={mode === 'custom' ? 'ai-scene-prompt-table' : undefined}
-                  className="ai-prompt-mode"
+                  className={settingToggleItemClass}
                 >
                   {modeLabels[mode]}
                 </ToggleGroupItem>
@@ -122,74 +145,74 @@ export function AiScenePromptSettings() {
           )}
         </div>
       </div>
-      <div id="ai-scene-prompt-table" className="ai-management" hidden={!expanded}>
-        <div className="ai-table-toolbar ai-prompt-toolbar">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={busy || !settings?.scenes.some(({ customPrompt }) => customPrompt !== null)}
-            onClick={(event) => void restore(event.currentTarget)}
-          >
-            全部恢复默认
-          </Button>
-        </div>
-        <div className="ai-table-scroll">
-          <table className="ai-config-table" aria-label="AI场景">
-            <thead>
-              <tr>
-                <th scope="col">场景</th>
-                <th scope="col">状态</th>
-                <th scope="col" className="ai-operation-column">
-                  操作
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {settings?.scenes.map((scene) => (
-                <tr key={scene.id}>
-                  <td>{scene.name}</td>
-                  <td>{scene.customPrompt === null ? '默认' : '已自定义'}</td>
-                  <td className="ai-operation-column">
-                    <div className="ai-prompt-row-actions">
+      {settings && (
+        <ul className="ai-prompt-cards" aria-label="AI场景">
+          {settings.scenes.map((scene) => {
+            const isCustom = canEdit && scene.customPrompt !== null
+            const Icon = sceneIcons.get(scene.id) ?? FileText
+            return (
+              <li key={scene.id} className="ai-prompt-card">
+                <button
+                  type="button"
+                  className="ai-prompt-card-view"
+                  disabled={busy}
+                  aria-label={`${canEdit ? '编辑' : '查看'}${scene.name}提示词`}
+                  aria-describedby={`ai-prompt-status-${scene.id}`}
+                  onClick={(event) => openPrompt(event.currentTarget, scene)}
+                >
+                  <span className="ai-prompt-card-label">
+                    <Icon size={18} strokeWidth={1.7} aria-hidden="true" />
+                    <strong>{scene.name}</strong>
+                  </span>
+                  <span
+                    id={`ai-prompt-status-${scene.id}`}
+                    className="ai-prompt-card-status"
+                    data-custom={isCustom}
+                  >
+                    {isCustom ? '自定义' : 'default'}
+                  </span>
+                </button>
+                {canEdit && (
+                  <div className="ai-prompt-card-actions">
+                    <Button
+                      size="icon-xs"
+                      variant="ghost"
+                      disabled={busy}
+                      aria-label={`编辑${scene.name}提示词`}
+                      title="编辑提示词"
+                      onClick={(event) => openPrompt(event.currentTarget, scene)}
+                    >
+                      <Pencil aria-hidden="true" />
+                    </Button>
+                    {isCustom && (
                       <Button
-                        size="sm"
+                        size="icon-xs"
                         variant="ghost"
                         disabled={busy}
-                        aria-label={`查看与编辑${scene.name}提示词`}
-                        onClick={(event) => {
-                          editTrigger.current = event.currentTarget
-                          setEditing(scene)
-                        }}
-                      >
-                        查看与编辑
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={busy || scene.customPrompt === null}
                         aria-label={`恢复${scene.name}默认提示词`}
+                        title="恢复默认"
                         onClick={(event) => void restore(event.currentTarget, scene)}
                       >
-                        恢复默认
+                        <RotateCcw aria-hidden="true" />
                       </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {editing && (
+                    )}
+                  </div>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      {dialog && (
         <AiScenePromptForm
-          scene={editing}
-          onClose={() => setEditing(null)}
+          scene={dialog.scene}
+          readOnly={dialog.readOnly}
+          onClose={() => setDialog(null)}
           onSaved={(next) => {
             setSettings(next)
-            setEditing(null)
+            setDialog(null)
           }}
-          returnFocus={() => editTrigger.current?.focus({ preventScroll: true })}
+          returnFocus={() => dialogTrigger.current?.focus({ preventScroll: true })}
         />
       )}
     </>

@@ -9,6 +9,7 @@ import { FALLBACK_ACCENT_COLOR } from '../../../../shared/theme-color'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
 import { AboutSettings } from './AboutSettings'
 import { AiSettings } from './AiSettings'
+import { settingToggleItemClass } from './setting-toggle-style'
 
 export function SettingsPage({ state, hidden }: { state: DesktopState | null; hidden: boolean }) {
   const [error, setError] = useState('')
@@ -77,7 +78,7 @@ export function SettingsPage({ state, hidden }: { state: DesktopState | null; hi
               <ToggleGroupItem
                 key={value}
                 value={value}
-                className="gap-2 px-4 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary data-[state=on]:hover:text-primary-foreground"
+                className={settingToggleItemClass}
                 aria-label={`${label}外观`}
               >
                 <Icon size={16} strokeWidth={1.7} aria-hidden="true" />
