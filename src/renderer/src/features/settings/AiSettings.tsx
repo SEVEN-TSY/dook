@@ -44,7 +44,9 @@ export function AiSettings() {
       } catch (error) {
         if (current === request) {
           setLoadFailed(true)
-          toast.error(error instanceof Error ? error.message : '无法读取AI配置。')
+          toast.error(error instanceof Error ? error.message : '无法读取AI配置。', {
+            duration: 4000
+          })
         }
       }
     }
@@ -65,7 +67,8 @@ export function AiSettings() {
     try {
       await action()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'AI配置操作失败。')
+      // 服务错误文案较长，停留时间需覆盖重试次数说明。
+      toast.error(error instanceof Error ? error.message : 'AI配置操作失败。', { duration: 4000 })
     } finally {
       setBusy(false)
     }

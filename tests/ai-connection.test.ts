@@ -31,6 +31,9 @@ function setup(t: { after: (cleanup: () => void) => void }) {
   }
   const calls: { url: string; auth: string | null; body: Record<string, unknown> }[] = []
   let status = 200
+  const failures: unknown[] = []
+  const statuses: number[] = []
+  let hangs = 0
   const usage = {
     prompt_tokens: 10,
     completion_tokens: 8,
@@ -45,12 +48,22 @@ function setup(t: { after: (cleanup: () => void) => void }) {
       auth: new Headers(init?.headers).get('authorization'),
       body: JSON.parse(String(init?.body))
     })
+    const failure = failures.shift()
+    if (failure !== undefined) throw failure
+    if (hangs > 0) {
+      hangs--
+      return await new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () =>
+          reject(new DOMException('aborted', 'AbortError'))
+        )
+      })
+    }
     return Response.json(
       {
         choices: [{ message: { content: 'OK' }, finish_reason: 'stop' }],
         usage: status === 200 ? usage : undefined
       },
-      { status }
+      { status: statuses.shift() ?? status }
     )
   }
   return {
@@ -59,16 +72,30 @@ function setup(t: { after: (cleanup: () => void) => void }) {
     encryption,
     calls,
     usage,
-    restart: (onCallLogged?: () => void) =>
+    restart: (
+      onCallLogged?: () => void,
+      // 单元测试默认关闭自动重试，重试行为由专门的用例覆盖。
+      policy: { retryDelays?: readonly number[]; timeoutMs?: number } = { retryDelays: [] }
+    ) =>
       new AiConnection(
         directory,
         encryption,
         new AiCallLog(db.connection, directory),
         request,
-        onCallLogged
+        onCallLogged,
+        policy
       ),
     setStatus: (value: number) => {
       status = value
+    },
+    failNext: (error: unknown) => {
+      failures.push(error)
+    },
+    queueStatus: (value: number) => {
+      statuses.push(value)
+    },
+    hangNext: () => {
+      hangs++
     }
   }
 }
@@ -260,7 +287,7 @@ test('无效Key和服务失败不会覆盖旧凭证或添加配置', async (t) =
     [401, /鉴权失败/],
     [402, /余额不足/],
     [429, /限流/],
-    [503, /服务请求失败/]
+    [503, /暂时不可用/]
   ] as const) {
     setStatus(status)
     await assert.rejects(ai.save({ id, key: 'rejected-key' }), message)
@@ -437,4 +464,108 @@ test('缺少名称或沿用预设ID的名称读取时补全为预设显示名，
     reasoning: 'max'
   })
   assert.equal(stored[1].name, 'DeepSeek V4 Pro')
+})
+
+function networkError(code: string) {
+  return new TypeError('fetch failed', { cause: Object.assign(new Error(code), { code }) })
+}
+
+function callOutcomes(db: AppDatabase) {
+  return (
+    db.connection.prepare('SELECT outcome, http_status FROM ai_call_logs ORDER BY id').all() as {
+      outcome: string
+      http_status: number | null
+    }[]
+  ).map(({ outcome, http_status }) => [outcome, http_status])
+}
+
+test('连接失败按指数退避自动重试，成功后只记录一条调用日志', async (t) => {
+  const { db, calls, restart, failNext } = setup(t)
+  const ai = restart(undefined, { retryDelays: [0, 0] })
+  failNext(networkError('ECONNREFUSED'))
+  failNext(networkError('ECONNREFUSED'))
+  const row = (await ai.save({ presetId: flash, key: 'retry-key' })).configurations.at(-1)
+  assert.equal(calls.length, 3)
+  assert.deepEqual(callOutcomes(db), [['success', 200]])
+  assert.equal(ai.getSettings().configurations.at(-1)?.id, row?.id)
+})
+
+test('重试用尽后提示具体网络原因和重试次数，仍只记录一条失败日志', async (t) => {
+  const { db, calls, restart, failNext } = setup(t)
+  const ai = restart(undefined, { retryDelays: [0, 0] })
+  const id = await create(ai, flash, 'retry-key')
+  for (let attempt = 0; attempt < 3; attempt++) failNext(networkError('ENOTFOUND'))
+  await assert.rejects(
+    ai.test(id),
+    /无法解析AI服务地址，请检查网络连接或代理设置。（已自动重试2次）$/
+  )
+  assert.equal(calls.length, 4)
+  assert.deepEqual(callOutcomes(db), [
+    ['success', 200],
+    ['error', null]
+  ])
+})
+
+test('网络错误按原因给出可执行的提示，证书问题不重试', async (t) => {
+  const { calls, restart, failNext } = setup(t)
+  const ai = restart(undefined, { retryDelays: [0, 0] })
+  const id = await create(ai, flash, 'retry-key')
+  let expectedCalls = 1
+  for (const [code, message, retries] of [
+    ['ECONNREFUSED', '无法连接AI服务，请检查网络或代理设置。', 2],
+    ['ENETUNREACH', '当前没有可用的网络连接，请检查网络设置。', 2],
+    ['UND_ERR_CONNECT_TIMEOUT', '连接AI服务超时，请检查网络。', 2],
+    ['ECONNRESET', 'AI服务连接中断，请稍后重试。', 2],
+    ['CERT_HAS_EXPIRED', 'AI服务证书校验失败，请检查代理设置或系统时间。', 0]
+  ] as const) {
+    for (let attempt = 0; attempt <= retries; attempt++) failNext(networkError(code))
+    const suffix = retries > 0 ? `（已自动重试${retries}次）` : ''
+    await assert.rejects(ai.test(id), new RegExp(`${message}${suffix}$`))
+    expectedCalls += retries + 1
+    assert.equal(calls.length, expectedCalls)
+  }
+})
+
+test('限流和服务不可用会重试，鉴权失败不重试', async (t) => {
+  const { calls, restart, queueStatus, setStatus } = setup(t)
+  const ai = restart(undefined, { retryDelays: [0, 0] })
+  const id = await create(ai, flash, 'retry-key')
+  queueStatus(429)
+  await ai.test(id)
+  assert.equal(calls.length, 3)
+  queueStatus(503)
+  queueStatus(503)
+  await ai.test(id)
+  assert.equal(calls.length, 6)
+  setStatus(401)
+  await assert.rejects(ai.test(id), /AI服务鉴权失败，请检查API Key。$/)
+  assert.equal(calls.length, 7)
+})
+
+test('单次请求超时后自动重试，仍超时则记为超时并提示重试次数', async (t) => {
+  const { db, restart, hangNext } = setup(t)
+  const id = await create(restart(undefined, { retryDelays: [] }), flash, 'retry-key')
+  const ai = restart(undefined, { retryDelays: [0], timeoutMs: 20 })
+  hangNext()
+  hangNext()
+  await assert.rejects(ai.test(id), /AI服务请求超时，请稍后重试。（已自动重试1次）$/)
+  assert.deepEqual(callOutcomes(db).at(-1), ['timeout', null])
+})
+
+test('用户取消不重试，调用日志记为取消', async (t) => {
+  const { db, calls, restart } = setup(t)
+  const ai = restart(undefined, { retryDelays: [0, 0] })
+  const id = await create(ai, flash, 'retry-key')
+  ai.select(id)
+  const before = calls.length
+  const controller = new AbortController()
+  controller.abort()
+  await assert.rejects(
+    ai.complete('daily_report', [{ role: 'user', content: '日报材料' }], {
+      signal: controller.signal
+    }),
+    /请求已取消。$/
+  )
+  assert.equal(calls.length, before)
+  assert.deepEqual(callOutcomes(db).at(-1), ['cancelled', null])
 })

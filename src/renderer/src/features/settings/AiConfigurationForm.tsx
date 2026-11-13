@@ -71,7 +71,8 @@ export function AiConfigurationForm({
       setError(message)
       setErrorField(field)
       if (field === 'name') nameField.current?.focus()
-      toast.error(message)
+      // 验证失败的可能原因包含网络、限流和重试次数，需留出阅读时间。
+      toast.error(message, { duration: 4000 })
       setSaving(false)
     }
   }
