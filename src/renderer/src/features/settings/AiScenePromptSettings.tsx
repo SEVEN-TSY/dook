@@ -86,13 +86,17 @@ export function AiScenePromptSettings() {
       await update(async () => unwrap(await getDesktopApi().resetAiScenePrompts(scene.id)))
   }
 
-  const canEdit = settings?.mode === 'custom'
+  const customModeSelected = settings?.mode === 'custom'
 
   function openPrompt(trigger: HTMLButtonElement, scene: AiScenePrompt) {
+    if (customModeSelected && scene.id !== 'daily_report') {
+      toast('努力开发中', { id: 'ai-prompt-in-development' })
+      return
+    }
     dialogTrigger.current = trigger
     setDialog({
-      scene: canEdit ? scene : { ...scene, customPrompt: null },
-      readOnly: !canEdit
+      scene: customModeSelected ? scene : { ...scene, customPrompt: null },
+      readOnly: !customModeSelected
     })
   }
 
@@ -148,6 +152,7 @@ export function AiScenePromptSettings() {
       {settings && (
         <ul className="ai-prompt-cards" aria-label="AI场景">
           {settings.scenes.map((scene) => {
+            const canEdit = customModeSelected && scene.id === 'daily_report'
             const isCustom = canEdit && scene.customPrompt !== null
             const Icon = sceneIcons.get(scene.id) ?? FileText
             return (
@@ -156,7 +161,11 @@ export function AiScenePromptSettings() {
                   type="button"
                   className="ai-prompt-card-view"
                   disabled={busy}
-                  aria-label={`${canEdit ? '编辑' : '查看'}${scene.name}提示词`}
+                  aria-label={
+                    customModeSelected && !canEdit
+                      ? scene.name
+                      : `${canEdit ? '编辑' : '查看'}${scene.name}提示词`
+                  }
                   aria-describedby={`ai-prompt-status-${scene.id}`}
                   onClick={(event) => openPrompt(event.currentTarget, scene)}
                 >

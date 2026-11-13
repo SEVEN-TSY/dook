@@ -7,13 +7,15 @@ export async function assertCompactToast(window, js, type) {
     `(() => {
     const toast = document.querySelector('[data-sonner-toast][data-type=${type}]');
     const rect = toast.getBoundingClientRect();
+    const content = document.querySelector('.workbench-main')?.getBoundingClientRect();
     const style = getComputedStyle(toast);
     const canvas = document.createElement('canvas').getContext('2d');
     canvas.fillStyle = style.color;
     canvas.fillRect(0, 0, 1, 1);
     return {
       width: rect.width, height: rect.height, left: rect.left, right: rect.right,
-      viewport: innerWidth, color: Array.from(canvas.getImageData(0, 0, 1, 1).data),
+      viewport: innerWidth, center: content ? (content.left + content.right) / 2 - 35 : innerWidth / 2,
+      color: Array.from(canvas.getImageData(0, 0, 1, 1).data),
       icon: Boolean(toast.querySelector('svg')), text: toast.textContent
     };
   })()`
@@ -21,6 +23,10 @@ export async function assertCompactToast(window, js, type) {
   assert.ok(metrics.width < 280, '短toast按内容收缩至280px以内')
   assert.ok(metrics.height >= 34 && metrics.height <= 38, '单行toast高度34～38px')
   assert.ok(metrics.left >= 16 && metrics.right <= metrics.viewport - 16, 'toast在窗口内保留边距')
+  assert.ok(
+    Math.abs((metrics.left + metrics.right) / 2 - metrics.center) < 1,
+    'toast位于窗口对应的视觉中心'
+  )
   const [red, green, blue] = metrics.color
   assert.ok(
     type === 'success' ? green > red && green > blue : red > green && red > blue,

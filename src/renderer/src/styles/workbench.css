@@ -10,6 +10,10 @@
   user-select: none;
 }
 
+html[data-window='main'] {
+  --workbench-sidebar-width: 204px;
+}
+
 .workbench {
   --workspace-line: var(--app-border);
   --workspace-soft: light-dark(#fff, #252525);
@@ -26,8 +30,8 @@
   position: sticky;
   top: 0;
   align-self: flex-start;
-  flex: 0 0 204px;
-  width: 204px;
+  flex: 0 0 var(--workbench-sidebar-width);
+  width: var(--workbench-sidebar-width);
   height: 100vh;
   background: light-dark(#f6f7fa, #202020);
   border-right: 1px solid var(--workspace-line);
@@ -398,7 +402,8 @@
   font-weight: 400;
   line-height: 1.6;
 }
-.workbench .completed .task-description {
+.workbench .completed .task-description,
+.workbench .completed .main-list-description:hover {
   color: light-dark(#a2a9b5, #8b8b8b);
 }
 .workbench .task-meta {
@@ -1069,9 +1074,8 @@ html[data-window='main'] .inspiration-topic-error {
   color: light-dark(#ba4a4a, #e69b9f);
 }
 @media (max-width: 1000px) {
-  .workbench-sidebar {
-    flex-basis: 180px;
-    width: 180px;
+  html[data-window='main'] {
+    --workbench-sidebar-width: 180px;
   }
   .workbench-main {
     padding: 0 26px 32px;
@@ -1085,9 +1089,8 @@ html[data-window='main'] .inspiration-topic-error {
   }
 }
 @media (max-width: 760px) {
-  .workbench-sidebar {
-    width: 72px;
-    flex-basis: 72px;
+  html[data-window='main'] {
+    --workbench-sidebar-width: 72px;
   }
   .workbench-brand {
     padding: 24px 20px 30px;

@@ -113,7 +113,9 @@ export function AiScenePromptForm({
             <div className="ai-form-actions">
               {!readOnly && scene.customPromptPath && (
                 <small className="ai-prompt-file-location" title={scene.customPromptPath}>
-                  {scene.customPromptPath}
+                  <span className="ai-prompt-file-location-text">
+                    <bdi dir="ltr">{scene.customPromptPath}</bdi>
+                  </span>
                 </small>
               )}
               <Dialog.Close asChild>

@@ -71,6 +71,10 @@
   font-family: inherit;
 }
 
+html[data-window='main'] [data-sonner-toaster].toaster[data-x-position='center'] {
+  left: calc(50% + var(--workbench-sidebar-width) / 2 - 35px);
+}
+
 [data-sonner-toaster].toaster [data-sonner-toast][data-styled='true'] {
   left: 0;
   right: 0;

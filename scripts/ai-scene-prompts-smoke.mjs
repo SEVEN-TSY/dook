@@ -8,7 +8,6 @@ export async function aiScenePromptsSmoke({ main, note, phase, js, click, input,
   const field = '.ai-prompt-dialog textarea'
   const save = '.ai-prompt-dialog [type="submit"]'
   const daily = '.ai-prompt-card-actions [aria-label="编辑日报提示词"]'
-  const weekly = '.ai-prompt-card-actions [aria-label="编辑周报提示词"]'
   const editDaily = '.ai-prompt-card-view[aria-label="编辑日报提示词"]'
   const viewDaily = '[aria-label="查看日报提示词"]'
   const restoreDaily = '[aria-label="恢复日报默认提示词"]'
@@ -178,7 +177,29 @@ export async function aiScenePromptsSmoke({ main, note, phase, js, click, input,
   assert.equal(await js(main, `Boolean(document.querySelector('${save}'))`), true)
   press('Escape')
   await closed()
-  await savePrompt(weekly, '每个项目单独写。')
+  for (const name of ['周报', '月报', '小记归集', '每日提示']) {
+    await click(main, `.ai-prompt-card-view[aria-label="${name}"]`)
+    assert.equal(
+      await js(
+        main,
+        `Boolean(document.querySelector('.ai-prompt-card-view[aria-label="${name}"] + .ai-prompt-card-actions'))`
+      ),
+      false
+    )
+    assert.equal(await promptValue(), undefined)
+  }
+  await waitFor(
+    () =>
+      js(
+        main,
+        `Array.from(document.querySelectorAll('[data-sonner-toast]')).some(toast => toast.textContent.includes('努力开发中'))`
+      ),
+    '未开放的场景显示开发中提示'
+  )
+  assert.equal(
+    (await js(main, `window.dook.saveAiScenePrompt('weekly_report', '每个项目单独写。')`)).ok,
+    true
+  )
   await click(main, daily)
   const viewDefault = '.ai-prompt-dialog-heading button'
   await click(main, viewDefault)
