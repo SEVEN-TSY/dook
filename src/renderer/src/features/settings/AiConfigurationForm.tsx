@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Dialog } from 'radix-ui'
 import { toast } from 'sonner'
@@ -40,6 +40,7 @@ export function AiConfigurationForm({
   const [reasoningDraft, setReasoningDraft] = useState(editing?.reasoning)
   const [key, setKey] = useState('')
   const [saving, setSaving] = useState(false)
+  const [retrying, setRetrying] = useState(false)
   const [error, setError] = useState('')
   const [errorField, setErrorField] = useState<'name' | 'key'>('key')
   const nameField = useRef<HTMLInputElement>(null)
@@ -51,6 +52,26 @@ export function AiConfigurationForm({
   const canSave =
     Boolean(name.trim()) &&
     (hasKey || (editing && (name.trim() !== editing.name || reasoning !== editing.reasoning)))
+
+  // 主进程在退避期间不回报进度，首次退避为800毫秒，等待超过1秒后按重试状态提示。
+  useEffect(() => {
+    if (!saving || !hasKey) return
+    const timer = setTimeout(() => setRetrying(true), 1000)
+    return () => {
+      clearTimeout(timer)
+      setRetrying(false)
+    }
+  }, [saving, hasKey])
+
+  const submitLabel = saving
+    ? retrying && hasKey
+      ? '正在重试…'
+      : hasKey
+        ? '正在验证…'
+        : '正在保存…'
+    : hasKey || !editing
+      ? '验证并保存'
+      : '保存'
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -200,13 +221,7 @@ export function AiConfigurationForm({
                 </Button>
               </Dialog.Close>
               <Button type="submit" disabled={!canSave || saving}>
-                {saving
-                  ? hasKey
-                    ? '正在验证…'
-                    : '正在保存…'
-                  : hasKey || !editing
-                    ? '验证并保存'
-                    : '保存'}
+                {submitLabel}
               </Button>
             </div>
           </form>
