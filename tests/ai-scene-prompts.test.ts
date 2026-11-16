@@ -19,7 +19,11 @@ test('升级后默认使用内置提示词，切回自定义及重启后恢复�
   const dailyDefault = prompts.getEffectivePrompt('daily_report')
   assert.match(dailyDefault, /今日工作内容/)
   assert.match(dailyDefault, /今日工作内容期望条数3条/)
-  assert.match(dailyDefault, /进度N%/)
+  assert.match(dailyDefault, /未完成、有子事项 → \(N\/M\)/)
+  assert.match(dailyDefault, /在条目正文开头写“1、”“2、”/)
+  assert.match(dailyDefault, /根据任务描述和当天净增量拟定明日目标/)
+  assert.match(dailyDefault, /## 输出格式\n- 章节标题依次使用“今日工作内容”和“明日工作计划”/)
+  assert.doesNotMatch(dailyDefault, /## 输入输出示例/)
 
   prompts.setMode('custom')
   prompts.save('daily_report', '每项一行\n保留项目名称')

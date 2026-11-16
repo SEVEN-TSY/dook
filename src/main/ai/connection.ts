@@ -1,9 +1,15 @@
 import { createHash, randomUUID } from 'node:crypto'
-import type { AiConfigurationInput, AiPreset, AiSettings } from '../../shared/ai-settings'
+import type {
+  AiConfigurationInput,
+  AiPreset,
+  AiSettings,
+  AiStreamPhase
+} from '../../shared/ai-settings'
 import { AI_CONFIGURATION_NAME_LIMIT } from '../../shared/ai-settings'
 import { readAiUsage } from '../storage/ai-call-log'
 import type { AiCallEntry, AiCallLog, AiCompletionEvent } from '../storage/ai-call-log'
 import { AiSettingsStore } from '../storage/ai-settings'
+import { readCompletionStream } from './completion-stream'
 import { aiDefaults } from './defaults'
 
 const RETRY_DELAYS: readonly number[] = [800, 2_000]
@@ -30,6 +36,7 @@ interface CompletionOptions {
   responseLimit?: number
   validateContent?: (content: string) => void
   onRequestStart?: () => void
+  onStreamPhase?: (phase: AiStreamPhase) => void
 }
 
 export interface AiRequestPolicy {
@@ -172,7 +179,7 @@ export class AiConnection {
           .update(JSON.stringify(configuration))
           .update(this.store.readKey(configuration.id, metadata))
           .digest('hex'),
-        provider: preset.providerName
+        provider: preset.name
       }
     } catch {
       return null
@@ -233,7 +240,7 @@ export class AiConnection {
       messages,
       thinking: { type: preset.reasoning === 'off' ? 'disabled' : 'enabled' },
       reasoning_effort: preset.reasoning === 'off' ? undefined : preset.reasoning,
-      stream: aiDefaults.stream,
+      stream: Boolean(options.onStreamPhase),
       max_tokens: maxTokens,
       response_format: options.json ? { type: 'json_object' } : undefined
     })
@@ -304,6 +311,8 @@ export class AiConnection {
     if (options.signal?.aborted) throw new Error('请求已取消。')
     const timeout = AbortSignal.timeout(this.timeoutMs)
     const signal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout
+    const onStreamPhase = options.onStreamPhase
+    onStreamPhase?.('waiting')
     let response: Response
     try {
       response = await this.request(preset.endpoint, {
@@ -326,6 +335,17 @@ export class AiConnection {
 
     let usage: ReturnType<typeof readAiUsage>
     try {
+      if (onStreamPhase) {
+        const streamed = await readCompletionStream(
+          response,
+          signal,
+          onStreamPhase,
+          options.responseLimit
+        )
+        usage = readAiUsage(streamed.usage)
+        if (streamed.finishReason !== 'stop' || !streamed.content.trim()) throw new Error()
+        return { ok: true, content: streamed.content, status: response.status, usage }
+      }
       const result = (await (options.responseLimit
         ? readBoundedResponse(response, options.responseLimit)
         : response.json())) as {
@@ -339,6 +359,7 @@ export class AiConnection {
         throw new Error()
       return { ok: true, content, status: response.status, usage }
     } catch {
+      if (options.signal?.aborted) throw new Error('请求已取消。')
       if (timeout.aborted) return timeoutFailure()
       return {
         ok: false,

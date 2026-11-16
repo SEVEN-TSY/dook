@@ -1,7 +1,7 @@
 import { clipboard, ipcMain } from 'electron'
 import type { BrowserWindow, IpcMainInvokeEvent } from 'electron'
 import type { ApiResult, BootstrapInfo, DiagnosticReport, MainPage } from '../../shared/contracts'
-import { DAILY_REPORT_GENERATING, IPC_CHANNELS } from '../../shared/channels'
+import { DAILY_REPORT_PROGRESS, IPC_CHANNELS } from '../../shared/channels'
 import { dailyReportEditKinds } from '../../shared/daily-report'
 import type { DailyReportEditKind } from '../../shared/daily-report'
 import { normalizeThemeColor } from '../../shared/theme-color'
@@ -101,8 +101,8 @@ export function registerIpc(handlers: Handlers): () => void {
         configuration: request.configuration
       },
       confirmed,
-      () => {
-        if (!window.isDestroyed()) window.webContents.send(DAILY_REPORT_GENERATING)
+      (phase) => {
+        if (!window.isDestroyed()) window.webContents.send(DAILY_REPORT_PROGRESS, phase)
       },
       editedSinceStart
     )

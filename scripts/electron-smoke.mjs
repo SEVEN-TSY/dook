@@ -756,7 +756,7 @@ async function multidaySmoke(main, note) {
 
 async function runSmoke() {
   try {
-    const reportRequests = phase === 'daily-report' ? controlReportModel() : []
+    const reportModel = phase === 'daily-report' ? controlReportModel() : null
     await import('../out/main/index.js')
     await app.whenReady()
     let note = await waitFor(() => findWindow('note'), '启动显示便签')
@@ -771,7 +771,7 @@ async function runSmoke() {
         click,
         input,
         waitFor,
-        requests: reportRequests,
+        model: reportModel,
         openMain: () => waitFor(() => findWindow('main'), '便签打开主界面')
       })
       console.log('Electron daily report smoke passed')

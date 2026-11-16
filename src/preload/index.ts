@@ -1,8 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { IpcRendererEvent } from 'electron'
+import type { AiStreamPhase } from '../shared/ai-settings'
 import type { DesktopApi } from '../shared/contracts'
 import {
   AI_CALL_LOGGED,
-  DAILY_REPORT_GENERATING,
+  DAILY_REPORT_PROGRESS,
   IPC_CHANNELS,
   TASKS_CHANGED,
   WINDOW_STATE,
@@ -21,10 +23,10 @@ const api: DesktopApi = {
   reportSave: (date, body) => ipcRenderer.invoke(IPC_CHANNELS.reportSave, date, body),
   reportCopy: (date, body) => ipcRenderer.invoke(IPC_CHANNELS.reportCopy, date, body),
   openDailyReport: () => ipcRenderer.invoke(IPC_CHANNELS.openDailyReport),
-  onDailyReportGenerating: (listener) => {
-    const callback = () => listener()
-    ipcRenderer.on(DAILY_REPORT_GENERATING, callback)
-    return () => ipcRenderer.removeListener(DAILY_REPORT_GENERATING, callback)
+  onDailyReportProgress: (listener) => {
+    const callback = (_event: IpcRendererEvent, phase: AiStreamPhase) => listener(phase)
+    ipcRenderer.on(DAILY_REPORT_PROGRESS, callback)
+    return () => ipcRenderer.removeListener(DAILY_REPORT_PROGRESS, callback)
   },
   getAiSettings: () => ipcRenderer.invoke(IPC_CHANNELS.getAiSettings),
   saveAiConfiguration: (input) => ipcRenderer.invoke(IPC_CHANNELS.saveAiConfiguration, input),

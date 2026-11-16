@@ -12,7 +12,7 @@
     "node": ">=24.15.0 <25"
   },
   "scripts": {
-    "dev": "install-electron --no && electron-vite dev",
+    "dev": "install-electron --no && electron-vite dev --watch",
     "start": "install-electron --no && electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "tsx --test tests/*.test.ts",
@@ -27,6 +27,7 @@
     "@modelcontextprotocol/sdk": "1.32.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "eventsource-parser": "3.1.1",
     "lucide-react": "^1.66.0",
     "radix-ui": "^1.8.1",
     "react": "19.3.1",

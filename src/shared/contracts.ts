@@ -1,5 +1,5 @@
 /** 只放跨进程可序列化的数据契约，不依赖Electron或Node.js。 */
-import type { AiConfigurationInput, AiSettings } from './ai-settings'
+import type { AiConfigurationInput, AiSettings, AiStreamPhase } from './ai-settings'
 import type { AiPromptMode, AiScenePromptSettings } from './ai-scene-prompts'
 import type {
   DailyReport,
@@ -76,7 +76,7 @@ export interface DesktopApi {
   reportSave: (date: string, body: string) => Promise<ApiResult<DailyReport>>
   reportCopy: (date: string, body: string) => Promise<ApiResult<void>>
   openDailyReport: () => Promise<ApiResult<void>>
-  onDailyReportGenerating: (listener: () => void) => () => void
+  onDailyReportProgress: (listener: (phase: AiStreamPhase) => void) => () => void
   getAiSettings: () => Promise<ApiResult<AiSettings>>
   saveAiConfiguration: (input: AiConfigurationInput) => Promise<ApiResult<AiSettings>>
   selectAiConfiguration: (id: string) => Promise<ApiResult<AiSettings>>

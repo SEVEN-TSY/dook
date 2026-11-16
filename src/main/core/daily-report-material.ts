@@ -4,31 +4,6 @@ import { dailyReportBodyLimit } from '../../shared/daily-report'
 
 const length = (value: string) => Array.from(value).length
 
-function nextTarget(task: Task, delta: (mode: 'manual' | 'subitems') => number | undefined) {
-  const children = task.subitems ?? []
-  const completed = children.filter((item) => item.completed).length
-  const explicit = task.description
-    .normalize('NFKC')
-    .match(
-      /(?:明日|明天|下次|下一步|目标)[^。;!?\n]{0,32}?(?:(再|额外)\s*完成\s*)?(\d+)\s*(\/\s*(\d+)|%|项|个子事项)/u
-    )
-  const value = explicit ? Number(explicit[2]) : null
-  if (children.length) {
-    const goal =
-      value !== null &&
-      (explicit?.[4] ? Number(explicit[4]) === children.length : explicit?.[3] !== '%')
-        ? value + (explicit?.[1] ? completed : 0)
-        : null
-    const increment = delta('subitems') ?? 0
-    const target = goal ?? (increment > 0 ? completed + increment : null)
-    return target === null ? null : `完成${Math.min(children.length, target)}/${children.length}`
-  }
-  const goal = explicit?.[3] === '%' ? value : null
-  const increment = delta('manual') ?? 0
-  const target = goal ?? (increment > 0 ? task.progress + increment : null)
-  return target === null ? null : `完成${Math.min(100, target)}%`
-}
-
 export function reportMaterial(
   tasks: Task[],
   delta: (id: string, mode: 'manual' | 'subitems') => number | undefined
@@ -45,6 +20,7 @@ export function reportMaterial(
   return tasks.map((task, index) => {
     const id = index + 1
     const ongoing = task.kind === 'multi-day' && !task.completed
+    const children = task.subitems ?? []
     return {
       id,
       description: description(task.description),
@@ -53,8 +29,12 @@ export function reportMaterial(
       completed: task.completed,
       sections: task.completed ? ['today'] : ongoing ? ['today', 'tomorrow'] : ['tomorrow'],
       progress: ongoing ? task.progress : null,
-      target: ongoing ? nextTarget(task, (mode) => delta(task.id, mode)) : null,
-      subitems: (task.subitems ?? [])
+      todayProgressDelta: ongoing
+        ? (delta(task.id, children.length ? 'subitems' : 'manual') ?? null)
+        : null,
+      subitemTotal: children.length,
+      subitemCompleted: children.filter((item) => item.completed).length,
+      subitems: children
         .filter((item) => !item.completed)
         .map((item, childIndex) => ({
           id: `${id}.${childIndex + 1}`,
@@ -72,10 +52,13 @@ const singleLine = z
 const item = z.object({
   sourceIds: z.array(z.number().int().positive()).min(1).max(100),
   subitemIds: z.array(z.string()).max(100).optional(),
-  text: singleLine.refine((value) => length(value) <= 500 && !/^\d+[.、．)]\s*/u.test(value))
+  text: singleLine.refine((value) => length(value) <= 500)
 })
 const section = z.object({ title: singleLine, items: z.array(item).max(100) })
 const response = z.object({ today: section, tomorrow: section })
+
+const progressMark =
+  /[（(]\s*(\d+)\s*[/／]\s*(\d+)\s*[)）]|(?:完成|进度)\s*(\d+)\s*(?:[/／]\s*(\d+)|[%％])/u
 
 export function renderDailyReport(content: string, material: ReturnType<typeof reportMaterial>) {
   const invalid = () => new Error('AI返回的日报正文或材料来源无效，请重新生成。')
@@ -98,7 +81,7 @@ export function renderDailyReport(content: string, material: ReturnType<typeof r
     const used = new Set<number>()
     return [
       title,
-      ...items.map((item, index) => {
+      ...items.map((item) => {
         const sources = item.sourceIds.map((id) => {
           const source = material[id - 1]
           if (!source || !source.sections.includes(name) || used.has(id)) throw invalid()
@@ -113,19 +96,22 @@ export function renderDailyReport(content: string, material: ReturnType<typeof r
         }
         const ongoing = sources.find((source) => source.progress !== null)
         if (ongoing && sources.length !== 1) throw invalid()
-        let text = item.text
-        if (
-          sources.some((source) => source.kind === 'multi-day') &&
-          /(?:进度\s*\d+\s*[%％]|完成\s*\d+\s*(?:[%％]|[/／]\s*\d+))/u.test(text)
-        )
-          throw invalid()
-        if (ongoing) {
-          if (name === 'today') text = `${text}，进度${ongoing.progress}%`
-          else if (ongoing.target) text = `${text}，${ongoing.target}`
-          else if (!text.startsWith('继续')) text = `继续${text}`
+        const text = item.text
+        if (ongoing && name === 'today') {
+          const mark = text.match(progressMark)
+          if (mark) {
+            const count = Number(mark[1] ?? mark[3])
+            const total = mark[2] ?? mark[4]
+            const matches =
+              total === undefined
+                ? count === ongoing.progress
+                : ongoing.subitemTotal > 0 &&
+                  count === ongoing.subitemCompleted &&
+                  Number(total) === ongoing.subitemTotal
+            if (!matches) throw invalid()
+          }
         }
-        if (length(text) > 500) throw invalid()
-        return `${index + 1}. ${text}`
+        return text
       })
     ].join('\n')
   })

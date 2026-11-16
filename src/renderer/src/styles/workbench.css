@@ -643,7 +643,8 @@ html[data-window='main'] {
 .workbench .inspiration-nav-item:is(:hover, :focus-within):not(:has(.inspiration-topic-form)) {
   background: var(--app-hover);
 }
-.workbench .inspiration-nav-item:has(.inspiration-heading[aria-current]):not(:has(.inspiration-topic-form)) {
+.workbench
+  .inspiration-nav-item:has(.inspiration-heading[aria-current]):not(:has(.inspiration-topic-form)) {
   background: var(--app-accent-selected);
 }
 .workbench .inspiration-nav-item .inspiration-heading {
@@ -914,6 +915,13 @@ html[data-window='main'] {
   gap: 3px;
   padding-top: 0;
   white-space: nowrap;
+}
+.workbench .habit-list .main-list-actions > button {
+  color: light-dark(#a1abbd, #8b8b8b);
+}
+.workbench .habit-list .main-list-actions > button svg {
+  width: 15px;
+  height: 15px;
 }
 .workbench .inspiration-topic-control {
   margin: 0;
@@ -1478,6 +1486,31 @@ html[data-window='main']:has(.workbench-main-inspiration) {
   margin-left: auto;
   margin-bottom: 6px;
 }
+.workbench .archive-view-switch .daily-report-entry {
+  margin-left: auto;
+  margin-bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--app-muted);
+  background: transparent;
+  cursor: pointer;
+}
+.workbench .archive-view-switch .daily-report-entry:hover,
+.workbench .archive-view-switch .daily-report-entry.is-selected {
+  color: var(--app-accent);
+  background: var(--workspace-soft);
+}
+.workbench .archive-view-switch .workbench-add.is-muted {
+  color: var(--app-muted);
+}
+.workbench .archive-view-switch .daily-report-entry + .workbench-add {
+  margin-left: -10px;
+}
 .workbench .archive-view-switch .archive-filter {
   position: relative;
   align-self: stretch;
@@ -1592,6 +1625,28 @@ html[data-window='main']:has(.workbench-main-list-page, .page-settings) {
   scroll-margin-top: 16px;
   outline: none;
 }
+.daily-report-actions {
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+.daily-report-actions button {
+  flex: none;
+}
+.daily-report-generate {
+  inline-size: calc(4em + 2rem + 2px);
+}
+@layer components {
+  /* Button utilities are important, so the cancellation colors override them in this layer. */
+  .daily-report-generate[data-cancel] {
+    color: var(--app-error) !important;
+    border-color: var(--app-error-border) !important;
+    background-color: var(--app-error-surface) !important;
+  }
+  .daily-report-generate[data-cancel]:hover {
+    border-color: var(--app-error) !important;
+  }
+}
 .daily-report-header time,
 .daily-report-meta,
 .daily-report-actions span {
@@ -1599,21 +1654,53 @@ html[data-window='main']:has(.workbench-main-list-page, .page-settings) {
   color: var(--app-muted);
   font-size: 12px;
 }
-.daily-report-editor {
-  display: block;
-  width: 100%;
+.daily-report-details {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
   min-width: 0;
-  padding: 10px 12px;
-  resize: vertical;
-  border: 1px solid var(--app-input-border);
+  overflow: hidden;
+  white-space: nowrap;
+  transform: translateY(-5px);
+}
+.daily-report-snapshot {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.daily-report-details > span + span::before,
+.daily-report-snapshot > span + span::before {
+  content: '·';
+  margin: 0 2px;
+}
+.daily-report-details > span:not(.daily-report-snapshot),
+.daily-report-snapshot > span {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+  line-height: 16px;
+  vertical-align: middle;
+}
+.daily-report-details svg {
+  display: block;
+  flex: none;
+  transform: translateY(1px);
+}
+/* The resting report body keeps a quiet frame; focus styling is unchanged. */
+.workbench .daily-report-editor {
+  padding: 12px 14px;
   border-radius: 8px;
   background: var(--app-surface);
-  color: inherit;
-  font: inherit;
-  line-height: 1.6;
+  box-shadow: inset 0 0 0 1px var(--app-border);
+  resize: vertical;
+  field-sizing: fixed;
   overflow-wrap: anywhere;
 }
-.daily-report-editor:focus-visible,
+.workbench .daily-report-editor:focus {
+  background: light-dark(#f7f9fc, #252525);
+  box-shadow: inset 0 0 0 1px var(--app-accent-border);
+}
 .daily-report-actions button:focus-visible,
 .daily-report-entry:focus-visible {
   outline: 2px solid var(--app-accent);

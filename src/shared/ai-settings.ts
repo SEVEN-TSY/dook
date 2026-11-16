@@ -1,5 +1,6 @@
 export const AI_REASONING_LEVELS = ['off', 'low', 'high', 'max'] as const
 export type AiReasoning = (typeof AI_REASONING_LEVELS)[number]
+export type AiStreamPhase = 'waiting' | 'reasoning' | 'generating'
 export const AI_REASONING_LABELS: Record<AiReasoning, string> = {
   off: '关闭',
   low: '低',

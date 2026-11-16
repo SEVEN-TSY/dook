@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { AiStreamPhase } from '../../../../shared/ai-settings'
 import type {
   DailyReport,
   DailyReportPreparation,
@@ -6,7 +7,7 @@ import type {
 } from '../../../../shared/daily-report'
 import { hiddenMultiDayWarning } from '../../../../shared/daily-report'
 import { useDeleteConfirmation } from '../../components/DeleteConfirmation'
-import { toastError } from '../../components/notify'
+import { dismissToast, toastError, toastLoading, toastSuccess } from '../../components/notify'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
 import { useSerialSave } from '../shared/useSerialSave'
 
@@ -19,6 +20,17 @@ interface Draft {
 const message = (error: unknown) =>
   error instanceof Error ? error.message : '日报操作失败，请重试。'
 
+type Phase = AiStreamPhase | 'preparing' | 'cancelling'
+
+const progressToastId = 'daily-report-generation'
+const phaseMessages: Record<Phase, string> = {
+  preparing: '正在准备日报…',
+  waiting: '正在等待AI响应…',
+  reasoning: '正在推理…',
+  generating: '正在生成日报…',
+  cancelling: '正在取消生成…'
+}
+
 export function useDailyReport(enabled: boolean, visible: boolean, includeMultiDay: boolean) {
   const confirmation = useDeleteConfirmation()
   const [open, setOpen] = useState(false)
@@ -30,8 +42,13 @@ export function useDailyReport(enabled: boolean, visible: boolean, includeMultiD
   const [error, setError] = useState('')
   const [saveError, setSaveError] = useState('')
   const [settingsRequired, setSettingsRequired] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [phase, setPhase] = useState<'preparing' | 'generating' | 'cancelling' | null>(null)
+  const [phase, setPhase] = useState<Phase | null>(null)
+  const phaseMessage = phase ? phaseMessages[phase] : ''
+  useEffect(() => {
+    if (phaseMessage && !(open && visible)) toastLoading(phaseMessage, progressToastId)
+    else dismissToast(progressToastId)
+  }, [open, visible, phaseMessage])
+  useEffect(() => () => dismissToast(progressToastId), [])
   const current = useRef<Draft>({ report: null, text: '', dirty: false })
   const [draft, setDraft] = useState(current.current)
   const active = useRef<symbol | null>(null)
@@ -43,7 +60,6 @@ export function useDailyReport(enabled: boolean, visible: boolean, includeMultiD
     current.current = { report, text: report?.body ?? '', dirty: false }
     redraw()
     setSaveError('')
-    setCopied(false)
   }
   const serial = useSerialSave(
     current,
@@ -55,6 +71,7 @@ export function useDailyReport(enabled: boolean, visible: boolean, includeMultiD
       draft.dirty = draft.text !== text
       redraw()
       setSaveError('')
+      if (!draft.dirty) toastSuccess('日报已保存')
       return draft.dirty ? 'continue' : 'done'
     },
     setSaveError,
@@ -94,8 +111,8 @@ export function useDailyReport(enabled: boolean, visible: boolean, includeMultiD
     reload.current = refresh
     void refresh()
     const unsubscribe = api.onTasksChanged(() => void refresh())
-    const unsubscribeStage = api.onDailyReportGenerating(() => {
-      if (active.current) setPhase((phase) => (phase === 'preparing' ? 'generating' : phase))
+    const unsubscribeStage = api.onDailyReportProgress((phase) => {
+      if (active.current && !cancelling.current) setPhase(phase)
     })
     return () => {
       mounted = false
@@ -141,6 +158,11 @@ export function useDailyReport(enabled: boolean, visible: boolean, includeMultiD
     setOpen(true)
     setFocusRevision((revision) => revision + 1)
   }
+  const close = () => setOpen(false)
+  const toggle = () => {
+    if (open) close()
+    else reveal()
+  }
   const announceEdit = () => {
     const report = current.current.report
     if (!report) return
@@ -155,9 +177,8 @@ export function useDailyReport(enabled: boolean, visible: boolean, includeMultiD
     current.current.text = text
     current.current.dirty = text !== current.current.report?.body
     redraw()
-    setCopied(false)
     if (timer.current !== null) window.clearTimeout(timer.current)
-    if (!serial.composing.current) timer.current = window.setTimeout(() => void save(), 350)
+    if (!serial.composing.current) timer.current = window.setTimeout(() => void save(), 10_000)
   }
   const generate = async (trigger: HTMLButtonElement) => {
     if (active.current || !preparation || !view || view.date !== view.today) return
@@ -168,13 +189,19 @@ export function useDailyReport(enabled: boolean, visible: boolean, includeMultiD
     const api = getDesktopApi()
     setError('')
     setSettingsRequired(false)
-    setCopied(false)
     setPhase('preparing')
+    let outcome: 'generated' | 'cancelled' | null = null
     try {
       await save()
-      if (cancelling.current) return
+      if (cancelling.current) {
+        outcome = 'cancelled'
+        return
+      }
       const scope = unwrap(await api.reportPrepare())
-      if (cancelling.current) return
+      if (cancelling.current) {
+        outcome = 'cancelled'
+        return
+      }
       setPreparation(scope)
       if (
         scope.date !== preparation.date ||
@@ -196,7 +223,10 @@ export function useDailyReport(enabled: boolean, visible: boolean, includeMultiD
           },
           trigger
         )
-        if (!confirmed || cancelling.current) return
+        if (!confirmed || cancelling.current) {
+          if (cancelling.current) outcome = 'cancelled'
+          return
+        }
       }
       const result = unwrap(
         await api.reportGenerate(scope, confirmed, startedAt !== editVersion.current)
@@ -208,6 +238,9 @@ export function useDailyReport(enabled: boolean, visible: boolean, includeMultiD
         setError('生成条件已变更，请确认后重新生成。')
       } else if (result.kind === 'saved' && startedAt === editVersion.current) {
         adopt(result.report)
+        outcome = 'generated'
+      } else if (result.kind === 'cancelled' && cancelling.current) {
+        outcome = 'cancelled'
       }
     } catch (error) {
       if (active.current === command) {
@@ -220,6 +253,8 @@ export function useDailyReport(enabled: boolean, visible: boolean, includeMultiD
       if (active.current === command) {
         active.current = null
         setPhase(null)
+        if (outcome === 'generated') toastSuccess('日报已生成')
+        else if (outcome === 'cancelled') toastSuccess('已取消生成日报')
       }
     }
   }
@@ -239,7 +274,7 @@ export function useDailyReport(enabled: boolean, visible: boolean, includeMultiD
     if (!report || !text.trim()) return
     try {
       unwrap(await getDesktopApi().reportCopy(report.date, text))
-      setCopied(true)
+      toastSuccess('已复制全文')
     } catch (error) {
       setError(message(error))
     }
@@ -247,15 +282,17 @@ export function useDailyReport(enabled: boolean, visible: boolean, includeMultiD
   return {
     open,
     reveal,
+    close,
+    toggle,
     heading,
     view,
     draft,
     preparation,
     phase,
+    phaseMessage,
     error,
     saveError,
     settingsRequired,
-    copied,
     generate,
     cancel,
     copy,
@@ -270,7 +307,10 @@ export function useDailyReport(enabled: boolean, visible: boolean, includeMultiD
       if (text !== current.current.text) change(text)
       else announceEdit()
       serial.endComposition()
-      void save()
+      if (current.current.dirty) {
+        if (timer.current !== null) window.clearTimeout(timer.current)
+        timer.current = window.setTimeout(() => void save(), 10_000)
+      }
     },
     retry: async () => {
       if (await save()) await reload.current()

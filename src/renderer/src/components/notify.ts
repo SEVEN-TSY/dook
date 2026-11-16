@@ -18,6 +18,10 @@ export function toastSuccess(message: string, options?: ToastOptions) {
   withToast((toast) => toast.success(message, options))
 }
 
+export function toastLoading(message: string, id: string) {
+  withToast((toast) => toast.loading(message, { id }))
+}
+
 export function toastError(message: string, options?: ToastOptions) {
   withToast((toast) => toast.error(message, options))
 }

@@ -15,7 +15,6 @@ export const aiDefaults = {
   testMaxTokens: 16,
   thinkingTestMaxTokens: 2048,
   completionMaxTokens: 8192,
-  stream: false,
   presets: [
     { ...deepseek, id: 'deepseek-flash', model: 'deepseek-flash', name: 'DeepSeek V4.1 Flash' },
     { ...deepseek, id: 'deepseek-v4-pro', model: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro' }

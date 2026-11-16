@@ -6,8 +6,8 @@ import {
   ChevronsDown,
   Plus,
   Archive,
+  CalendarCheck,
   CalendarPlus,
-  FileText,
   Pin,
   Trash2,
   TrendingUp,
@@ -43,7 +43,6 @@ import { useInspirationInput } from '../inspirations/useInspirationInput'
 import { taskSummary as summarizeTasks } from './taskSummary'
 import { DailyReportCard } from './DailyReportCard'
 import { useDailyReport } from './useDailyReport'
-import { Button } from '../../components/ui/button'
 
 const INSPIRATION_GOAL = 5
 function noteDateLabel(date: string | undefined) {
@@ -102,6 +101,7 @@ export function TasksPage({
   currentPage.current = page
   const [adding, setAdding] = useState(false)
   const [taskComposerOpen, setTaskComposerOpen] = useState(false)
+  const [reportEntrySelected, setReportEntrySelected] = useState(false)
   const [taskArchiveView, setTaskArchiveView] = useState(false)
   const [habitCounts, setHabitCounts] = useState({ current: 0, archived: 0 })
   const [habitArchiveView, setHabitArchiveView] = useState(false)
@@ -165,9 +165,15 @@ export function TasksPage({
   const habitCount =
     today?.tasks.filter((task) => task.habitId && task.date === today.date).length ?? 0
   const showMultiDay = desktop?.settings.showMultiDay ?? true
-  const dailyReport = useDailyReport(kind === 'main', page === 'task' && !hidden, showMultiDay)
+  const dailyReport = useDailyReport(
+    kind === 'main',
+    page === 'task' && !hidden && !taskArchiveView,
+    showMultiDay
+  )
   const revealDailyReport = useRef(dailyReport.reveal)
   revealDailyReport.current = dailyReport.reveal
+  const closeDailyReport = useRef(dailyReport.close)
+  closeDailyReport.current = dailyReport.close
   const visibleTasks = today?.tasks.filter((task) => showMultiDay || task.kind === 'today') ?? []
   const { total, completed } = summarizeTasks(visibleTasks)
   const taskSummary = useSummaryMotion(kind === 'note' && today ? total : undefined, true)
@@ -302,6 +308,9 @@ export function TasksPage({
     let active = true
     const { page: target, dailyReport } = desktop.mainNavigation
     if (dailyReport && currentPage.current === 'task') {
+      setTaskArchiveView(false)
+      setTaskComposerOpen(false)
+      setReportEntrySelected(true)
       revealDailyReport.current()
       return
     }
@@ -311,7 +320,16 @@ export function TasksPage({
       setNewKind(target === 'inspiration' ? 'inspiration' : 'task')
       setAdding(false)
       setError('')
-      if (dailyReport) revealDailyReport.current()
+      if (target === 'task') {
+        setReportEntrySelected(!!dailyReport)
+        if (dailyReport) {
+          setTaskArchiveView(false)
+          setTaskComposerOpen(false)
+          revealDailyReport.current()
+        } else {
+          closeDailyReport.current()
+        }
+      }
     })
     return () => {
       active = false
@@ -667,11 +685,6 @@ export function TasksPage({
                 {{ task: '今天', habit: '习惯', inspiration: '小记', settings: '设置' }[page]}
               </h1>
             </div>
-            {page === 'task' && (
-              <Button className="daily-report-entry" variant="outline" onClick={dailyReport.reveal}>
-                {dailyReport.draft.text.trim() ? '查看日报' : '写日报'}
-              </Button>
-            )}
           </header>
           {(page === 'task' || page === 'habit') && (
             <div
@@ -726,8 +739,27 @@ export function TasksPage({
                   </span>
                 </button>
               ))}
+              {page === 'task' && (
+                <button
+                  type="button"
+                  className={`daily-report-entry ${reportEntrySelected && !taskArchiveView ? 'is-selected' : ''}`}
+                  title={dailyReport.open && !taskArchiveView ? '收起日报' : '查看日报'}
+                  aria-label={dailyReport.open && !taskArchiveView ? '收起日报' : '查看日报'}
+                  aria-expanded={dailyReport.open && !taskArchiveView}
+                  onClick={() => {
+                    setReportEntrySelected(taskArchiveView || !dailyReport.open)
+                    if (taskArchiveView) {
+                      setTaskArchiveView(false)
+                      dailyReport.reveal()
+                    } else dailyReport.toggle()
+                    setTaskComposerOpen(false)
+                  }}
+                >
+                  <CalendarCheck size={16} aria-hidden="true" />
+                </button>
+              )}
               <ComposerToggle
-                className="primary-button workbench-add"
+                className={`primary-button workbench-add ${page === 'task' && reportEntrySelected && !taskArchiveView ? 'is-muted' : ''}`}
                 label={page === 'habit' ? '新增习惯' : '新增任务'}
                 expanded={page === 'habit' ? habitComposerOpen : taskComposerOpen}
                 onClick={() => {
@@ -737,6 +769,8 @@ export function TasksPage({
                   } else {
                     setTaskArchiveView(false)
                     setTaskComposerOpen(!taskComposerOpen)
+                    setReportEntrySelected(false)
+                    if (!taskComposerOpen) dailyReport.close()
                     if (!taskComposerOpen)
                       requestAnimationFrame(() => mainTaskInput.current?.focus())
                   }
@@ -747,17 +781,19 @@ export function TasksPage({
           <Toast message={error} onDismiss={() => setError('')} />
           <div className="workbench-split" hidden={page !== 'task'}>
             <div className="workbench-list" aria-label="任务">
-              <DailyReportCard
-                report={dailyReport}
-                openSettings={() => {
-                  void navigate('settings').then((navigated) => {
-                    if (!navigated) return
-                    requestAnimationFrame(() =>
-                      document.querySelector('.settings-ai')?.scrollIntoView({ block: 'start' })
-                    )
-                  })
-                }}
-              />
+              {!taskArchiveView && (
+                <DailyReportCard
+                  report={dailyReport}
+                  openSettings={() => {
+                    void navigate('settings').then((navigated) => {
+                      if (!navigated) return
+                      requestAnimationFrame(() =>
+                        document.querySelector('.settings-ai')?.scrollIntoView({ block: 'start' })
+                      )
+                    })
+                  }}
+                />
+              )}
               <InlineComposer
                 ref={mainTaskInput}
                 expanded={taskComposerOpen && !taskArchiveView}
@@ -1026,7 +1062,7 @@ export function TasksPage({
                 void windowAction(async () => unwrap(await getDesktopApi().openDailyReport()))
               }
             >
-              <FileText size={16} strokeWidth={1.5} aria-hidden="true" />
+              <CalendarCheck size={16} strokeWidth={1.2} absoluteStrokeWidth aria-hidden="true" />
             </button>
             <button
               data-testid="note-settings"
