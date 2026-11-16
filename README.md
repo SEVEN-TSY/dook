@@ -26,6 +26,8 @@ DOOK是一款面向日常工作的待办与小记应用。今天要做的事、�
 
 在主界面的设置中，可以切换浅色、深色或跟随系统外观，调整主题色、开机自启和便签行为。
 
+**工作日报**可以从主界面任务筛选栏的日历图标打开，也可以从桌面便签直达。先在「设置 → AI服务」添加DeepSeek API Key并选好默认模型，就可以根据当天任务生成「今日工作内容」和「明日工作计划」。生成期间可以查看进度或取消，正文按日期保存在本机，可直接编辑和复制。日报的措辞和格式可以通过自定义提示词调整。
+
 ### 桌面便签操作演示
 
 #### 添加任务并勾选完成
@@ -57,16 +59,31 @@ npm run dev
 
 也可以使用`pnpm install`和`pnpm dev`。首次启动需要下载Electron桌面运行时。
 
-| 命令                   | 用途                                                      |
-| ---------------------- | --------------------------------------------------------- |
-| `npm run typecheck`    | 检查TypeScript类型                                        |
-| `npm test`             | 运行任务规则、数据库迁移和MCP等测试                       |
-| `npm run smoke`        | 运行真实Electron双窗口集成验证，结果保存在`.local/smoke/` |
-| `npm run build`        | 构建到`out/`                                              |
-| `npm start`            | 运行已有的生产构建                                        |
-| `npm run pack`         | 生成免安装目录到`release/`                                |
-| `npm run dist:win`     | 生成Windows x64 NSIS安装包                                |
-| `npm run format:check` | 检查代码和文档格式                                        |
+### 常用命令
+
+| 命令                                    | 用途                                                      |
+| --------------------------------------- | --------------------------------------------------------- |
+| `npm run dev`                           | 启动开发版，修改主进程源码时自动重建并重启Electron        |
+| `npm run typecheck`                     | 检查TypeScript类型                                        |
+| `npm test`                              | 运行任务规则、数据库迁移和MCP等测试                       |
+| `npm run smoke`                         | 运行真实Electron双窗口集成验证，结果保存在`.local/smoke/` |
+| `npm run build`                         | 构建到`out/`                                              |
+| `npm start`                             | 运行已有的生产构建                                        |
+| `npm pkg get version`                   | 查看当前版本                                              |
+| `npm version patch --no-git-tag-version` | 升补丁版本，例如从`0.2.0`升到`0.2.1`                    |
+| `npm version minor --no-git-tag-version` | 升次版本，例如从`0.2.0`升到`0.3.0`                        |
+| `npm version 0.3.0 --no-git-tag-version` | 直接指定版本为`0.3.0`                                    |
+| `npm run pack`                          | 生成免安装目录到`release/`                                |
+| `npm run dist:win`                      | 生成Windows x64 NSIS安装包到`release/`                    |
+| `npm run format:check`                  | 检查代码和文档格式                                        |
+
+升版命令会同步更新`package.json`和`package-lock.json`，Git提交和标签可单独处理。
+
+只验证日报时，先执行`npm run build`，构建成功后执行`node scripts/run-smoke.mjs daily-report`。测试用模拟模型响应验证Electron界面和流式生成。
+
+提交前用`git status --short`查看改动，用`git add -- "文件路径"`逐项暂存，再用`git diff --cached --stat`核对提交范围。确认后执行`git commit -m "提交说明"`。
+
+在GitHub更新日报进展时，先将评论写入UTF-8文件`comment.md`。执行`gh issue comment 42 --repo SEVEN-TSY/dook --body-file comment.md`发表新评论。加上`--edit-last`可更新自己在该Issue的最后一条评论。其他Issue命令见[Issue操作指南](docs/agents/issue-tracker.md)。
 
 ## <img src="docs/assets/readme-icons/database.svg" width="28" height="26" align="absmiddle" alt="">本地数据与MCP
 
@@ -77,7 +94,7 @@ DOOK将任务、习惯和小记保存在本地SQLite数据库中，窗口位置�
 ### <img src="docs/assets/readme-icons/design.svg" width="23" height="21" align="absmiddle" alt="">MCP业务工具与AI能力（开发中）
 
 - <img src="docs/assets/readme-icons/chat.svg" width="20" height="19" align="absmiddle" alt="">**对话管理任务**｜写代码时，可以在Codex等支持MCP的Agent里说「把补登录超时的回归测试加到今天」，也可以查询鉴权重构的进度，或让Agent把进度更新到DOOK。
-- <img src="docs/assets/readme-icons/report.svg" width="20" height="19" align="absmiddle" alt="">**生成开发日/周/月报**｜下班前，根据当天已完成的任务和「持续推进」事项的当前状态生成日报草稿，编辑后再复制到团队群里。
+- <img src="docs/assets/readme-icons/report.svg" width="20" height="19" align="absmiddle" alt="">**生成周报和月报**｜按周或月汇总任务进展和完成情况，整理成可编辑的报工草稿。
 - <img src="docs/assets/readme-icons/habit.svg" width="20" height="19" align="absmiddle" alt="">**从重复任务发现习惯**｜如果我经常手动添加「检查CI构建结果」，DOOK可以建议把它设为习惯，由我决定是否启用及何时生成。
 - <img src="docs/assets/readme-icons/jotting.svg" width="20" height="19" align="absmiddle" alt="">**从零散小记找出下一步**｜把几次排查接口超时留下的小记按主题归拢，从重复出现的线索里提炼改进建议，比如补一组重试边界测试。
 
@@ -87,6 +104,7 @@ DOOK将任务、习惯和小记保存在本地SQLite数据库中，窗口位置�
 - [工程结构](doc/codebase.md)
 - [界面框架与样式](docs/ui-framework-and-styles.md)
 - [桌面便签验证](doc/desktop-validation.md)
+- [工作日报](docs/specs/ai-daily-report.md)
 - [MCP接入](doc/mcp.md)
 
 ## <img src="docs/assets/readme-icons/license.svg" width="28" height="26" align="absmiddle" alt="">开源许可
