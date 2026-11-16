@@ -3,6 +3,7 @@ import type { Task, Subitem } from '../../shared/contracts'
 export interface TaskStore {
   list(date: string): Task[]
   listArchived(): Task[]
+  listCompletedArchived(date: string): Task[]
   archive(id: string, date: string, archivedAt: string): void
   restore(id: string, date: string): Task
   deleteArchived(id: string): void
@@ -21,6 +22,13 @@ export interface TaskStore {
   deleteSubitem(taskId: string, id: string): void
   setSubitemOrder(taskId: string, ids: string[]): void
   setSubitemsCompleted(taskId: string, completed: boolean): void
+  recordProgress(
+    id: string,
+    date: string,
+    mode: 'manual' | 'subitems',
+    before: number,
+    after: number
+  ): void
   delete(id: string, date: string): void
 }
 

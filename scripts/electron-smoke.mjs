@@ -5,6 +5,7 @@ import { habitArchiveSmoke } from './habit-archive-smoke.mjs'
 import { noteJottingsSmoke } from './note-jottings-smoke.mjs'
 import { appearanceSmoke } from './appearance-smoke.mjs'
 import { aiScenePromptsSmoke } from './ai-scene-prompts-smoke.mjs'
+import { controlReportModel, dailyReportSmoke } from './daily-report-smoke.mjs'
 import { listInteractionSmoke } from './list-interaction-smoke.mjs'
 import { inspirationPageSmoke } from './inspiration-page-smoke.mjs'
 import { subitemsSmoke } from './subitems-smoke.mjs'
@@ -755,6 +756,7 @@ async function multidaySmoke(main, note) {
 
 async function runSmoke() {
   try {
+    const reportRequests = phase === 'daily-report' ? controlReportModel() : []
     await import('../out/main/index.js')
     await app.whenReady()
     let note = await waitFor(() => findWindow('note'), '启动显示便签')
@@ -762,6 +764,20 @@ async function runSmoke() {
     assert.equal(BrowserWindow.getAllWindows().length, 1, '启动只创建便签')
     await waitFor(() => trays.size === 1, '唯一托盘')
     await waitFor(() => note.isVisible(), '便签可见')
+    if (phase === 'daily-report') {
+      await dailyReportSmoke({
+        note,
+        js,
+        click,
+        input,
+        waitFor,
+        requests: reportRequests,
+        openMain: () => waitFor(() => findWindow('main'), '便签打开主界面')
+      })
+      console.log('Electron daily report smoke passed')
+      menuClick('退出')
+      return
+    }
     if (phase === 'lifecycle') {
       const area = screen.getPrimaryDisplay().workArea
       note.setPosition(area.x + 5, area.y + 80)

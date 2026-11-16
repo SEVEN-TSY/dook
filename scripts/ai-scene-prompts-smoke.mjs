@@ -103,7 +103,7 @@ export async function aiScenePromptsSmoke({ main, note, phase, js, click, input,
     await js(main, 'document.querySelector(".ai-prompt-dialog h2").textContent'),
     '日报提示词（只读）'
   )
-  assert.match(await promptValue(), /虚构示例/)
+  assert.match(await promptValue(), /今日工作内容期望条数3条/)
   assert.equal(await js(main, `document.querySelector('${field}').readOnly`), true)
   assert.equal(await js(main, `Boolean(document.querySelector('${save}'))`), false)
   await waitFor(
@@ -132,7 +132,7 @@ export async function aiScenePromptsSmoke({ main, note, phase, js, click, input,
   assert.equal(await js(main, `Boolean(document.querySelector('${restoreDaily}'))`), false)
 
   await click(main, daily)
-  assert.match(await promptValue(), /虚构示例/)
+  assert.match(await promptValue(), /今日工作内容期望条数3条/)
   await input(main, field, '本次放弃的草稿', null)
   press('Escape')
   await closed()
@@ -204,7 +204,7 @@ export async function aiScenePromptsSmoke({ main, note, phase, js, click, input,
   const viewDefault = '.ai-prompt-dialog-heading button'
   await click(main, viewDefault)
   assert.equal(await js(main, `document.querySelector('${field}').readOnly`), true)
-  assert.match(await promptValue(), /今日完成/)
+  assert.match(await promptValue(), /今日工作内容/)
   await click(main, viewDefault)
   assert.equal(await promptValue(), '日报每项只写一句。')
   press('Escape')

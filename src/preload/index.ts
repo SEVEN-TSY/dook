@@ -2,14 +2,30 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { DesktopApi } from '../shared/contracts'
 import {
   AI_CALL_LOGGED,
+  DAILY_REPORT_GENERATING,
   IPC_CHANNELS,
   TASKS_CHANGED,
   WINDOW_STATE,
   SAVE_REQUEST
 } from '../shared/channels'
 import type { DesktopState } from '../shared/contracts'
+import type { DailyReportEdits, WindowSaveResult } from '../shared/daily-report'
 
 const api: DesktopApi = {
+  reportView: () => ipcRenderer.invoke(IPC_CHANNELS.reportView),
+  reportPrepare: () => ipcRenderer.invoke(IPC_CHANNELS.reportPrepare),
+  reportGenerate: (request, confirmed, editedSinceStart) =>
+    ipcRenderer.invoke(IPC_CHANNELS.reportGenerate, request, confirmed, editedSinceStart),
+  reportCancel: () => ipcRenderer.invoke(IPC_CHANNELS.reportCancel),
+  reportBeginEdit: (date) => ipcRenderer.invoke(IPC_CHANNELS.reportBeginEdit, date),
+  reportSave: (date, body) => ipcRenderer.invoke(IPC_CHANNELS.reportSave, date, body),
+  reportCopy: (date, body) => ipcRenderer.invoke(IPC_CHANNELS.reportCopy, date, body),
+  openDailyReport: () => ipcRenderer.invoke(IPC_CHANNELS.openDailyReport),
+  onDailyReportGenerating: (listener) => {
+    const callback = () => listener()
+    ipcRenderer.on(DAILY_REPORT_GENERATING, callback)
+    return () => ipcRenderer.removeListener(DAILY_REPORT_GENERATING, callback)
+  },
   getAiSettings: () => ipcRenderer.invoke(IPC_CHANNELS.getAiSettings),
   saveAiConfiguration: (input) => ipcRenderer.invoke(IPC_CHANNELS.saveAiConfiguration, input),
   selectAiConfiguration: (id) => ipcRenderer.invoke(IPC_CHANNELS.selectAiConfiguration, id),
@@ -41,10 +57,14 @@ const api: DesktopApi = {
     return () => ipcRenderer.removeListener(WINDOW_STATE, callback)
   },
   onSaveRequested: (listener) => {
-    const callback = async (_event: Electron.IpcRendererEvent, id: string) => {
-      let success = false
+    const callback = async (
+      _event: Electron.IpcRendererEvent,
+      id: string,
+      reportEdits?: DailyReportEdits
+    ) => {
+      let success: WindowSaveResult = false
       try {
-        success = await listener()
+        success = await listener(reportEdits)
       } catch {
         /* 主进程保留窗口，让用户重试。 */
       }

@@ -25,6 +25,7 @@ const phases =
     ? [`${requestedPhase}-create`, `${requestedPhase}-restart`]
     : [
           'toast',
+          'daily-report',
           'window-controls',
           'list-metadata',
           'habit-archive',

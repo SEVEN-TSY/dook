@@ -7,6 +7,7 @@ import {
   Plus,
   Archive,
   CalendarPlus,
+  FileText,
   Pin,
   Trash2,
   TrendingUp,
@@ -29,6 +30,7 @@ import type {
   Task,
   Inspiration
 } from '../../../../shared/contracts'
+import type { DailyReportEdits, WindowSaveResult } from '../../../../shared/daily-report'
 import { NotePages } from './NotePages'
 import { NoteEmpty } from './NoteEmpty'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
@@ -39,6 +41,9 @@ import { HabitsPanel, InspirationPanel, SettingsPage, SubitemsPanel } from '../m
 import type { InspirationPanelHandle } from '../inspirations/InspirationPanel'
 import { useInspirationInput } from '../inspirations/useInspirationInput'
 import { taskSummary as summarizeTasks } from './taskSummary'
+import { DailyReportCard } from './DailyReportCard'
+import { useDailyReport } from './useDailyReport'
+import { Button } from '../../components/ui/button'
 
 const INSPIRATION_GOAL = 5
 function noteDateLabel(date: string | undefined) {
@@ -93,6 +98,8 @@ export function TasksPage({
     move
   } = tasks
   const [page, setPage] = useState<MainPage>('task')
+  const currentPage = useRef(page)
+  currentPage.current = page
   const [adding, setAdding] = useState(false)
   const [taskComposerOpen, setTaskComposerOpen] = useState(false)
   const [taskArchiveView, setTaskArchiveView] = useState(false)
@@ -158,6 +165,9 @@ export function TasksPage({
   const habitCount =
     today?.tasks.filter((task) => task.habitId && task.date === today.date).length ?? 0
   const showMultiDay = desktop?.settings.showMultiDay ?? true
+  const dailyReport = useDailyReport(kind === 'main', page === 'task' && !hidden, showMultiDay)
+  const revealDailyReport = useRef(dailyReport.reveal)
+  revealDailyReport.current = dailyReport.reveal
   const visibleTasks = today?.tasks.filter((task) => showMultiDay || task.kind === 'today') ?? []
   const { total, completed } = summarizeTasks(visibleTasks)
   const taskSummary = useSummaryMotion(kind === 'note' && today ? total : undefined, true)
@@ -237,37 +247,71 @@ export function TasksPage({
     setEditing(null)
   })
   const habitSave = useRef(async () => true)
-  const onHabitSaveReady = useCallback((save: () => Promise<boolean>) => {
-    habitSave.current = save
-    return () => {
-      habitSave.current = async () => true
-    }
-  }, [])
-  const subitemSaves = useRef(new Map<string, () => Promise<boolean>>())
+  const reportHabitSave = useRef(async (_ids: string[]) => true)
+  const onHabitSaveReady = useCallback(
+    (save: () => Promise<boolean>, saveMatching: (ids: string[]) => Promise<boolean>) => {
+      habitSave.current = save
+      reportHabitSave.current = saveMatching
+      return () => {
+        habitSave.current = async () => true
+        reportHabitSave.current = async () => true
+      }
+    },
+    []
+  )
+  const subitemSaves = useRef(
+    new Map<string, { save: () => Promise<boolean>; saveExisting: () => Promise<boolean> }>()
+  )
   const subitemInteractions = useRef(new Set<string>())
   const [subitemEditing, setSubitemEditing] = useState(false)
-  const onSubitemSaveReady = useCallback((id: string, save: () => Promise<boolean>) => {
-    subitemSaves.current.set(id, save)
-    return () => {
-      subitemSaves.current.delete(id)
-    }
-  }, [])
+  const onSubitemSaveReady = useCallback(
+    (id: string, save: () => Promise<boolean>, saveExisting: () => Promise<boolean>) => {
+      subitemSaves.current.set(id, { save, saveExisting })
+      return () => {
+        subitemSaves.current.delete(id)
+      }
+    },
+    []
+  )
   const onSubitemInteraction = useCallback((id: string, active: boolean) => {
     if (active) subitemInteractions.current.add(id)
     else subitemInteractions.current.delete(id)
     setSubitemEditing(subitemInteractions.current.size > 0)
   }, [])
   const flush = useRef(async () => true)
+  const flushReport = useRef(async (_edits: DailyReportEdits): Promise<WindowSaveResult> => true)
+  flushReport.current = async ({ taskIds, habitIds }) => {
+    const saves = [
+      ['task', editing && taskIds.includes(editing) ? edited.save() : true],
+      [
+        'subitem',
+        Promise.all(taskIds.map((id) => subitemSaves.current.get(id)?.saveExisting() ?? true)).then(
+          (ok) => ok.every(Boolean)
+        )
+      ],
+      ['habit', reportHabitSave.current(habitIds)]
+    ] as const
+    const results = await Promise.all(
+      saves.map(async ([kind, saved]) => ((await saved) ? [] : [kind]))
+    )
+    const failed = results.flat()
+    return failed.length ? failed : true
+  }
   useEffect(() => {
     if (kind !== 'main' || !desktop?.mainNavigation) return
     let active = true
-    const target = desktop.mainNavigation.page
+    const { page: target, dailyReport } = desktop.mainNavigation
+    if (dailyReport && currentPage.current === 'task') {
+      revealDailyReport.current()
+      return
+    }
     void flush.current().then((saved) => {
       if (!active || !saved) return
       setPage(target)
       setNewKind(target === 'inspiration' ? 'inspiration' : 'task')
       setAdding(false)
       setError('')
+      if (dailyReport) revealDailyReport.current()
     })
     return () => {
       active = false
@@ -276,6 +320,7 @@ export function TasksPage({
   const clickOutside = useRef((_target: EventTarget | null) => {})
   clickOutside.current = (target) => {
     const element = target instanceof Element ? target : null
+    if (element?.closest('.daily-report, .daily-report-entry')) return
     if (
       kind === 'note' &&
       adding &&
@@ -300,13 +345,15 @@ export function TasksPage({
       ideaEdited.save(),
       habitSave.current(),
       inspirationPanel.current?.save() ?? true,
-      ...Array.from(subitemSaves.current.values(), (save) => save())
+      ...Array.from(subitemSaves.current.values(), ({ save }) => save()),
+      dailyReport.save()
     ])
     return results.every(Boolean)
   }
   useEffect(() => {
     const api = getDesktopApi()
-    const unsubscribe = api.onSaveRequested(() => {
+    const unsubscribe = api.onSaveRequested((edits) => {
+      if (edits) return flushReport.current(edits)
       deletion.cancel()
       return flush.current()
     })
@@ -544,11 +591,12 @@ export function TasksPage({
   )
   if (kind === 'main') {
     const navigate = async (next: typeof page) => {
-      if (!(await flush.current())) return
+      if (!(await flush.current())) return false
       setPage(next)
       setNewKind(next === 'inspiration' ? 'inspiration' : 'task')
       setAdding(false)
       setError('')
+      return true
     }
     return (
       <section className={`workbench page-${page}`} hidden={hidden}>
@@ -619,6 +667,11 @@ export function TasksPage({
                 {{ task: '今天', habit: '习惯', inspiration: '小记', settings: '设置' }[page]}
               </h1>
             </div>
+            {page === 'task' && (
+              <Button className="daily-report-entry" variant="outline" onClick={dailyReport.reveal}>
+                {dailyReport.draft.text.trim() ? '查看日报' : '写日报'}
+              </Button>
+            )}
           </header>
           {(page === 'task' || page === 'habit') && (
             <div
@@ -694,6 +747,17 @@ export function TasksPage({
           <Toast message={error} onDismiss={() => setError('')} />
           <div className="workbench-split" hidden={page !== 'task'}>
             <div className="workbench-list" aria-label="任务">
+              <DailyReportCard
+                report={dailyReport}
+                openSettings={() => {
+                  void navigate('settings').then((navigated) => {
+                    if (!navigated) return
+                    requestAnimationFrame(() =>
+                      document.querySelector('.settings-ai')?.scrollIntoView({ block: 'start' })
+                    )
+                  })
+                }}
+              />
               <InlineComposer
                 ref={mainTaskInput}
                 expanded={taskComposerOpen && !taskArchiveView}
@@ -954,6 +1018,16 @@ export function TasksPage({
         </div>
         {kind === 'note' && (
           <div className="note-controls">
+            <button
+              hidden={newKind !== 'task'}
+              title="打开主界面日报"
+              aria-label="打开主界面日报"
+              onClick={() =>
+                void windowAction(async () => unwrap(await getDesktopApi().openDailyReport()))
+              }
+            >
+              <FileText size={16} strokeWidth={1.5} aria-hidden="true" />
+            </button>
             <button
               data-testid="note-settings"
               title="打开设置"

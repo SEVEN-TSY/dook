@@ -5,7 +5,7 @@ interface DeletePrompt {
   confirmLabel?: string
   title: string
   description: string
-  detail: string
+  detail?: string
   focusAfterConfirm?: () => HTMLElement | null
 }
 

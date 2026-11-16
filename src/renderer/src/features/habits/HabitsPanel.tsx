@@ -13,7 +13,10 @@ import type { Habit } from '../../../../shared/contracts'
 import { getDesktopApi, unwrap } from '../../platform/desktop'
 
 interface Props {
-  onSaveReady: (save: () => Promise<boolean>) => () => void
+  onSaveReady: (
+    save: () => Promise<boolean>,
+    saveMatching: (ids: string[]) => Promise<boolean>
+  ) => () => void
   onCountsChange: (counts: { current: number; archived: number }) => void
   archiveView: boolean
   composerOpen: boolean
@@ -48,6 +51,9 @@ export function HabitsPanel({
   })
   const flush = useRef(async () => true)
   flush.current = async () => (await save.current()) && (await edited.save())
+  const saveMatching = useRef(async (_ids: string[]) => true)
+  saveMatching.current = (ids) =>
+    edited.id && ids.includes(edited.id) ? edited.save() : Promise.resolve(true)
   const clear = () => {
     text.current = ''
     setValue('')
@@ -86,7 +92,14 @@ export function HabitsPanel({
       requestAnimationFrame(() => field.current?.focus())
     }
   }, [composerOpen])
-  useEffect(() => onSaveReady(() => flush.current()), [onSaveReady])
+  useEffect(
+    () =>
+      onSaveReady(
+        () => flush.current(),
+        (ids) => saveMatching.current(ids)
+      ),
+    [onSaveReady]
+  )
   useEffect(() => {
     let active = true
     let request = 0

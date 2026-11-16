@@ -184,5 +184,32 @@ export const migrations = [
       CREATE INDEX ai_call_logs_time ON ai_call_logs(called_at);
       CREATE INDEX ai_call_logs_event_time ON ai_call_logs(event, called_at);
     `
+  },
+  {
+    version: 22,
+    name: 'daily_reports_and_progress',
+    sql: `
+      CREATE TABLE daily_reports (
+        date TEXT PRIMARY KEY,
+        body TEXT NOT NULL,
+        cutoff TEXT NOT NULL,
+        saved_at TEXT NOT NULL,
+        include_multi_day INTEGER NOT NULL CHECK(include_multi_day IN (0, 1)),
+        material_count INTEGER NOT NULL
+      ) STRICT;
+      CREATE TABLE active_task_days (date TEXT PRIMARY KEY) STRICT;
+      CREATE TRIGGER record_active_task_day AFTER INSERT ON tasks WHEN NEW.habit_id IS NULL
+      BEGIN
+        INSERT OR IGNORE INTO active_task_days VALUES (NEW.date);
+      END;
+      CREATE TABLE daily_task_progress (
+        task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+        date TEXT NOT NULL,
+        mode TEXT NOT NULL CHECK(mode IN ('manual', 'subitems')),
+        baseline INTEGER NOT NULL,
+        delta INTEGER NOT NULL,
+        PRIMARY KEY(task_id, date, mode)
+      ) STRICT;
+    `
   }
 ] as const

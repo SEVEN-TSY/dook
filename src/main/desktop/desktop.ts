@@ -30,7 +30,8 @@ export class Desktop {
     private readonly directory: string,
     private readonly quit: () => void,
     private readonly setLaunchAtLogin: (enabled: boolean) => void = () => {},
-    preferences: DesktopPreferences = readPreferences(directory)
+    preferences: DesktopPreferences = readPreferences(directory),
+    private readonly onMainHide: () => void = () => {}
   ) {
     this.preferences = preferences
     nativeTheme.themeSource = preferences.settings.appearance
@@ -83,11 +84,15 @@ export class Desktop {
   async openWindow(
     kind: WindowKind,
     page?: MainPage,
-    options?: { fromTray?: boolean; source?: BrowserWindow }
+    options?: { fromTray?: boolean; source?: BrowserWindow; dailyReport?: boolean }
   ): Promise<void> {
     if (this.exiting || this.preparingQuit) return
     if (kind === 'main' && page)
-      this.mainNavigation = { page, revision: (this.mainNavigation?.revision ?? 0) + 1 }
+      this.mainNavigation = {
+        page,
+        revision: (this.mainNavigation?.revision ?? 0) + 1,
+        dailyReport: options?.dailyReport
+      }
     let window = this.windows.get(kind)
     if (!window || window.isDestroyed()) {
       window = createWindow(kind)
@@ -111,6 +116,7 @@ export class Desktop {
         if (kind === 'main' && !this.exiting) void this.hide(current)
       })
       window.on('closed', () => {
+        if (kind === 'main') this.onMainHide()
         this.setInteraction(current, false)
         this.windows.delete(kind)
         this.visibleIntent.delete(current)
@@ -211,8 +217,19 @@ export class Desktop {
     return this.note ? this.note.protect(action) : action()
   }
 
+  acceptsMainWork(window: BrowserWindow): boolean {
+    return Boolean(
+      !this.preparingQuit &&
+      !this.exiting &&
+      this.visibleIntent.get(window) &&
+      window.isVisible() &&
+      !window.isMinimized()
+    )
+  }
+
   hide(window: BrowserWindow): Promise<void> {
     if (this.preparingQuit || this.exiting) return Promise.resolve()
+    if (window === this.windows.get('main')) this.onMainHide()
     this.visibleIntent.set(window, false)
     const existing = this.hiding.get(window)
     if (existing) return existing
@@ -245,6 +262,7 @@ export class Desktop {
   }
 
   async prepareQuit(): Promise<boolean> {
+    this.onMainHide()
     this.note?.setDragging(false)
     this.preparingQuit = true
     this.broadcast()

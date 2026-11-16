@@ -1,16 +1,20 @@
-import { ipcMain } from 'electron'
+import { clipboard, ipcMain } from 'electron'
 import type { BrowserWindow, IpcMainInvokeEvent } from 'electron'
 import type { ApiResult, BootstrapInfo, DiagnosticReport, MainPage } from '../../shared/contracts'
-import { IPC_CHANNELS } from '../../shared/channels'
+import { DAILY_REPORT_GENERATING, IPC_CHANNELS } from '../../shared/channels'
+import { dailyReportEditKinds } from '../../shared/daily-report'
+import type { DailyReportEditKind } from '../../shared/daily-report'
 import { normalizeThemeColor } from '../../shared/theme-color'
 import type { AppService } from '../core/app-service'
 import type { AiConnection } from '../ai/connection'
 import type { AiScenePrompts } from '../ai/scene-prompts'
 import type { Desktop } from './desktop'
+import type { DailyReportSession } from './daily-report-session'
 
 interface Handlers {
   ai: () => Promise<AiConnection>
   aiPrompts: () => Promise<AiScenePrompts>
+  dailyReport: DailyReportSession
   desktop: Desktop
   windows: () => BrowserWindow[]
   service: AppService
@@ -55,6 +59,72 @@ export function registerIpc(handlers: Handlers): () => void {
     handlers.changed()
     return result
   }
+  const requireMain = (window: BrowserWindow) => {
+    if (window !== handlers.desktop.windows.get('main')) throw new Error('请在主界面操作日报。')
+  }
+  const reportDate = (value: unknown) => {
+    const date = text(value)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('日报日期无效。')
+    return date
+  }
+  const dailyReport = handlers.dailyReport
+  register(IPC_CHANNELS.openDailyReport, (window) =>
+    handlers.desktop.openWindow('main', 'task', { source: window, dailyReport: true })
+  )
+  register(IPC_CHANNELS.reportView, (window) => {
+    requireMain(window)
+    return dailyReport.reports.view()
+  })
+  register(IPC_CHANNELS.reportPrepare, (window) => {
+    requireMain(window)
+    return dailyReport.prepare()
+  })
+  register(IPC_CHANNELS.reportGenerate, (window, request, confirmed, editedSinceStart) => {
+    requireMain(window)
+    if (
+      !request ||
+      typeof request !== 'object' ||
+      !('date' in request) ||
+      !('includeMultiDay' in request) ||
+      typeof request.includeMultiDay !== 'boolean' ||
+      !('configuration' in request) ||
+      (request.configuration !== null && typeof request.configuration !== 'string') ||
+      typeof confirmed !== 'boolean' ||
+      typeof editedSinceStart !== 'boolean' ||
+      !handlers.desktop.acceptsMainWork(window)
+    )
+      throw new Error('日报生成请求无效。')
+    return dailyReport.generate(
+      {
+        date: reportDate(request.date),
+        includeMultiDay: request.includeMultiDay,
+        configuration: request.configuration
+      },
+      confirmed,
+      () => {
+        if (!window.isDestroyed()) window.webContents.send(DAILY_REPORT_GENERATING)
+      },
+      editedSinceStart
+    )
+  })
+  register(IPC_CHANNELS.reportCancel, (window) => {
+    requireMain(window)
+    dailyReport.cancel()
+  })
+  register(IPC_CHANNELS.reportBeginEdit, (window, date) => {
+    requireMain(window)
+    dailyReport.reports.beginEdit(reportDate(date))
+  })
+  register(IPC_CHANNELS.reportSave, (window, date, body) => {
+    requireMain(window)
+    return dailyReport.reports.save(reportDate(date), text(body))
+  })
+  register(IPC_CHANNELS.reportCopy, (window, date, body) => {
+    requireMain(window)
+    const content = text(body)
+    if (!content.trim()) throw new Error('日报正文为空。')
+    return clipboard.writeText(`工作日报｜${reportDate(date)}\n${content}`)
+  })
   register(IPC_CHANNELS.getBootstrap, handlers.getBootstrap)
   register(IPC_CHANNELS.checkForUpdates, async () => {
     const { checkForUpdates } = await import('./updates')
@@ -156,8 +226,14 @@ export function registerIpc(handlers: Handlers): () => void {
     handlers.desktop.finishEdgePreparation(window, revision)
   })
   register(IPC_CHANNELS.saveReply, (window, id, success) => {
-    if (typeof id !== 'string' || typeof success !== 'boolean') throw new Error('保存回复无效。')
-    handlers.desktop.saves.reply(window, id, success)
+    if (
+      typeof id !== 'string' ||
+      (typeof success !== 'boolean' &&
+        (!Array.isArray(success) ||
+          !success.every((kind) => dailyReportEditKinds.some((known) => known === kind))))
+    )
+      throw new Error('保存回复无效。')
+    handlers.desktop.saves.reply(window, id, success as boolean | DailyReportEditKind[])
   })
   register(IPC_CHANNELS.runDiagnostics, handlers.runDiagnostics)
   register(IPC_CHANNELS.listHabits, () => handlers.service.listHabitOverview())

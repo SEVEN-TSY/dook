@@ -247,10 +247,11 @@ export class AppService {
     const date = localDate(this.now())
     const task = this.taskStore().get(this.taskId(id), date)
     if (task.subitems?.length) {
-      return this.taskStore().transaction(() => {
-        this.taskStore().setSubitemsCompleted(task.id, completed)
-        return this.syncSubitemProgress(task.id, date)
-      })
+      return this.mutateSubitem(
+        task.id,
+        () => this.taskStore().setSubitemsCompleted(task.id, completed),
+        true
+      )
     }
     if (task.kind === 'multi-day') return this.setTaskProgress(task.id, completed ? 100 : 0)
     return this.taskStore().update(task.id, date, { completed })
@@ -327,8 +328,10 @@ export class AppService {
 
   setSubitemCompleted(id: string, subitemId: string, completed: boolean): Task {
     if (typeof completed !== 'boolean') throw new Error('完成状态无效。')
-    return this.mutateSubitem(id, () =>
-      this.taskStore().updateSubitem(id, this.taskId(subitemId), { completed })
+    return this.mutateSubitem(
+      id,
+      () => this.taskStore().updateSubitem(id, this.taskId(subitemId), { completed }),
+      true
     )
   }
 
@@ -361,12 +364,22 @@ export class AppService {
     return this.mutateSubitem(id, () => this.taskStore().deleteSubitem(id, this.taskId(subitemId)))
   }
 
-  private mutateSubitem(id: string, action: () => void): Task {
+  private mutateSubitem(id: string, action: () => void, countProgress = false): Task {
     const date = localDate(this.now())
-    return this.taskStore().transaction(() => {
-      this.taskStore().get(this.taskId(id), date)
+    const store = this.taskStore()
+    return store.transaction(() => {
+      const before = store.get(this.taskId(id), date)
       action()
-      return this.syncSubitemProgress(id, date)
+      const after = this.syncSubitemProgress(id, date)
+      if (countProgress)
+        store.recordProgress(
+          id,
+          date,
+          'subitems',
+          before.subitems?.filter((item) => item.completed).length ?? 0,
+          after.subitems?.filter((item) => item.completed).length ?? 0
+        )
+      return after
     })
   }
 
@@ -420,13 +433,17 @@ export class AppService {
     if (!Number.isInteger(progress) || progress < 0 || progress > 100)
       throw new Error('进度必须为0至100的整数。')
     const date = localDate(this.now())
-    const task = this.taskStore().get(this.taskId(id), date)
-    if (task.kind !== 'multi-day') throw new Error('今天任务无需设置进度。')
-    if (task.subitems?.length) throw new Error('有子事项的任务进度由完成比例计算。')
-    return this.taskStore().update(task.id, date, {
-      progress,
-      completed: progress === 100,
-      completedOn: progress === 100 ? (task.completedOn ?? date) : null
+    const store = this.taskStore()
+    return store.transaction(() => {
+      const task = store.get(this.taskId(id), date)
+      if (task.kind !== 'multi-day') throw new Error('今天任务无需设置进度。')
+      if (task.subitems?.length) throw new Error('有子事项的任务进度由完成比例计算。')
+      store.recordProgress(task.id, date, 'manual', task.progress, progress)
+      return store.update(task.id, date, {
+        progress,
+        completed: progress === 100,
+        completedOn: progress === 100 ? (task.completedOn ?? date) : null
+      })
     })
   }
 

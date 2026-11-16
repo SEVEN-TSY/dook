@@ -17,9 +17,9 @@ test('升级后默认使用内置提示词，切回自定义及重启后恢复�
     ['日报', '周报', '月报', '小记归集', '每日提示']
   )
   const dailyDefault = prompts.getEffectivePrompt('daily_report')
-  assert.match(dailyDefault, /今日完成/)
-  assert.match(dailyDefault, /虚构示例/)
-  assert.match(dailyDefault, /60%/)
+  assert.match(dailyDefault, /今日工作内容/)
+  assert.match(dailyDefault, /今日工作内容期望条数3条/)
+  assert.match(dailyDefault, /进度N%/)
 
   prompts.setMode('custom')
   prompts.save('daily_report', '每项一行\n保留项目名称')

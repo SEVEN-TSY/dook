@@ -100,6 +100,26 @@ export class TaskRepository implements TaskStore {
       .run(Number(completed), taskId)
   }
 
+  recordProgress(
+    id: string,
+    date: string,
+    mode: 'manual' | 'subitems',
+    before: number,
+    after: number
+  ): void {
+    if (before === after) return
+    this.database
+      .prepare(
+        `
+      INSERT INTO daily_task_progress (task_id, date, mode, baseline, delta) VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(task_id, date, mode) DO UPDATE SET delta =
+        CASE WHEN excluded.mode = 'manual' THEN excluded.baseline + excluded.delta - baseline
+             ELSE delta + excluded.delta END
+    `
+      )
+      .run(id, date, mode, before, after - before)
+  }
+
   list(date: string): Task[] {
     return this.database
       .prepare(
@@ -115,6 +135,20 @@ export class TaskRepository implements TaskStore {
         `SELECT ${fields}, archived_at FROM tasks WHERE archived_at IS NOT NULL ORDER BY archived_at DESC, sequence DESC`
       )
       .all()
+      .map((row) => this.taskWithSubitems(row))
+  }
+
+  listCompletedArchived(date: string): Task[] {
+    return this.database
+      .prepare(
+        `
+      SELECT ${fields}, archived_at FROM tasks
+      WHERE archived_at IS NOT NULL AND completed = 1
+      AND ((kind = 'today' AND date = ?) OR (kind = 'multi-day' AND completed_on = ?))
+      ORDER BY archived_at DESC, sequence DESC
+    `
+      )
+      .all(date, date)
       .map((row) => this.taskWithSubitems(row))
   }
 

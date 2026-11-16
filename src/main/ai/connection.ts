@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import type { AiConfigurationInput, AiPreset, AiSettings } from '../../shared/ai-settings'
 import { AI_CONFIGURATION_NAME_LIMIT } from '../../shared/ai-settings'
 import { readAiUsage } from '../storage/ai-call-log'
@@ -26,6 +26,10 @@ interface Message {
 interface CompletionOptions {
   signal?: AbortSignal
   json?: boolean
+  requestLimit?: number
+  responseLimit?: number
+  validateContent?: (content: string) => void
+  onRequestStart?: () => void
 }
 
 export interface AiRequestPolicy {
@@ -42,6 +46,7 @@ type AttemptFailure = {
   status?: number
   retryAfterMs?: number
   timedOut?: boolean
+  usage?: ReturnType<typeof readAiUsage>
 }
 
 type AttemptResult =
@@ -156,6 +161,24 @@ export class AiConnection {
     return this.send(id, event, preset, key, messages, aiDefaults.completionMaxTokens, options)
   }
 
+  defaultConfiguration(): { token: string; provider: string } | null {
+    const metadata = this.store.load()
+    if (!metadata.activeId) return null
+    const configuration = this.configuration(metadata, metadata.activeId)
+    const preset = this.preset(configuration.presetId)
+    try {
+      return {
+        token: createHash('sha256')
+          .update(JSON.stringify(configuration))
+          .update(this.store.readKey(configuration.id, metadata))
+          .digest('hex'),
+        provider: preset.providerName
+      }
+    } catch {
+      return null
+    }
+  }
+
   private preset(id: string | undefined): Preset {
     const preset = aiDefaults.presets.find((candidate) => candidate.id === id)
     if (!preset) throw new Error('AI配置预设无效。')
@@ -205,6 +228,21 @@ export class AiConnection {
     maxTokens: number,
     options: CompletionOptions = {}
   ): Promise<string> {
+    const body = JSON.stringify({
+      model: preset.model,
+      messages,
+      thinking: { type: preset.reasoning === 'off' ? 'disabled' : 'enabled' },
+      reasoning_effort: preset.reasoning === 'off' ? undefined : preset.reasoning,
+      stream: aiDefaults.stream,
+      max_tokens: maxTokens,
+      response_format: options.json ? { type: 'json_object' } : undefined
+    })
+    if (options.requestLimit && Buffer.byteLength(body) > options.requestLimit)
+      throw new Error(`AI请求超过${options.requestLimit / 1024} KiB，请缩短提示词或发送内容。`)
+    if (options.onRequestStart) {
+      if (options.signal?.aborted) throw new Error('请求已取消。')
+      options.onRequestStart()
+    }
     const calledAt = new Date().toISOString()
     const started = performance.now()
     let httpStatus: number | undefined
@@ -213,10 +251,12 @@ export class AiConnection {
     let timedOut = false
     try {
       for (let attempt = 0; ; attempt++) {
-        const result = await this.attempt(preset, key, messages, maxTokens, options)
+        const result = await this.attempt(preset, key, body, options)
         if (result.status !== undefined) httpStatus = result.status
+        if (result.usage !== undefined) usage = result.usage
         if (result.ok) {
-          usage = result.usage
+          if (options.signal?.aborted) throw new Error('请求已取消。')
+          options.validateContent?.(result.content)
           outcome = 'success'
           return result.content
         }
@@ -258,8 +298,7 @@ export class AiConnection {
   private async attempt(
     preset: Preset,
     key: string,
-    messages: Message[],
-    maxTokens: number,
+    body: string,
     options: CompletionOptions
   ): Promise<AttemptResult> {
     if (options.signal?.aborted) throw new Error('请求已取消。')
@@ -272,15 +311,7 @@ export class AiConnection {
         headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
         redirect: 'error',
         signal,
-        body: JSON.stringify({
-          model: preset.model,
-          messages,
-          thinking: { type: preset.reasoning === 'off' ? 'disabled' : 'enabled' },
-          reasoning_effort: preset.reasoning === 'off' ? undefined : preset.reasoning,
-          stream: aiDefaults.stream,
-          max_tokens: maxTokens,
-          response_format: options.json ? { type: 'json_object' } : undefined
-        })
+        body
       })
     } catch (error) {
       if (options.signal?.aborted) throw new Error('请求已取消。')
@@ -293,12 +324,15 @@ export class AiConnection {
       return httpFailure(response.status, response.headers.get('retry-after'))
     }
 
+    let usage: ReturnType<typeof readAiUsage>
     try {
-      const result = (await response.json()) as {
+      const result = (await (options.responseLimit
+        ? readBoundedResponse(response, options.responseLimit)
+        : response.json())) as {
         usage?: unknown
         choices?: { finish_reason?: string; message?: { content?: string } }[]
       }
-      const usage = readAiUsage(result?.usage)
+      usage = readAiUsage(result?.usage)
       const choice = result?.choices?.[0]
       const content = choice?.message?.content
       if (choice?.finish_reason !== 'stop' || typeof content !== 'string' || !content.trim())
@@ -309,6 +343,7 @@ export class AiConnection {
       return {
         ok: false,
         status: response.status,
+        usage,
         retryable: false,
         message: 'AI服务返回了无效或不完整的响应，请稍后重试。'
       }
@@ -336,6 +371,28 @@ export class AiConnection {
       }
       signal?.addEventListener('abort', abort, { once: true })
     })
+  }
+}
+
+async function readBoundedResponse(response: Response, limit: number): Promise<unknown> {
+  if (!response.body) throw new Error('响应缺少正文。')
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let bytes = 0
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      bytes += value.byteLength
+      if (bytes > limit) {
+        void reader.cancel().catch(() => {})
+        throw new Error('响应正文超出大小限制。')
+      }
+      chunks.push(value)
+    }
+    return JSON.parse(Buffer.concat(chunks, bytes).toString('utf8'))
+  } finally {
+    reader.releaseLock()
   }
 }
 

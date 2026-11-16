@@ -15,7 +15,7 @@ export function DeleteConfirmationDialog({
 }: {
   title: string
   description: string
-  detail: string
+  detail?: string
   confirmLabel?: string
   onOpenChange: (open: boolean) => void
   onEscapeKeyDown: () => void
@@ -36,7 +36,7 @@ export function DeleteConfirmationDialog({
           <AlertDialog.Description asChild>
             <div className="delete-confirmation-description">
               <p>{description}</p>
-              <p>{detail}</p>
+              {detail && <p>{detail}</p>}
             </div>
           </AlertDialog.Description>
           <div className="delete-confirmation-actions">

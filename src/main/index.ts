@@ -2,7 +2,11 @@ import { app, dialog, safeStorage } from 'electron'
 import { dirname, resolve } from 'node:path'
 import type { McpStatus } from '../shared/contracts'
 import { AI_CALL_LOGGED, TASKS_CHANGED } from '../shared/channels'
+import type { DailyReportEditKind } from '../shared/daily-report'
 import { TaskRepository } from './storage/repositories/tasks'
+import { DailyReportRepository } from './storage/repositories/daily-reports'
+import { DailyReports } from './core/daily-reports'
+import { DailyReportSession } from './desktop/daily-report-session'
 import { HabitRepository } from './storage/repositories/habits'
 import { InspirationRepository } from './storage/repositories/inspirations'
 import { localDate } from './core/tasks'
@@ -20,6 +24,12 @@ import {
   prepareDataDirectory,
   readInstalledDataDirectory
 } from './storage/data-directory'
+
+const reportEditLabels: Record<DailyReportEditKind, string> = {
+  task: '任务描述',
+  subitem: '子事项',
+  habit: '习惯描述'
+}
 
 app.setName('DOOK')
 app.setAppUserModelId('com.dook.desktop')
@@ -63,13 +73,20 @@ if (!app.requestSingleInstanceLock()) {
         await prepareDataDirectory(dataDirectory, previousDataDirectory, formerDataDirectory)
       )
       const preferences = dataPreferences ?? readPreferences(dataDirectory)
-      const service = new AppService(database, new TaskRepository(database.connection), undefined, {
+      const tasks = new TaskRepository(database.connection)
+      const service = new AppService(database, tasks, undefined, {
         habits: new HabitRepository(database.connection),
         inspirations: new InspirationRepository(database.connection)
       })
       service.ensureDailyTasks()
       const setLaunchAtLogin = (enabled: boolean) => configureLaunchAtLogin(app, enabled)
-      const desktop = new Desktop(dataDirectory, () => app.quit(), setLaunchAtLogin, preferences)
+      const desktop = new Desktop(
+        dataDirectory,
+        () => app.quit(),
+        setLaunchAtLogin,
+        preferences,
+        () => dailyReport.cancel()
+      )
       const windows = desktop.windows
       const changed = () => {
         for (const window of windows.values()) {
@@ -121,6 +138,7 @@ if (!app.requestSingleInstanceLock()) {
           desktop.dispose()
           disposeIpc()
           try {
+            await dailyReport.stop()
             await endpoint?.close()
           } finally {
             database.close()
@@ -180,12 +198,40 @@ if (!app.requestSingleInstanceLock()) {
             }
           )
         })())
+      const scenePrompts = () =>
+        (aiPrompts ??= import('./ai/scene-prompts').then(
+          ({ AiScenePrompts }) => new AiScenePrompts(dataDirectory)
+        ))
+      const dailyReport = new DailyReportSession(
+        new DailyReports(tasks, new DailyReportRepository(database.connection)),
+        aiConnection,
+        scenePrompts,
+        () => desktop.state().settings.showMultiDay,
+        async (edits, signal) => {
+          const results = await Promise.all(
+            [...windows.entries()].map(async ([kind, window]) => ({
+              kind,
+              result: await desktop.saves.flushReport(window, edits, signal)
+            }))
+          )
+          const errors = results.flatMap(({ kind, result }) =>
+            result === true
+              ? []
+              : [
+                  `${kind === 'main' ? '主界面' : '桌面便签'}${
+                    Array.isArray(result)
+                      ? `的${result.map((kind) => reportEditLabels[kind]).join('、')}尚未保存`
+                      : '未能确认任务、子事项或习惯编辑已保存'
+                  }`
+                ]
+          )
+          if (errors.length) throw new Error(`${errors.join('；')}。请处理相关编辑后重新生成。`)
+        }
+      )
       disposeIpc = registerIpc({
         ai: aiConnection,
-        aiPrompts: () =>
-          (aiPrompts ??= import('./ai/scene-prompts').then(
-            ({ AiScenePrompts }) => new AiScenePrompts(dataDirectory)
-          )),
+        aiPrompts: scenePrompts,
+        dailyReport,
         desktop,
         windows: () => [...windows.values()],
         service,

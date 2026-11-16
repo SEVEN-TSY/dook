@@ -47,8 +47,11 @@ test('SQLite迁移可重复启动，诊断不留下业务数据', (t) => {
     assert.deepEqual(
       tables.map((row) => row.name),
       [
+        'active_task_days',
         'ai_call_logs',
         'app_metadata',
+        'daily_reports',
+        'daily_task_progress',
         'habit_generations',
         'habits',
         'inspiration_additions',
@@ -89,6 +92,10 @@ test('DOOK首次启动导入旧数据库的WAL、窗口设置和MCP凭证，重�
     rmSync(directory, { recursive: true, force: true })
   })
   oldDatabase.connection.exec(`
+    DROP TRIGGER record_active_task_day;
+    DROP TABLE daily_task_progress;
+    DROP TABLE active_task_days;
+    DROP TABLE daily_reports;
     DROP TABLE ai_call_logs;
     DELETE FROM schema_migrations WHERE version >= 20;
     UPDATE app_metadata SET value = 'mytodo' WHERE key = 'schema';

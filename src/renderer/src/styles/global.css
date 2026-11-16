@@ -447,6 +447,9 @@ h1 {
 .note-controls button:disabled {
   opacity: 1;
 }
+.note-controls button[hidden] {
+  display: none;
+}
 .note-controls button[aria-pressed='true'] {
   color: var(--app-accent);
   background: transparent;

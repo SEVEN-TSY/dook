@@ -8,6 +8,14 @@ export const IPC_CHANNELS = {
   finishNoteMotion: 'desktop:motion-finished',
   finishEdgePreparation: 'desktop:edge-prepared',
   saveReply: 'desktop:save-reply',
+  reportView: 'daily-report:view',
+  reportPrepare: 'daily-report:prepare',
+  reportGenerate: 'daily-report:generate',
+  reportCancel: 'daily-report:cancel',
+  reportBeginEdit: 'daily-report:begin-edit',
+  reportSave: 'daily-report:save',
+  reportCopy: 'daily-report:copy',
+  openDailyReport: 'daily-report:open',
   listHabits: 'habits:list',
   listArchivedHabits: 'habits:list-archived',
   archiveHabit: 'habits:archive',
@@ -72,3 +80,4 @@ export const TASKS_CHANGED = 'tasks:changed'
 export const AI_CALL_LOGGED = 'ai:call-logged'
 export const WINDOW_STATE = 'desktop:changed'
 export const SAVE_REQUEST = 'desktop:save-request'
+export const DAILY_REPORT_GENERATING = 'daily-report:generating'

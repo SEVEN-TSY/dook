@@ -1,6 +1,14 @@
 /** 只放跨进程可序列化的数据契约，不依赖Electron或Node.js。 */
 import type { AiConfigurationInput, AiSettings } from './ai-settings'
 import type { AiPromptMode, AiScenePromptSettings } from './ai-scene-prompts'
+import type {
+  DailyReport,
+  DailyReportEdits,
+  DailyReportPreparation,
+  DailyReportResult,
+  DailyReportView,
+  WindowSaveResult
+} from './daily-report'
 
 export interface RuntimeInfo {
   appVersion: string
@@ -56,6 +64,19 @@ export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string }
 
 /** 显式白名单API；渲染进程不能调用任意IPC、SQL或Node.js接口。 */
 export interface DesktopApi {
+  reportView: () => Promise<ApiResult<DailyReportView>>
+  reportPrepare: () => Promise<ApiResult<DailyReportPreparation>>
+  reportGenerate: (
+    request: DailyReportPreparation,
+    confirmedHidden: boolean,
+    editedSinceStart: boolean
+  ) => Promise<ApiResult<DailyReportResult>>
+  reportCancel: () => Promise<ApiResult<void>>
+  reportBeginEdit: (date: string) => Promise<ApiResult<void>>
+  reportSave: (date: string, body: string) => Promise<ApiResult<DailyReport>>
+  reportCopy: (date: string, body: string) => Promise<ApiResult<void>>
+  openDailyReport: () => Promise<ApiResult<void>>
+  onDailyReportGenerating: (listener: () => void) => () => void
   getAiSettings: () => Promise<ApiResult<AiSettings>>
   saveAiConfiguration: (input: AiConfigurationInput) => Promise<ApiResult<AiSettings>>
   selectAiConfiguration: (id: string) => Promise<ApiResult<AiSettings>>
@@ -77,7 +98,9 @@ export interface DesktopApi {
   finishNoteMotion: (revision: number) => Promise<ApiResult<void>>
   finishEdgePreparation: (revision: number) => Promise<ApiResult<void>>
   onWindowState: (listener: (state: DesktopState) => void) => () => void
-  onSaveRequested: (listener: () => Promise<boolean>) => () => void
+  onSaveRequested: (
+    listener: (reportEdits?: DailyReportEdits) => Promise<WindowSaveResult>
+  ) => () => void
   listHabits: () => Promise<ApiResult<Habit[]>>
   listArchivedHabits: () => Promise<ApiResult<Habit[]>>
   archiveHabit: (id: string) => Promise<ApiResult<void>>
@@ -173,7 +196,7 @@ export type MainPage = 'task' | 'habit' | 'inspiration' | 'settings'
 export interface DesktopState {
   colorScheme: 'light' | 'dark'
   systemAccentColor: string
-  mainNavigation?: { page: MainPage; revision: number }
+  mainNavigation?: { page: MainPage; revision: number; dailyReport?: boolean }
   exitPending: boolean
   settings: WindowSettings
   pinned: boolean

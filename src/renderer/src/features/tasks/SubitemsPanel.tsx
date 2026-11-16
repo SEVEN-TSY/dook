@@ -14,7 +14,11 @@ interface Props {
   task: Task
   changed: () => Promise<void>
   report: (message: string) => void
-  onSaveReady: (id: string, save: () => Promise<boolean>) => () => void
+  onSaveReady: (
+    id: string,
+    save: () => Promise<boolean>,
+    saveExisting: () => Promise<boolean>
+  ) => () => void
   onInteraction: (id: string, active: boolean) => void
 }
 interface Draft {
@@ -50,6 +54,7 @@ export function SubitemsPanel({
   const [dropTarget, setDropTarget] = useState<{ id: string; before: boolean } | null>(null)
   const [focused, setFocused] = useState(false)
   const save = useRef(async () => true)
+  const saveExisting = useRef(async () => true)
   const reset = () => {
     current.current = { text: '', saved: '' }
     setDraft(current.current)
@@ -141,6 +146,7 @@ export function SubitemsPanel({
     if (composing.current || newInput.composing.current) report('请先完成输入法选字，再切换任务。')
     return Promise.all([saveDraft(), newInput.save()]).then((results) => results.every(Boolean))
   }
+  saveExisting.current = () => (current.current.id ? saveDraft() : Promise.resolve(true))
   const busy = saving || newInput.saving || mutating
   useEffect(() => {
     const session = current.current
@@ -153,7 +159,15 @@ export function SubitemsPanel({
       report('正在编辑的子事项已删除，编辑已结束。')
     }
   }, [task.subitems])
-  useEffect(() => onSaveReady(task.id, () => save.current()), [task.id, onSaveReady])
+  useEffect(
+    () =>
+      onSaveReady(
+        task.id,
+        () => save.current(),
+        () => saveExisting.current()
+      ),
+    [task.id, onSaveReady]
+  )
   useEffect(() => {
     onInteraction(task.id, draft.id !== undefined || (focused && Boolean(newText.trim())))
     return () => onInteraction(task.id, false)
